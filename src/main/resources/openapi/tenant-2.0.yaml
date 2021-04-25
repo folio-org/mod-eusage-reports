@@ -34,6 +34,13 @@ paths:
     get:
       description: Get tenant job
       operationId: getTenantJob
+      parameters:
+        - in: path
+          name: id
+          required: true
+          description: job identifier
+          schema:
+            type: string
       responses:
         "200":
           description: job returned OK

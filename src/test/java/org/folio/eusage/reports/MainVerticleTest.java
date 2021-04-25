@@ -59,7 +59,6 @@ public class MainVerticleTest {
         }).onComplete(context.asyncAssertSuccess());
   }
 
-  @Ignore
   @Test
   public void testGetTenantOK(TestContext context) {
     RestAssured.given()
