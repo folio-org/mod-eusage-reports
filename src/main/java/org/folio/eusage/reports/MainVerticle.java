@@ -4,7 +4,6 @@ import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Future;
 import io.vertx.core.Promise;
 import io.vertx.core.http.HttpServerOptions;
-import io.vertx.core.json.Json;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.openapi.RouterBuilder;
@@ -32,13 +31,13 @@ public class MainVerticle extends AbstractVerticle {
     future = future.compose(x -> createRoutereUsageReports(m.getVersion()))
         .onSuccess(x -> router.mountSubRouter("/", x)).mapEmpty();
 
-    future.<Void>compose(x -> {
+    future = future.compose(x -> {
       HttpServerOptions so = new HttpServerOptions().setHandle100ContinueAutomatically(true);
       return vertx.createHttpServer(so)
           .requestHandler(router)
           .listen(port).mapEmpty();
-    })
-        .onComplete(promise);
+    });
+    future.onComplete(promise);
   }
 
   Future<Router> createRouterTenantApi() {
