@@ -8,12 +8,12 @@ import io.vertx.core.json.JsonObject;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
 import io.vertx.ext.web.client.WebClient;
-import org.hamcrest.Matchers;
 import org.junit.After;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+
+import static org.hamcrest.Matchers.is;
 
 @RunWith(VertxUnitRunner.class)
 public class MainVerticleTest {
@@ -45,7 +45,9 @@ public class MainVerticleTest {
         .header("Content-Type", "application/json")
         .body("{\"module_to\" : \"mod-eusage-reports-1.0.0\"}")
         .post("/_/tenant")
-        .then().statusCode(201);
+        .then().statusCode(201)
+        .header("Content-Type", is("application/json"))
+        .body("id", is("1234"));
   }
 
   @Test
@@ -63,7 +65,9 @@ public class MainVerticleTest {
   public void testGetTenantOK(TestContext context) {
     RestAssured.given()
         .get("/_/tenant/121")
-        .then().statusCode(200);
+        .then().statusCode(200)
+        .header("Content-Type", is("application/json"))
+        .body("id", is("121"));
   }
 
   @Test
@@ -98,6 +102,6 @@ public class MainVerticleTest {
     RestAssured.given()
         .get("/eusage/version")
         .then().statusCode(200)
-        .body(Matchers.is("0.0"));
+        .body(is("0.0"));
   }
 }

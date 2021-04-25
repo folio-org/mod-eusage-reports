@@ -31,16 +31,16 @@ paths:
         "500":
           $ref: "#/components/responses/trait_500"
   /_/tenant/{id}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        description: job identifier
+        schema:
+          type: string
     get:
       description: Get tenant job
       operationId: getTenantJob
-      parameters:
-        - in: path
-          name: id
-          required: true
-          description: job identifier
-          schema:
-            type: string
       responses:
         "200":
           description: job returned OK
