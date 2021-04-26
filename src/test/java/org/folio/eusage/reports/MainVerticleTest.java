@@ -71,6 +71,22 @@ public class MainVerticleTest {
   }
 
   @Test
+  public void testGetTenantOKWait100(TestContext context) {
+    RestAssured.given()
+        .get("/_/tenant/121?wait=100")
+        .then().statusCode(200)
+        .header("Content-Type", is("application/json"))
+        .body("id", is("121"));
+  }
+
+  @Test
+  public void testDeleteTenantOK(TestContext context) {
+    RestAssured.given()
+        .delete("/_/tenant/121")
+        .then().statusCode(204);
+  }
+
+  @Test
   public void testPostTenantBadJson(TestContext context) {
     RestAssured.given()
         .header("Content-Type", "application/json")

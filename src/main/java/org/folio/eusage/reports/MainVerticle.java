@@ -8,6 +8,7 @@ import io.vertx.core.json.Json;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.openapi.RouterBuilder;
+import io.vertx.ext.web.validation.RequestParameter;
 import io.vertx.ext.web.validation.RequestParameters;
 import io.vertx.ext.web.validation.ValidationHandler;
 import org.apache.logging.log4j.LogManager;
@@ -65,15 +66,31 @@ public class MainVerticle extends AbstractVerticle {
           routerBuilder
               .operation("getTenantJob")
               .handler(ctx -> {
-                log.info("getTenantJob handler");
                 RequestParameters params = ctx.get(ValidationHandler.REQUEST_CONTEXT_KEY);
                 String id = params.pathParameter("id").getString();
+                RequestParameter wait = params.queryParameter("wait");
+                log.info("getTenantJob handler id={} wait={}", id, wait != null ? wait.getInteger() : "null");
                 ctx.response().setStatusCode(200);
                 ctx.response().putHeader("Content-Type", "application/json");
                 ctx.response().end(new JsonObject().put("id", id).encode());
               })
               .failureHandler(ctx -> {
                 log.info("getTenantJob failureHandler");
+                ctx.response().setStatusCode(400);
+                ctx.response().putHeader("Content-Type", "text/plain");
+                ctx.response().end("Failure");
+              });
+          routerBuilder
+              .operation("deleteTenantJob")
+              .handler(ctx -> {
+                RequestParameters params = ctx.get(ValidationHandler.REQUEST_CONTEXT_KEY);
+                String id = params.pathParameter("id").getString();
+                log.info("deleteTenantJob handler id={}", id);
+                ctx.response().setStatusCode(204);
+                ctx.response().end();
+              })
+              .failureHandler(ctx -> {
+                log.info("deleteTenantJob failureHandler");
                 ctx.response().setStatusCode(400);
                 ctx.response().putHeader("Content-Type", "text/plain");
                 ctx.response().end("Failure");
