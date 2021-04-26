@@ -41,6 +41,15 @@ paths:
     get:
       description: Get tenant job
       operationId: getTenantJob
+      parameters:
+        - in: query
+          name: wait
+          required: false
+          description: wait until job change, but no longer than the wait
+            time - in milliseconds. 0 means "no wait" and is behavior if
+            omitted.
+          schema:
+            type: integer
       responses:
         "200":
           description: job returned OK
