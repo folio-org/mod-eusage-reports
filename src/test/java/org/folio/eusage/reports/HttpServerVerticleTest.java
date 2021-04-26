@@ -18,11 +18,11 @@ import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.is;
 
 @RunWith(VertxUnitRunner.class)
-public class MainVerticleTest {
+public class HttpServerVerticleTest {
 
   Vertx vertx;
   WebClient webClient;
-  int port = 9230;
+  int port = 8080;
 
   @Before
   public void setup(TestContext context) {
@@ -33,7 +33,7 @@ public class MainVerticleTest {
 
     DeploymentOptions deploymentOptions = new DeploymentOptions();
     deploymentOptions.setConfig(new JsonObject().put("port", Integer.toString(port)));
-    vertx.deployVerticle(new MainVerticle(), deploymentOptions).onComplete(context.asyncAssertSuccess());
+    vertx.deployVerticle(new HttpServerVerticle(), deploymentOptions).onComplete(context.asyncAssertSuccess());
   }
 
   @After
@@ -56,7 +56,7 @@ public class MainVerticleTest {
         .body("{\"module_to\" : \"mod-eusage-reports-1.0.0\"}")
         .post("/_/tenant")
         .then().statusCode(201)
-        .header("Content-Type", is("application/json"))
+        .header("Content-Type", is("application/json; charset=utf-8"))
         .body("id", is("1234"));
   }
 
@@ -76,7 +76,7 @@ public class MainVerticleTest {
     RestAssured.given()
         .get("/_/tenant/121")
         .then().statusCode(200)
-        .header("Content-Type", is("application/json"))
+        .header("Content-Type", is("application/json; charset=utf-8"))
         .body("id", is("121"));
   }
 
@@ -85,7 +85,7 @@ public class MainVerticleTest {
     RestAssured.given()
         .get("/_/tenant/121?wait=100")
         .then().statusCode(200)
-        .header("Content-Type", is("application/json"))
+        .header("Content-Type", is("application/json; charset=utf-8"))
         .body("id", is("121"));
   }
 
