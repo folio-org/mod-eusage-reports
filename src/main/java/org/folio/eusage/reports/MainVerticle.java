@@ -3,6 +3,7 @@ package org.folio.eusage.reports;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Future;
 import io.vertx.core.Promise;
+import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServerOptions;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.Router;
@@ -34,6 +35,11 @@ public class MainVerticle extends AbstractVerticle {
         .onSuccess(x -> router.mountSubRouter("/", x)).mapEmpty();
     future = future.compose(x -> createRoutereUsageReports(m.getVersion()))
         .onSuccess(x -> router.mountSubRouter("/", x)).mapEmpty();
+
+    router.route(HttpMethod.GET, "/admin/health").handler(ctx -> {
+      ctx.response().putHeader("Content-Type", "text/plain");
+      ctx.response().end("OK");
+    });
 
     future = future.compose(x -> {
       HttpServerOptions so = new HttpServerOptions().setHandle100ContinueAutomatically(true);

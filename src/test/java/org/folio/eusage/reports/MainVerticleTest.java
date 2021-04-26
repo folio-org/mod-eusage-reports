@@ -40,6 +40,14 @@ public class MainVerticleTest {
   }
 
   @Test
+  public void testAdminHealth(TestContext context) {
+    RestAssured.given()
+        .get("/admin/health")
+        .then().statusCode(200)
+        .header("Content-Type", is("text/plain"));
+  }
+
+  @Test
   public void testPostTenantOK(TestContext context) {
     RestAssured.given()
         .header("Content-Type", "application/json")
