@@ -1,7 +1,6 @@
 buildMvn {
   publishModDescriptor = true
   mvnDeploy = true
-  publishAPI = true
   buildNode =  'jenkins-agent-java11'
  
   doApiLint = true
