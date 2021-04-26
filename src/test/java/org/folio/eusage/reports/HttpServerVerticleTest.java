@@ -22,7 +22,7 @@ public class HttpServerVerticleTest {
 
   Vertx vertx;
   WebClient webClient;
-  int port = 8080;
+  int port = 9230;
 
   @Before
   public void setup(TestContext context) {

@@ -25,8 +25,8 @@ public class MainVerticle extends AbstractVerticle {
     ModuleVersionReporter m = new ModuleVersionReporter("org.folio/mod-eusage-reports");
     log.info("Starting {} {} {}", m.getModule(), m.getVersion(), m.getCommitId());
 
-    int port = Integer.parseInt(Config.getSysConf("http.port", "port", "8081", config()));
-    log.info("Port {}", port);
+    final int port = Integer.parseInt(
+        Config.getSysConf("http.port", "port", "8081", config()));
 
     Router router = Router.router(vertx);
 

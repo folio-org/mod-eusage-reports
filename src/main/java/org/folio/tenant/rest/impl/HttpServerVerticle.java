@@ -9,6 +9,7 @@ import io.vertx.ext.web.RoutingContext;
 import io.vertx.ext.web.openapi.RouterBuilder;
 import io.vertx.ext.web.openapi.RouterBuilderOptions;
 import org.folio.eusage.rest.impl.EusageApiImpl;
+import org.folio.okapi.common.Config;
 import org.folio.tenant.rest.resource.DefaultApiHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -60,6 +61,8 @@ public class HttpServerVerticle extends AbstractVerticle {
 
   @Override
   public void start(Promise<Void> startPromise) {
+    final int port = Integer.parseInt(
+        Config.getSysConf("http.port", "port", "8081", config()));
 
     Router router = Router.router(vertx);
 
@@ -77,7 +80,7 @@ public class HttpServerVerticle extends AbstractVerticle {
     future = future.compose(x ->
       vertx.createHttpServer()
           .requestHandler(router)
-          .listen(8080).mapEmpty()
+          .listen(port).mapEmpty()
     );
     future
         .onSuccess(server -> logger.info("Http verticle deploy successful"))
