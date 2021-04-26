@@ -18,9 +18,9 @@ public class HttpServerVerticle extends AbstractVerticle {
 
   private static final Logger logger = LoggerFactory.getLogger(HttpServerVerticle.class);
   private static final String TENANT_SPEC_FILE =
-      "src/main/resources/openapi/tenant-2.0.yaml";
+      "openapi/tenant-2.0.yaml";
   private static final String EUSAGE_SPEC_FILE =
-      "src/main/resources/openapi/eusage-reports-1.0.yaml";
+      "openapi/eusage-reports-1.0.yaml";
 
   private final DefaultApiHandler defaultHandler = new DefaultApiHandler(new TenantApiImpl());
   private final org.folio.eusage.rest.resource.DefaultApiHandler eusageHandler =
