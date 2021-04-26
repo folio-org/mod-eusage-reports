@@ -4,9 +4,9 @@ import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Future;
 import io.vertx.core.Promise;
 import io.vertx.core.http.HttpServerOptions;
-import io.vertx.core.json.Json;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.Router;
+import io.vertx.ext.web.RoutingContext;
 import io.vertx.ext.web.openapi.RouterBuilder;
 import io.vertx.ext.web.validation.RequestParameter;
 import io.vertx.ext.web.validation.RequestParameters;
@@ -44,6 +44,12 @@ public class MainVerticle extends AbstractVerticle {
     future.onComplete(promise);
   }
 
+  void failHandler(RoutingContext ctx) {
+    ctx.response().setStatusCode(400);
+    ctx.response().putHeader("Content-Type", "text/plain");
+    ctx.response().end("Failure");
+  }
+
   Future<Router> createRouterTenantApi() {
     return RouterBuilder.create(vertx, "src/main/resources/openapi/tenant-2.0.yaml")
         .compose(routerBuilder -> {
@@ -57,12 +63,7 @@ public class MainVerticle extends AbstractVerticle {
                 tenantJob.put("id", "1234");
                 ctx.response().end(tenantJob.encode());
               })
-              .failureHandler(ctx -> {
-                log.info("postTenant failureHandler");
-                ctx.response().setStatusCode(400);
-                ctx.response().putHeader("Content-Type", "text/plain");
-                ctx.response().end("Failure");
-              });
+              .failureHandler(this::failHandler);
           routerBuilder
               .operation("getTenantJob")
               .handler(ctx -> {
@@ -75,12 +76,7 @@ public class MainVerticle extends AbstractVerticle {
                 ctx.response().putHeader("Content-Type", "application/json");
                 ctx.response().end(new JsonObject().put("id", id).encode());
               })
-              .failureHandler(ctx -> {
-                log.info("getTenantJob failureHandler");
-                ctx.response().setStatusCode(400);
-                ctx.response().putHeader("Content-Type", "text/plain");
-                ctx.response().end("Failure");
-              });
+              .failureHandler(this::failHandler);
           routerBuilder
               .operation("deleteTenantJob")
               .handler(ctx -> {
@@ -90,12 +86,7 @@ public class MainVerticle extends AbstractVerticle {
                 ctx.response().setStatusCode(204);
                 ctx.response().end();
               })
-              .failureHandler(ctx -> {
-                log.info("deleteTenantJob failureHandler");
-                ctx.response().setStatusCode(400);
-                ctx.response().putHeader("Content-Type", "text/plain");
-                ctx.response().end("Failure");
-              });
+              .failureHandler(this::failHandler);
           return Future.succeededFuture(routerBuilder.createRouter());
         });
   }
@@ -111,12 +102,7 @@ public class MainVerticle extends AbstractVerticle {
                 ctx.response().putHeader("Content-Type", "text/plain");
                 ctx.response().end(version == null ? "0.0" : version);
               })
-              .failureHandler(ctx -> {
-                log.info("getVersion failureHandler");
-                ctx.response().setStatusCode(400);
-                ctx.response().putHeader("Content-Type", "text/plain");
-                ctx.response().end("Failure");
-              });
+              .failureHandler(this::failHandler);
           return Future.succeededFuture(routerBuilder.createRouter());
         });
   }
