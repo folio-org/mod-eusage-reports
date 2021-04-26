@@ -57,7 +57,7 @@ public class MainVerticle extends AbstractVerticle {
   }
 
   Future<Router> createRouterTenantApi() {
-    return RouterBuilder.create(vertx, "src/main/resources/openapi/tenant-2.0.yaml")
+    return RouterBuilder.create(vertx, "openapi/tenant-2.0.yaml")
         .compose(routerBuilder -> {
           routerBuilder
               .operation("postTenant")
@@ -98,7 +98,7 @@ public class MainVerticle extends AbstractVerticle {
   }
 
   Future<Router> createRoutereUsageReports(String version) {
-    return RouterBuilder.create(vertx, "src/main/resources/openapi/eusage-reports-1.0.yaml")
+    return RouterBuilder.create(vertx, "openapi/eusage-reports-1.0.yaml")
         .compose(routerBuilder -> {
           routerBuilder
               .operation("getVersion")
