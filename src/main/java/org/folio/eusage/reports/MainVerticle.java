@@ -69,7 +69,8 @@ public class MainVerticle extends AbstractVerticle {
                 RequestParameters params = ctx.get(ValidationHandler.REQUEST_CONTEXT_KEY);
                 String id = params.pathParameter("id").getString();
                 RequestParameter wait = params.queryParameter("wait");
-                log.info("getTenantJob handler id={} wait={}", id, wait != null ? wait.getInteger() : "null");
+                log.info("getTenantJob handler id={} wait={}", id,
+                    wait != null ? wait.getInteger() : "null");
                 ctx.response().setStatusCode(200);
                 ctx.response().putHeader("Content-Type", "application/json");
                 ctx.response().end(new JsonObject().put("id", id).encode());
