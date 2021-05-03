@@ -13,7 +13,7 @@
 
  * Many tools available: https://openapi.tools/
  * Vertx.x Web API Service  https://vertx.io/docs/vertx-web-api-service/java/
- * OpenAPI generator: OpenAPI Generator
+ * [OpenAPI generator](https://openapi-generator.tech/)
 
 ## Vertx.x Web API usage
 
