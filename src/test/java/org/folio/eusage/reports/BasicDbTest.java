@@ -8,18 +8,13 @@ import io.vertx.ext.unit.junit.VertxUnitRunner;
 import io.vertx.pgclient.PgConnectOptions;
 import io.vertx.pgclient.PgPool;
 import io.vertx.sqlclient.PoolOptions;
-import io.vertx.sqlclient.Row;
-import io.vertx.sqlclient.RowSet;
 import io.vertx.sqlclient.Tuple;
+import java.util.UUID;
 import org.junit.AfterClass;
-import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.testcontainers.containers.PostgreSQLContainer;
-
-import java.util.UUID;
-
 
 @RunWith(VertxUnitRunner.class)
 public class BasicDbTest {
