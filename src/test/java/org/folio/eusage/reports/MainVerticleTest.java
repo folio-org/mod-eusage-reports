@@ -8,7 +8,6 @@ import io.vertx.core.json.JsonObject;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
 import io.vertx.ext.web.client.WebClient;
-import org.folio.tenant.rest.impl.HttpServerVerticle;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
