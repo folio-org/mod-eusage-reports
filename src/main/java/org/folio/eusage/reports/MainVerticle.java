@@ -14,6 +14,7 @@ import io.vertx.ext.web.validation.RequestParameters;
 import io.vertx.ext.web.validation.ValidationHandler;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.folio.eusage.reports.postgres.TenantPgPool;
 import org.folio.okapi.common.Config;
 import org.folio.okapi.common.ModuleVersionReporter;
 
@@ -22,6 +23,7 @@ public class MainVerticle extends AbstractVerticle {
 
   @Override
   public void start(Promise<Void> promise) {
+    TenantPgPool.setModule("mod-eusage-reports");
     ModuleVersionReporter m = new ModuleVersionReporter("org.folio/mod-eusage-reports");
     log.info("Starting {} {} {}", m.getModule(), m.getVersion(), m.getCommitId());
 
@@ -31,7 +33,7 @@ public class MainVerticle extends AbstractVerticle {
     Router router = Router.router(vertx);
 
     Future<Void> future = Future.succeededFuture();
-    future = future.compose(x -> createRouterTenantApi())
+    future = future.compose(x -> createRouterTenantApi2())
         .onSuccess(x -> router.mountSubRouter("/", x)).mapEmpty();
     future = future.compose(x -> createRoutereUsageReports(m.getVersion()))
         .onSuccess(x -> router.mountSubRouter("/", x)).mapEmpty();
@@ -54,6 +56,14 @@ public class MainVerticle extends AbstractVerticle {
     ctx.response().setStatusCode(400);
     ctx.response().putHeader("Content-Type", "text/plain");
     ctx.response().end("Failure");
+  }
+
+  Future<Router> createRouterTenantApi2() {
+    return RouterBuilder.create(vertx, "openapi/tenant-2.0.yaml")
+        .map(routerBuilder -> {
+          TenantInitDb.handlers(vertx, routerBuilder);
+          return routerBuilder.createRouter();
+        });
   }
 
   Future<Router> createRouterTenantApi() {
