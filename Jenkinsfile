@@ -7,6 +7,7 @@ buildMvn {
   doApiDoc = true
   apiTypes = 'OAS'
   apiDirectories = 'src/main/resources/openapi'
+  apiExcludes = 'headers'
 
   doDocker = {
     buildJavaDocker {
