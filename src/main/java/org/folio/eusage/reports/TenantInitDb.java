@@ -20,17 +20,23 @@ import org.folio.okapi.common.XOkapiHeaders;
 public class TenantInitDb {
   private static final Logger log = LogManager.getLogger(TenantInitDb.class);
 
-  static void failHandler400(RoutingContext ctx) {
-    ctx.response().setStatusCode(400);
+  static void failHandlerText(RoutingContext ctx, int code, String msg) {
+    ctx.response().setStatusCode(code);
     ctx.response().putHeader("Content-Type", "text/plain");
-    ctx.response().end("Failure");
+    ctx.response().end(msg);
+  }
+
+  static void failHandler400(RoutingContext ctx, String msg) {
+    failHandlerText(ctx, 400, msg);
+  }
+
+  static void failHandler404(RoutingContext ctx, String msg) {
+    failHandlerText(ctx, 404, msg);
   }
 
   static void failHandler500(RoutingContext ctx, Throwable e) {
     log.error("{}", e.getMessage(), e);
-    ctx.response().setStatusCode(400);
-    ctx.response().putHeader("Content-Type", "text/plain");
-    ctx.response().end(e.getMessage());
+    failHandlerText(ctx, 500, e.getMessage());
   }
 
   private static Future<JsonObject> createJob(Vertx vertx, String tenant,
@@ -114,13 +120,10 @@ public class TenantInitDb {
                 })
                 .onFailure(e -> failHandler500(ctx, e));
           } catch (Exception e) {
-            log.error("{}", e.getMessage(), e);
-            ctx.response().setStatusCode(400);
-            ctx.response().putHeader("Content-Type", "text/plain");
-            ctx.response().end(e.getMessage());
+            failHandler400(ctx, e.getMessage());
           }
         })
-        .failureHandler(TenantInitDb::failHandler400);
+        .failureHandler(ctx -> TenantInitDb.failHandler400(ctx, "Failure"));
     routerBuilder
         .operation("getTenantJob")
         .handler(ctx -> {
@@ -134,9 +137,7 @@ public class TenantInitDb {
             getJob(vertx, tenant, UUID.fromString(id))
                 .onSuccess(res -> {
                   if (res == null) {
-                    ctx.response().setStatusCode(404);
-                    ctx.response().putHeader("Content-Type", "text/plain");
-                    ctx.response().end("Not found: " + id);
+                    failHandler404(ctx, "Not found: " + id);
                     return;
                   }
                   ctx.response().setStatusCode(200);
@@ -145,13 +146,10 @@ public class TenantInitDb {
                 })
                 .onFailure(e -> failHandler500(ctx, e));
           } catch (Exception e) {
-            log.error("XXX {}", e.getMessage(), e);
-            ctx.response().setStatusCode(400);
-            ctx.response().putHeader("Content-Type", "text/plain");
-            ctx.response().end(e.getMessage());
+            failHandler400(ctx, e.getMessage());
           }
         })
-        .failureHandler(TenantInitDb::failHandler400);
+        .failureHandler(ctx -> TenantInitDb.failHandler400(ctx, "Failure"));
     routerBuilder
         .operation("deleteTenantJob")
         .handler(ctx -> {
@@ -163,9 +161,7 @@ public class TenantInitDb {
             deleteJob(vertx, tenant, UUID.fromString(id))
                 .onSuccess(res -> {
                   if (Boolean.FALSE.equals(res)) {
-                    ctx.response().setStatusCode(404);
-                    ctx.response().putHeader("Content-Type", "text/plain");
-                    ctx.response().end("Not found: " + id);
+                    failHandler404(ctx, "Not found: " + id);
                     return;
                   }
                   ctx.response().setStatusCode(204);
@@ -173,13 +169,10 @@ public class TenantInitDb {
                 })
                 .onFailure(e -> failHandler500(ctx, e));
           } catch (Exception e) {
-            log.error("{}", e.getMessage(), e);
-            ctx.response().setStatusCode(400);
-            ctx.response().putHeader("Content-Type", "text/plain");
-            ctx.response().end(e.getMessage());
+            failHandler400(ctx, e.getMessage());
           }
         })
-        .failureHandler(TenantInitDb::failHandler400);
+        .failureHandler(ctx -> TenantInitDb.failHandler400(ctx, "Failure"));
     log.info("setting up tenant handlers ... done");
   }
 }

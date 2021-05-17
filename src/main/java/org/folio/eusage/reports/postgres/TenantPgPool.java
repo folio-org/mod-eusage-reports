@@ -47,7 +47,7 @@ public class TenantPgPool implements PgPool {
 
   static String sanitize(String v) {
     if (v.contains("'") || v.contains("\"")) {
-      throw new IllegalStateException(v);
+      throw new IllegalArgumentException(v);
     }
     return v.replace("-", "_").replace(".", "_");
   }

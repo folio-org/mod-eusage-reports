@@ -5,7 +5,6 @@ import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
 import io.vertx.pgclient.PgConnectOptions;
 import org.junit.Before;
-import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
@@ -30,9 +29,14 @@ public class TenantPgPoolTest {
     context.assertEquals("diku_a_b_c", tenantPgPool.getSchema());
   }
 
+  @Test(expected = IllegalArgumentException.class)
+  public void testBadModulet() {
+    TenantPgPool.setModule("mod'a");
+  }
+
   @Test
   public void testAll(TestContext context) {
-    TenantPgPool.setModule("mod_a");
+    TenantPgPool.setModule("mod-a");
     TenantPgPool.host = "host_val";
     TenantPgPool.port = "9765";
     TenantPgPool.database = "database_val";

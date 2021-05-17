@@ -8,14 +8,11 @@ import io.vertx.core.Vertx;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
-import io.vertx.ext.web.client.WebClient;
 import io.vertx.pgclient.PgConnectOptions;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.folio.eusage.reports.postgres.TenantPgPool;
-import org.junit.After;
 import org.junit.AfterClass;
-import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -31,43 +28,32 @@ public class MainVerticleTest {
   private final static Logger log = LogManager.getLogger("MainVerticle");
 
   private static PostgreSQLContainer<?> postgresSQLContainer;
+  private static PgConnectOptions pgConnectOptions = new PgConnectOptions();
 
-  Vertx vertx;
-  WebClient webClient;
-  int port = 9230;
+  static Vertx vertx;
+  static int port = 9230;
 
   @BeforeClass
   public static void beforeClass(TestContext context) {
+    vertx = Vertx.vertx();
     postgresSQLContainer = new PostgreSQLContainer<>("postgres:12-alpine");
     postgresSQLContainer.start();
-    PgConnectOptions pgConnectOptions = new PgConnectOptions();
     pgConnectOptions.setHost(postgresSQLContainer.getHost());
     pgConnectOptions.setPort(postgresSQLContainer.getFirstMappedPort());
     pgConnectOptions.setUser(postgresSQLContainer.getUsername());
     pgConnectOptions.setPassword(postgresSQLContainer.getPassword());
     pgConnectOptions.setDatabase(postgresSQLContainer.getDatabaseName());
     TenantPgPool.setDefaultConnectOptions(pgConnectOptions);
-  }
-
-  @AfterClass
-  public static void afterClass(TestContext context) {
-    postgresSQLContainer.close();
-  }
-
-  @Before
-  public void setup(TestContext context) {
     RestAssured.enableLoggingOfRequestAndResponseIfValidationFails();
     RestAssured.port = port;
-    vertx = Vertx.vertx();
-    webClient = WebClient.create(vertx);
-
     DeploymentOptions deploymentOptions = new DeploymentOptions();
     deploymentOptions.setConfig(new JsonObject().put("port", Integer.toString(port)));
     vertx.deployVerticle(new MainVerticle(), deploymentOptions).onComplete(context.asyncAssertSuccess());
   }
 
-  @After
-  public void after(TestContext context) {
+  @AfterClass
+  public static void afterClass(TestContext context) {
+    postgresSQLContainer.close();
     vertx.close(context.asyncAssertSuccess());
   }
 
@@ -77,6 +63,68 @@ public class MainVerticleTest {
         .get("/admin/health")
         .then().statusCode(200)
         .header("Content-Type", is("text/plain"));
+  }
+
+  @Test
+  public void testPostTenantBadTenant1(TestContext context) {
+    String tenant = "test'lib";
+    RestAssured.given()
+        .header("X-Okapi-Tenant", tenant)
+        .header("Content-Type", "application/json")
+        .body("{\"module_to\" : \"mod-eusage-reports-1.0.0\"}")
+        .post("/_/tenant")
+        .then().statusCode(400)
+        .header("Content-Type", is("text/plain"))
+        .body(is(tenant));
+  }
+
+  @Test
+  public void testPostTenantBadTenant2(TestContext context) {
+    String tenant = "test\"lib";
+    RestAssured.given()
+        .header("X-Okapi-Tenant", tenant)
+        .header("Content-Type", "application/json")
+        .body("{\"module_to\" : \"mod-eusage-reports-1.0.0\"}")
+        .post("/_/tenant")
+        .then().statusCode(400)
+        .header("Content-Type", is("text/plain"))
+        .body(is(tenant));
+  }
+
+  @Test
+  public void testPostTenantBadDatabase(TestContext context) {
+    String tenant = "testlib";
+    PgConnectOptions bad = new PgConnectOptions();
+    bad.setHost(pgConnectOptions.getHost());
+    bad.setPort(pgConnectOptions.getPort());
+    bad.setUser(pgConnectOptions.getUser());
+    bad.setPassword(pgConnectOptions.getPassword());
+    bad.setDatabase(pgConnectOptions.getDatabase() + "_foo");
+    TenantPgPool.setDefaultConnectOptions(bad);
+    RestAssured.given()
+        .header("X-Okapi-Tenant", tenant)
+        .header("Content-Type", "application/json")
+        .body("{\"module_to\" : \"mod-eusage-reports-1.0.0\"}")
+        .post("/_/tenant")
+        .then().statusCode(500)
+        .header("Content-Type", is("text/plain"))
+        .body(containsString("database"));
+
+    RestAssured.given()
+        .header("X-Okapi-Tenant", tenant)
+        .get("/_/tenant/" + UUID.randomUUID().toString())
+        .then().statusCode(500)
+        .header("Content-Type", is("text/plain"))
+        .body(containsString("database"));
+
+    RestAssured.given()
+        .header("X-Okapi-Tenant", tenant)
+        .delete("/_/tenant/" + UUID.randomUUID().toString())
+        .then().statusCode(500)
+        .header("Content-Type", is("text/plain"))
+        .body(containsString("database"));
+
+    TenantPgPool.setDefaultConnectOptions(pgConnectOptions);
   }
 
   @Test
@@ -115,6 +163,13 @@ public class MainVerticleTest {
         .header("X-Okapi-Tenant", tenant)
         .get(location)
         .then().statusCode(404);
+
+    RestAssured.given()
+        .header("X-Okapi-Tenant", tenant)
+        .header("Content-Type", "application/json")
+        .body("{\"module_to\" : \"mod-eusage-reports-1.0.0\", \"purge\":true}")
+        .post("/_/tenant")
+        .then().statusCode(204);
 
     RestAssured.given()
         .header("X-Okapi-Tenant", tenant)
