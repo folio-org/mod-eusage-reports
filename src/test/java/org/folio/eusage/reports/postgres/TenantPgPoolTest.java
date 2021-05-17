@@ -245,6 +245,7 @@ public class TenantPgPoolTest {
   public void testSSL(TestContext context) throws IOException {
     configure("ssl=on");
     TenantPgPool.setModule("mod_a");
+    TenantPgPool.maxPoolSize = "3";
     TenantPgPool.setDefaultConnectOptions(pgConnectOptions);
     TenantPgPool.serverPem = new String(TenantPgPoolTest.class.getClassLoader()
         .getResourceAsStream("server.crt").readAllBytes());
