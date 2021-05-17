@@ -17,8 +17,12 @@ import org.apache.logging.log4j.Logger;
 import org.folio.eusage.reports.postgres.TenantPgPool;
 import org.folio.okapi.common.XOkapiHeaders;
 
-public class TenantInitDb {
+public final class TenantInitDb {
   private static final Logger log = LogManager.getLogger(TenantInitDb.class);
+
+  private TenantInitDb() {
+    throw new UnsupportedOperationException();
+  }
 
   static void failHandlerText(RoutingContext ctx, int code, String msg) {
     ctx.response().setStatusCode(code);

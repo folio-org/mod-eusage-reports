@@ -25,7 +25,7 @@ import static org.hamcrest.Matchers.is;
 
 @RunWith(VertxUnitRunner.class)
 public class MainVerticleTest {
-  private final static Logger log = LogManager.getLogger("MainVerticle");
+  private final static Logger log = LogManager.getLogger("MainVerticleTest");
 
   private static PostgreSQLContainer<?> postgresSQLContainer;
   private static PgConnectOptions pgConnectOptions = new PgConnectOptions();
@@ -146,7 +146,7 @@ public class MainVerticleTest {
 
     RestAssured.given()
         .header("X-Okapi-Tenant", tenant)
-        .get(location)
+        .get(location + "?wait=100")
         .then().statusCode(200);
 
     RestAssured.given()
