@@ -33,7 +33,7 @@ public class MainVerticle extends AbstractVerticle {
     Router router = Router.router(vertx);
 
     Future<Void> future = Future.succeededFuture();
-    future = future.compose(x -> createRouterTenantApi2())
+    future = future.compose(x -> createRouterTenantApi())
         .onSuccess(x -> router.mountSubRouter("/", x)).mapEmpty();
     future = future.compose(x -> createRoutereUsageReports(m.getVersion()))
         .onSuccess(x -> router.mountSubRouter("/", x)).mapEmpty();
@@ -58,53 +58,11 @@ public class MainVerticle extends AbstractVerticle {
     ctx.response().end("Failure");
   }
 
-  Future<Router> createRouterTenantApi2() {
+  Future<Router> createRouterTenantApi() {
     return RouterBuilder.create(vertx, "openapi/tenant-2.0.yaml")
         .map(routerBuilder -> {
           TenantInitDb.handlers(vertx, routerBuilder);
           return routerBuilder.createRouter();
-        });
-  }
-
-  Future<Router> createRouterTenantApi() {
-    return RouterBuilder.create(vertx, "openapi/tenant-2.0.yaml")
-        .compose(routerBuilder -> {
-          routerBuilder
-              .operation("postTenant")
-              .handler(ctx -> {
-                RequestParameters params = ctx.get(ValidationHandler.REQUEST_CONTEXT_KEY);
-                log.info("postTenant handler {}", params.toJson().encode());
-                ctx.response().setStatusCode(201);
-                ctx.response().putHeader("Content-Type", "application/json");
-                JsonObject tenantJob = new JsonObject();
-                tenantJob.put("id", "1234");
-                ctx.response().end(tenantJob.encode());
-              })
-              .failureHandler(this::failHandler);
-          routerBuilder
-              .operation("getTenantJob")
-              .handler(ctx -> {
-                RequestParameters params = ctx.get(ValidationHandler.REQUEST_CONTEXT_KEY);
-                String id = params.pathParameter("id").getString();
-                RequestParameter wait = params.queryParameter("wait");
-                log.info("getTenantJob handler id={} wait={}", id,
-                    wait != null ? wait.getInteger() : "null");
-                ctx.response().setStatusCode(200);
-                ctx.response().putHeader("Content-Type", "application/json");
-                ctx.response().end(new JsonObject().put("id", id).encode());
-              })
-              .failureHandler(this::failHandler);
-          routerBuilder
-              .operation("deleteTenantJob")
-              .handler(ctx -> {
-                RequestParameters params = ctx.get(ValidationHandler.REQUEST_CONTEXT_KEY);
-                String id = params.pathParameter("id").getString();
-                log.info("deleteTenantJob handler id={}", id);
-                ctx.response().setStatusCode(204);
-                ctx.response().end();
-              })
-              .failureHandler(this::failHandler);
-          return Future.succeededFuture(routerBuilder.createRouter());
         });
   }
 
