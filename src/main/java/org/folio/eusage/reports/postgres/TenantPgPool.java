@@ -77,9 +77,12 @@ public class TenantPgPool implements PgPool {
    * on module name.
    * @param vertx Vert.x handle
    * @param tenant Tenant
-   * @return
+   * @return pool with PgPool semantics
    */
   public static TenantPgPool tenantPgPool(Vertx vertx, String tenant) {
+    if (module == null) {
+      throw new IllegalStateException("TenantPgPool.setModule must be called");
+    }
     PgConnectOptions connectOptions = pgConnectOptions;
     if (host != null) {
       connectOptions.setDatabase(substTenant(host, tenant));
@@ -142,11 +145,15 @@ public class TenantPgPool implements PgPool {
 
   @Override
   public void close(Handler<AsyncResult<Void>> handler) {
+    // release our pool from the map
+    while (pgPoolMap.values().remove(pgPool)) { }
     pgPool.close(handler);
   }
 
   @Override
   public Future<Void> close() {
+    // release our pool from the map
+    while (pgPoolMap.values().remove(pgPool)) { }
     return pgPool.close();
   }
 
@@ -165,7 +172,5 @@ public class TenantPgPool implements PgPool {
     }
     return future;
   }
-
-
 
 }
