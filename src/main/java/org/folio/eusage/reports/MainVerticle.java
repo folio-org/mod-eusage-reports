@@ -12,7 +12,7 @@ import io.vertx.ext.web.RoutingContext;
 import io.vertx.ext.web.openapi.RouterBuilder;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.folio.eusage.reports.postgres.TenantPgPool;
+import org.folio.eusage.reports.postgres.impl.TenantPgPoolImpl;
 import org.folio.okapi.common.Config;
 import org.folio.okapi.common.ModuleVersionReporter;
 
@@ -21,7 +21,7 @@ public class MainVerticle extends AbstractVerticle implements TenantInit {
 
   @Override
   public void start(Promise<Void> promise) {
-    TenantPgPool.setModule("mod-eusage-reports");
+    TenantPgPoolImpl.setModule("mod-eusage-reports");
     ModuleVersionReporter m = new ModuleVersionReporter("org.folio/mod-eusage-reports");
     log.info("Starting {} {} {}", m.getModule(), m.getVersion(), m.getCommitId());
 

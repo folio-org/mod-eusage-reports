@@ -4,13 +4,13 @@ import io.vertx.core.Vertx;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
 import io.vertx.pgclient.PgConnectOptions;
-import io.vertx.pgclient.SslMode;
 import io.vertx.sqlclient.Tuple;
 import java.io.IOException;
 import java.util.LinkedList;
 import java.util.List;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.folio.eusage.reports.postgres.impl.TenantPgPoolImpl;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -86,86 +86,24 @@ public class TenantPgPoolTest {
 
   @Before
   public void before() {
-    pgConnectOptions.setSslMode(SslMode.DISABLE);
-    TenantPgPool.setDefaultConnectOptions(pgConnectOptions);
-    TenantPgPool.host = null;
-    TenantPgPool.port = null;
-    TenantPgPool.database = null;
-    TenantPgPool.user = null;
-    TenantPgPool.password = null;
-    TenantPgPool.maxPoolSize = null;
-    TenantPgPool.serverPem = null;
-    TenantPgPool.setModule("mod-a");
-  }
-
-  @Test
-  public void testDefault(TestContext context) {
-    TenantPgPool.setModule(null);
-    context.assertNull(TenantPgPool.module);
-    TenantPgPool.setModule("a-b.c");
-    context.assertEquals("a_b_c", TenantPgPool.module);
-    TenantPgPool tenantPgPool = TenantPgPool.tenantPgPool(vertx, "diku");
-    context.assertNotNull(tenantPgPool.pgPool);
-    context.assertEquals("diku_a_b_c", tenantPgPool.getSchema());
+    TenantPgPoolImpl.setServerPem(null);
+    TenantPgPoolImpl.setModule("mod-a");
   }
 
   @Test(expected = IllegalArgumentException.class)
   public void testBadModule() {
-    TenantPgPool.setModule("mod'a");
+    TenantPgPoolImpl.setModule("mod'a");
   }
 
   @Test(expected = IllegalStateException.class)
   public void testNoSetModule() {
-    TenantPgPool.setModule(null);
-    TenantPgPool.tenantPgPool(vertx, "diku");
-  }
-
-  @Test
-  public void testAll(TestContext context) {
-    PgConnectOptions options = new PgConnectOptions();
-    TenantPgPool.setDefaultConnectOptions(options);
-    TenantPgPool.setModule("mod-a");
-    TenantPgPool.host = "host_val";
-    TenantPgPool.port = "9765";
-    TenantPgPool.database = "database_val";
-    TenantPgPool.user = "user_val";
-    TenantPgPool.password = "password_val";
-    TenantPgPool.maxPoolSize = "5";
-    TenantPgPool pool = TenantPgPool.tenantPgPool(vertx, "diku");
-    context.assertEquals("diku_mod_a", pool.getSchema());
-    context.assertEquals("host_val", options.getHost());
-    context.assertEquals(9765, options.getPort());
-    context.assertEquals("database_val", options.getDatabase());
-    context.assertEquals("user_val", options.getUser());
-    context.assertEquals("password_val", options.getPassword());
-  }
-
-  @Test
-  public void testUserDefined(TestContext context) {
-    PgConnectOptions userDefined = new PgConnectOptions();
-    userDefined.setHost("localhost2");
-    TenantPgPool.setDefaultConnectOptions(userDefined);
-    context.assertEquals(userDefined, TenantPgPool.pgConnectOptions);
-    context.assertEquals("localhost2", userDefined.getHost());
-    userDefined = new PgConnectOptions();
-    TenantPgPool.setDefaultConnectOptions(userDefined);
-    context.assertEquals(userDefined, TenantPgPool.pgConnectOptions);
-    context.assertNotEquals("localhost2", userDefined.getHost());
-  }
-
-  @Test
-  public void testPoolReuse(TestContext context) {
-    TenantPgPool pool1 = TenantPgPool.tenantPgPool(vertx, "diku1");
-    context.assertEquals("diku1_mod_a", pool1.getSchema());
-    TenantPgPool pool2 = TenantPgPool.tenantPgPool(vertx, "diku2");
-    context.assertEquals("diku2_mod_a", pool2.getSchema());
-    context.assertNotEquals(pool1, pool2);
-    context.assertEquals(pool1.pgPool, pool2.pgPool);
+    TenantPgPoolImpl.setModule(null);
+    TenantPgPoolImpl.tenantPgPool(vertx, "diku");
   }
 
   @Test
   public void queryOk(TestContext context) {
-    TenantPgPool pool = TenantPgPool.tenantPgPool(vertx, "diku");
+    TenantPgPool pool = TenantPgPool.pool(vertx, "diku");
     pool.query("SELECT count(*) FROM pg_database")
         .execute()
         .compose(x -> pool.close())
@@ -174,7 +112,7 @@ public class TenantPgPoolTest {
 
   @Test
   public void preparedQueryOk(TestContext context) {
-    TenantPgPool pool = TenantPgPool.tenantPgPool(vertx, "diku");
+    TenantPgPool pool = TenantPgPool.pool(vertx, "diku");
     pool.preparedQuery("SELECT * FROM pg_database WHERE datname=$1")
         .execute(Tuple.of("postgres"))
         .onComplete(context.asyncAssertSuccess(res ->
@@ -183,7 +121,7 @@ public class TenantPgPoolTest {
   }
   @Test
   public void getConnection1(TestContext context) {
-    TenantPgPool pool = TenantPgPool.tenantPgPool(vertx, "diku");
+    TenantPgPool pool = TenantPgPool.pool(vertx, "diku");
     pool.getConnection()
         .compose(con -> con.query("SELECT count(*) FROM pg_database")
             .execute()
@@ -193,7 +131,7 @@ public class TenantPgPoolTest {
 
   @Test
   public void getConnection2(TestContext context) {
-    TenantPgPool pool = TenantPgPool.tenantPgPool(vertx, "diku");
+    TenantPgPool pool = TenantPgPool.pool(vertx, "diku");
     pool.getConnection(
         context.asyncAssertSuccess(
             con -> con.query("SELECT count(*) FROM pg_database")
@@ -204,7 +142,7 @@ public class TenantPgPoolTest {
 
   @Test
   public void execute1(TestContext context) {
-    TenantPgPool pool = TenantPgPool.tenantPgPool(vertx, "diku");
+    TenantPgPool pool = TenantPgPool.pool(vertx, "diku");
 
     List<String> list = new LinkedList<>();
     list.add("CREATE TABLE a (year int)");
@@ -216,7 +154,7 @@ public class TenantPgPoolTest {
   @Test
   public void execute2(TestContext context) {
     log.info("SSL={}", pgConnectOptions.getSslMode());
-    TenantPgPool pool = TenantPgPool.tenantPgPool(vertx, "diku");
+    TenantPgPool pool = TenantPgPool.pool(vertx, "diku");
 
     // execute not using a transaction as this test shows.
     List<String> list = new LinkedList<>();
@@ -233,11 +171,11 @@ public class TenantPgPoolTest {
   @Test
   public void testSSL(TestContext context) throws IOException {
     configure("ssl=on");
-    TenantPgPool.maxPoolSize = "3";
-    TenantPgPool.serverPem = new String(TenantPgPoolTest.class.getClassLoader()
-        .getResourceAsStream("server.crt").readAllBytes());
+    TenantPgPool.setMaxPoolSize("3");
+    TenantPgPool.setServerPem(new String(TenantPgPoolTest.class.getClassLoader()
+        .getResourceAsStream("server.crt").readAllBytes()));
 
-    TenantPgPool pool = TenantPgPool.tenantPgPool(vertx, "diku");
+    TenantPgPool pool = TenantPgPool.pool(vertx, "diku");
     pool.query("SELECT version FROM pg_stat_ssl WHERE pid = pg_backend_pid()")
         .execute()
         .onComplete(context.asyncAssertSuccess(rowSet -> {

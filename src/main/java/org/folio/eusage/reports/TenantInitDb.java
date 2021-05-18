@@ -18,7 +18,7 @@ import java.util.Map;
 import java.util.UUID;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.folio.eusage.reports.postgres.TenantPgPool;
+import org.folio.eusage.reports.postgres.impl.TenantPgPoolImpl;
 import org.folio.okapi.common.XOkapiHeaders;
 
 public class TenantInitDb {
@@ -75,7 +75,7 @@ public class TenantInitDb {
   private Future<JsonObject> createJob(Vertx vertx, String tenant,
                                        JsonObject tenantAttributes) {
     log.info("postTenant got {}", tenantAttributes.encode());
-    TenantPgPool tenantPgPool = TenantPgPool.tenantPgPool(vertx, tenant);
+    TenantPgPoolImpl tenantPgPool = TenantPgPoolImpl.tenantPgPool(vertx, tenant);
     List<String> cmds = new LinkedList<>();
     if (Boolean.TRUE.equals(tenantAttributes.getBoolean("purge"))) {
       cmds.add("DROP SCHEMA IF EXISTS {schema} CASCADE");
@@ -105,7 +105,7 @@ public class TenantInitDb {
   }
 
   private Future<JsonObject> getJob(Vertx vertx, String tenant, UUID jobId, int wait) {
-    TenantPgPool tenantPgPool = TenantPgPool.tenantPgPool(vertx, tenant);
+    TenantPgPoolImpl tenantPgPool = TenantPgPoolImpl.tenantPgPool(vertx, tenant);
     return tenantPgPool.preparedQuery("SELECT jsonb FROM {schema}.job WHERE ID= $1")
         .execute(Tuple.of(jobId))
         .compose(res -> {
@@ -125,7 +125,7 @@ public class TenantInitDb {
   }
 
   private static Future<Boolean> deleteJob(Vertx vertx, String tenant, UUID jobId) {
-    TenantPgPool tenantPgPool = TenantPgPool.tenantPgPool(vertx, tenant);
+    TenantPgPoolImpl tenantPgPool = TenantPgPoolImpl.tenantPgPool(vertx, tenant);
     return tenantPgPool.preparedQuery("DELETE FROM {schema}.job WHERE ID= $1")
         .execute(Tuple.of(jobId))
         .compose(res -> {
@@ -139,7 +139,7 @@ public class TenantInitDb {
   private static Future<Void> updateJob(Vertx vertx, JsonObject tenantJob) {
     String tenant = tenantJob.getString("tenant");
     UUID jobId = UUID.fromString(tenantJob.getString("id"));
-    TenantPgPool tenantPgPool = TenantPgPool.tenantPgPool(vertx, tenant);
+    TenantPgPoolImpl tenantPgPool = TenantPgPoolImpl.tenantPgPool(vertx, tenant);
     return tenantPgPool.preparedQuery("UPDATE {schema}.job SET jsonb = $2 WHERE id = $1")
         .execute(Tuple.of(jobId, tenantJob)).mapEmpty();
   }
@@ -147,7 +147,7 @@ public class TenantInitDb {
   private static Future<Void> saveJob(Vertx vertx, JsonObject tenantJob) {
     String tenant = tenantJob.getString("tenant");
     UUID jobId = UUID.fromString(tenantJob.getString("id"));
-    TenantPgPool tenantPgPool = TenantPgPool.tenantPgPool(vertx, tenant);
+    TenantPgPoolImpl tenantPgPool = TenantPgPoolImpl.tenantPgPool(vertx, tenant);
     return tenantPgPool.preparedQuery("INSERT INTO {schema}.job VALUES ($1, $2)")
         .execute(Tuple.of(jobId, tenantJob)).mapEmpty();
   }
