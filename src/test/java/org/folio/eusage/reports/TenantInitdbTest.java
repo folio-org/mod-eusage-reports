@@ -4,6 +4,7 @@ import io.restassured.RestAssured;
 import io.restassured.response.ExtractableResponse;
 import io.restassured.response.Response;
 import io.vertx.core.Future;
+import io.vertx.core.Promise;
 import io.vertx.core.Vertx;
 import io.vertx.core.http.HttpServerOptions;
 import io.vertx.core.json.JsonObject;
@@ -11,6 +12,9 @@ import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
 import io.vertx.pgclient.PgConnectOptions;
 import java.util.UUID;
+
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.folio.eusage.reports.postgres.TenantPgPool;
 import org.folio.eusage.reports.postgres.TenantPgPoolContainer;
 import org.junit.AfterClass;
@@ -25,6 +29,7 @@ import static org.hamcrest.Matchers.is;
 
 @RunWith(VertxUnitRunner.class)
 public class TenantInitdbTest {
+  private final static Logger log = LogManager.getLogger(TenantInitdbTest.class);
 
   static Vertx vertx;
   static int port = 9230;
@@ -33,14 +38,24 @@ public class TenantInitdbTest {
   public static PostgreSQLContainer<?> postgresSQLContainer = TenantPgPoolContainer.create();
 
   static class TenantInitHooks implements TenantInit {
+
+    Promise<Void> preInitPromise;
+    Promise<Void> postInitPromise;
+
     @Override
     public Future<Void> preInit(Vertx vertx, String tenant, JsonObject tenantAttributes) {
-      return Future.succeededFuture();
+      postInitPromise = Promise.promise();
+      if (preInitPromise == null) {
+        return Future.succeededFuture();
+      }
+      Future<Void> future = preInitPromise.future();
+      preInitPromise = null;
+      return future;
     }
 
     @Override
     public Future<Void> postInit(Vertx vertx, String tenant, JsonObject tenantAttributes) {
-      return Future.succeededFuture();
+      return postInitPromise.future();
     }
   }
 
@@ -134,6 +149,7 @@ public class TenantInitdbTest {
   @Test
   public void testPostTenantOK(TestContext context) {
     String tenant = "testlib";
+    log.info("AD: POST begin");
     ExtractableResponse<Response> response = RestAssured.given()
         .header("X-Okapi-Tenant", tenant)
         .header("Content-Type", "application/json")
@@ -144,17 +160,24 @@ public class TenantInitdbTest {
         .body("tenant", is(tenant))
         .extract();
 
+    log.info("AD: POST completed");
     String location = response.header("Location");
     JsonObject tenantJob = new JsonObject(response.asString());
     context.assertEquals("/_/tenant/" + tenantJob.getString("id"), location);
 
-    Boolean complete = false;
+    Boolean complete = RestAssured.given()
+            .header("X-Okapi-Tenant", tenant)
+            .get(location)
+            .then().statusCode(200)
+            .extract().path("complete");
+    context.assertFalse(complete);
     while (!complete) {
       complete = RestAssured.given()
           .header("X-Okapi-Tenant", tenant)
-          .get(location + "?wait=100")
+          .get(location + "?wait=1")
           .then().statusCode(200)
           .extract().path("complete");
+      hooks.postInitPromise.tryComplete();
     }
 
     RestAssured.given()
@@ -184,6 +207,56 @@ public class TenantInitdbTest {
         .header("Content-Type", "application/json")
         .body("{\"module_to\" : \"mod-eusage-reports-1.0.0\", \"purge\":true}")
         .post("/_/tenant")
+        .then().statusCode(204);
+  }
+
+  @Test
+  public void testPostTenantPreInitFail(TestContext context) {
+    String tenant = "testlib";
+    hooks.preInitPromise = Promise.promise();
+    hooks.preInitPromise.fail("pre init failure");
+    ExtractableResponse<Response> response = RestAssured.given()
+        .header("X-Okapi-Tenant", tenant)
+        .header("Content-Type", "application/json")
+        .body("{\"module_to\" : \"mod-eusage-reports-1.0.0\"}")
+        .post("/_/tenant")
+        .then().statusCode(500)
+        .header("Content-Type", is("text/plain"))
+        .extract();
+
+    context.assertEquals("pre init failure", response.body().asString());
+  }
+
+  @Test
+  public void testPostTenantPostInitFail(TestContext context) {
+    String tenant = "testlib";
+    ExtractableResponse<Response> response = RestAssured.given()
+        .header("X-Okapi-Tenant", tenant)
+        .header("Content-Type", "application/json")
+        .body("{\"module_to\" : \"mod-eusage-reports-1.0.0\"}")
+        .post("/_/tenant")
+        .then().statusCode(201)
+        .header("Content-Type", is("application/json"))
+        .body("tenant", is(tenant))
+        .extract();
+
+    String location = response.header("Location");
+    JsonObject tenantJob = new JsonObject(response.asString());
+    context.assertEquals("/_/tenant/" + tenantJob.getString("id"), location);
+
+    hooks.postInitPromise.fail("post init failure");
+    String s = RestAssured.given()
+        .header("X-Okapi-Tenant", tenant)
+        .get(location)
+        .then().statusCode(200)
+        .extract().body().asString();
+    JsonObject tenantJob2 = new JsonObject(s);
+    context.assertTrue(tenantJob2.getBoolean("complete"));
+    context.assertEquals("post init failure", tenantJob2.getString("error"));
+
+    RestAssured.given()
+        .header("X-Okapi-Tenant", tenant)
+        .delete(location)
         .then().statusCode(204);
   }
 

@@ -11,8 +11,10 @@ import io.vertx.ext.web.validation.RequestParameter;
 import io.vertx.ext.web.validation.RequestParameters;
 import io.vertx.ext.web.validation.ValidationHandler;
 import io.vertx.sqlclient.Tuple;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -21,6 +23,8 @@ import org.folio.okapi.common.XOkapiHeaders;
 
 public class TenantInitDb {
   private static final Logger log = LogManager.getLogger(TenantInitDb.class);
+
+  private Map<UUID, List<Promise<Void>>> waiters = new HashMap<>();
 
   private final TenantInit hooks;
 
@@ -48,6 +52,7 @@ public class TenantInitDb {
   }
 
   private void runAsync(Vertx vertx, JsonObject tenantJob) {
+    UUID jobId = UUID.fromString(tenantJob.getString("id"));
     hooks.postInit(vertx, tenantJob.getString("tenant"),
         tenantJob.getJsonObject("tenantAttributes"))
         .onComplete(x -> {
@@ -55,12 +60,20 @@ public class TenantInitDb {
           if (x.failed()) {
             tenantJob.put("error", x.cause().getMessage());
           }
-          updateJob(vertx, tenantJob);
+          updateJob(vertx, tenantJob)
+              .onComplete(y -> {
+                List<Promise<Void>> promises = waiters.remove(jobId);
+                if (promises != null) {
+                  for (Promise<Void> promise : promises) {
+                    promise.tryComplete();
+                  }
+                }
+              });
         });
   }
 
-  protected Future<JsonObject> createJob(Vertx vertx, String tenant,
-                                              JsonObject tenantAttributes) {
+  private Future<JsonObject> createJob(Vertx vertx, String tenant,
+                                       JsonObject tenantAttributes) {
     log.info("postTenant got {}", tenantAttributes.encode());
     TenantPgPool tenantPgPool = TenantPgPool.tenantPgPool(vertx, tenant);
     List<String> cmds = new LinkedList<>();
@@ -91,7 +104,7 @@ public class TenantInitDb {
         });
   }
 
-  protected Future<JsonObject> getJob(Vertx vertx, String tenant, UUID jobId) {
+  private Future<JsonObject> getJob(Vertx vertx, String tenant, UUID jobId, int wait) {
     TenantPgPool tenantPgPool = TenantPgPool.tenantPgPool(vertx, tenant);
     return tenantPgPool.preparedQuery("SELECT jsonb FROM {schema}.job WHERE ID= $1")
         .execute(Tuple.of(jobId))
@@ -99,11 +112,19 @@ public class TenantInitDb {
           if (!res.iterator().hasNext()) {
             return Future.succeededFuture(null);
           }
-          return Future.succeededFuture(res.iterator().next().getJsonObject(0));
+          JsonObject tenantJob = res.iterator().next().getJsonObject(0);
+          if (wait > 0 && !Boolean.TRUE.equals(tenantJob.getBoolean("complete"))) {
+            Promise<Void> promise = Promise.promise();
+            waiters.putIfAbsent(jobId, new LinkedList<>());
+            waiters.get(jobId).add(promise);
+            vertx.setTimer(wait, res1 -> promise.tryComplete());
+            return promise.future().compose(res1 -> getJob(vertx, tenant, jobId, 0));
+          }
+          return Future.succeededFuture(tenantJob);
         });
   }
 
-  protected Future<Boolean> deleteJob(Vertx vertx, String tenant, UUID jobId) {
+  private static Future<Boolean> deleteJob(Vertx vertx, String tenant, UUID jobId) {
     TenantPgPool tenantPgPool = TenantPgPool.tenantPgPool(vertx, tenant);
     return tenantPgPool.preparedQuery("DELETE FROM {schema}.job WHERE ID= $1")
         .execute(Tuple.of(jobId))
@@ -115,7 +136,7 @@ public class TenantInitDb {
         });
   }
 
-  private Future<Void> updateJob(Vertx vertx, JsonObject tenantJob) {
+  private static Future<Void> updateJob(Vertx vertx, JsonObject tenantJob) {
     String tenant = tenantJob.getString("tenant");
     UUID jobId = UUID.fromString(tenantJob.getString("id"));
     TenantPgPool tenantPgPool = TenantPgPool.tenantPgPool(vertx, tenant);
@@ -123,7 +144,7 @@ public class TenantInitDb {
         .execute(Tuple.of(jobId, tenantJob)).mapEmpty();
   }
 
-  private Future<Void> saveJob(Vertx vertx, JsonObject tenantJob) {
+  private static Future<Void> saveJob(Vertx vertx, JsonObject tenantJob) {
     String tenant = tenantJob.getString("tenant");
     UUID jobId = UUID.fromString(tenantJob.getString("id"));
     TenantPgPool tenantPgPool = TenantPgPool.tenantPgPool(vertx, tenant);
@@ -131,7 +152,7 @@ public class TenantInitDb {
         .execute(Tuple.of(jobId, tenantJob)).mapEmpty();
   }
 
-  protected void handlers(Vertx vertx, RouterBuilder routerBuilder) {
+  private void handlers(Vertx vertx, RouterBuilder routerBuilder) {
     log.info("setting up tenant handlers ... begin");
     routerBuilder
         .operation("postTenant")
@@ -166,10 +187,11 @@ public class TenantInitDb {
             RequestParameters params = ctx.get(ValidationHandler.REQUEST_CONTEXT_KEY);
             String id = params.pathParameter("id").getString();
             String tenant = params.headerParameter(XOkapiHeaders.TENANT).getString();
-            RequestParameter wait = params.queryParameter("wait");
+            RequestParameter waitParameter = params.queryParameter("wait");
+            int wait = waitParameter != null ? waitParameter.getInteger() : 0;
             log.info("getTenantJob handler id={} wait={}", id,
-                wait != null ? wait.getInteger() : "null");
-            getJob(vertx, tenant, UUID.fromString(id))
+                waitParameter != null ? waitParameter.getInteger() : "null");
+            getJob(vertx, tenant, UUID.fromString(id), wait)
                 .onSuccess(res -> {
                   if (res == null) {
                     failHandler404(ctx, "Not found: " + id);
