@@ -1,8 +1,10 @@
 package org.folio.eusage.reports;
 
 import io.vertx.core.Future;
+import io.vertx.core.Promise;
 import io.vertx.core.Vertx;
 import io.vertx.core.json.JsonObject;
+import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
 import io.vertx.ext.web.openapi.RouterBuilder;
 import io.vertx.ext.web.validation.RequestParameter;
@@ -17,11 +19,13 @@ import org.apache.logging.log4j.Logger;
 import org.folio.eusage.reports.postgres.TenantPgPool;
 import org.folio.okapi.common.XOkapiHeaders;
 
-public final class TenantInitDb {
+public class TenantInitDb {
   private static final Logger log = LogManager.getLogger(TenantInitDb.class);
 
-  private TenantInitDb() {
-    throw new UnsupportedOperationException();
+  private final TenantInit hooks;
+
+  public TenantInitDb(TenantInit hooks) {
+    this.hooks = hooks;
   }
 
   static void failHandlerText(RoutingContext ctx, int code, String msg) {
@@ -43,7 +47,19 @@ public final class TenantInitDb {
     failHandlerText(ctx, 500, e.getMessage());
   }
 
-  private static Future<JsonObject> createJob(Vertx vertx, String tenant,
+  private void runAsync(Vertx vertx, JsonObject tenantJob) {
+    hooks.postInit(vertx, tenantJob.getString("tenant"),
+        tenantJob.getJsonObject("tenantAttributes"))
+        .onComplete(x -> {
+          tenantJob.put("complete", true);
+          if (x.failed()) {
+            tenantJob.put("error", x.cause().getMessage());
+          }
+          updateJob(vertx, tenantJob);
+        });
+  }
+
+  protected Future<JsonObject> createJob(Vertx vertx, String tenant,
                                               JsonObject tenantAttributes) {
     log.info("postTenant got {}", tenantAttributes.encode());
     TenantPgPool tenantPgPool = TenantPgPool.tenantPgPool(vertx, tenant);
@@ -58,24 +74,24 @@ public final class TenantInitDb {
       cmds.add("CREATE TABLE IF NOT EXISTS {schema}.job "
           + "(id UUID PRIMARY KEY, jsonb JSONB NOT NULL)");
     }
-    return tenantPgPool.execute(cmds)
+    return hooks.preInit(vertx, tenant, tenantAttributes)
+        .compose(res -> tenantPgPool.execute(cmds))
         .compose(res -> {
           if (Boolean.TRUE.equals(tenantAttributes.getBoolean("purge"))) {
             return Future.succeededFuture(null);
           }
-          UUID jobId = UUID.randomUUID();
           JsonObject tenantJob = new JsonObject();
-          tenantJob.put("id", jobId.toString());
+          tenantJob.put("id", UUID.randomUUID().toString());
           tenantJob.put("complete", false);
           tenantJob.put("tenant", tenant);
           tenantJob.put("tenantAttributes", tenantAttributes);
-          return tenantPgPool.preparedQuery("INSERT INTO {schema}.job VALUES ($1, $2)")
-              .execute(Tuple.of(jobId, tenantJob))
+          return saveJob(vertx, tenantJob)
+              .onSuccess(x -> runAsync(vertx, tenantJob))
               .map(tenantJob);
         });
   }
 
-  private static Future<JsonObject> getJob(Vertx vertx, String tenant, UUID jobId) {
+  protected Future<JsonObject> getJob(Vertx vertx, String tenant, UUID jobId) {
     TenantPgPool tenantPgPool = TenantPgPool.tenantPgPool(vertx, tenant);
     return tenantPgPool.preparedQuery("SELECT jsonb FROM {schema}.job WHERE ID= $1")
         .execute(Tuple.of(jobId))
@@ -87,7 +103,7 @@ public final class TenantInitDb {
         });
   }
 
-  private static Future<Boolean> deleteJob(Vertx vertx, String tenant, UUID jobId) {
+  protected Future<Boolean> deleteJob(Vertx vertx, String tenant, UUID jobId) {
     TenantPgPool tenantPgPool = TenantPgPool.tenantPgPool(vertx, tenant);
     return tenantPgPool.preparedQuery("DELETE FROM {schema}.job WHERE ID= $1")
         .execute(Tuple.of(jobId))
@@ -99,8 +115,23 @@ public final class TenantInitDb {
         });
   }
 
+  private Future<Void> updateJob(Vertx vertx, JsonObject tenantJob) {
+    String tenant = tenantJob.getString("tenant");
+    UUID jobId = UUID.fromString(tenantJob.getString("id"));
+    TenantPgPool tenantPgPool = TenantPgPool.tenantPgPool(vertx, tenant);
+    return tenantPgPool.preparedQuery("UPDATE {schema}.job SET jsonb = $2 WHERE id = $1")
+        .execute(Tuple.of(jobId, tenantJob)).mapEmpty();
+  }
 
-  static void handlers(Vertx vertx, RouterBuilder routerBuilder) {
+  private Future<Void> saveJob(Vertx vertx, JsonObject tenantJob) {
+    String tenant = tenantJob.getString("tenant");
+    UUID jobId = UUID.fromString(tenantJob.getString("id"));
+    TenantPgPool tenantPgPool = TenantPgPool.tenantPgPool(vertx, tenant);
+    return tenantPgPool.preparedQuery("INSERT INTO {schema}.job VALUES ($1, $2)")
+        .execute(Tuple.of(jobId, tenantJob)).mapEmpty();
+  }
+
+  protected void handlers(Vertx vertx, RouterBuilder routerBuilder) {
     log.info("setting up tenant handlers ... begin");
     routerBuilder
         .operation("postTenant")
@@ -179,4 +210,18 @@ public final class TenantInitDb {
         .failureHandler(ctx -> TenantInitDb.failHandler400(ctx, "Failure"));
     log.info("setting up tenant handlers ... done");
   }
+
+  /**
+   * Create router for tenant API.
+   * @param vertx Vert.x handle
+   * @return async result: router
+   */
+  public Future<Router> createRouter(Vertx vertx) {
+    return RouterBuilder.create(vertx, "openapi/tenant-2.0.yaml")
+        .map(routerBuilder -> {
+          handlers(vertx, routerBuilder);
+          return routerBuilder.createRouter();
+        });
+  }
+
 }

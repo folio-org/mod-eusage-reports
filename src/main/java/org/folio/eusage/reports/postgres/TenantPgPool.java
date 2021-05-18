@@ -71,7 +71,7 @@ public class TenantPgPool implements PgPool {
    * Create pool for Tenant.
    *
    * <p>The returned pool implements PgPool interface so this cab be used like PgPool as usual.
-   * But queries being subsituted before usage. The literal "{schema}" is substituted with the
+   * But queries being substituted before usage. The literal "{schema}" is substituted with the
    * module+schema schema.
    * PgPool.setMmodule *must* be called before the queries are executed, since schema is based
    * on module name.
