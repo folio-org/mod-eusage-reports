@@ -14,14 +14,19 @@ import org.apache.logging.log4j.Logger;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
+import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.testcontainers.containers.Container;
+import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.utility.MountableFile;
 
 @RunWith(VertxUnitRunner.class)
-public class TenantPgPoolTest extends TenantPgTestBase {
+public class TenantPgPoolTest {
   private final static Logger log = LogManager.getLogger("MainVerticleTest");
+
+  @ClassRule
+  public static PostgreSQLContainer<?> postgresSQLContainer = TenantPgPoolContainer.create();
 
   static final String KEY_PATH = "/var/lib/postgresql/data/server.key";
   static final String CRT_PATH = "/var/lib/postgresql/data/server.crt";
@@ -76,7 +81,6 @@ public class TenantPgPoolTest extends TenantPgTestBase {
 
   @AfterClass
   public static void afterClass(TestContext context) {
-    postgresSQLContainer.close();
     vertx.close(context.asyncAssertSuccess());
   }
 

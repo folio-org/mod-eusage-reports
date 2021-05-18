@@ -12,20 +12,25 @@ import io.vertx.ext.unit.junit.VertxUnitRunner;
 import io.vertx.pgclient.PgConnectOptions;
 import java.util.UUID;
 import org.folio.eusage.reports.postgres.TenantPgPool;
-import org.folio.eusage.reports.postgres.TenantPgTestBase;
+import org.folio.eusage.reports.postgres.TenantPgPoolContainer;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
+import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.testcontainers.containers.PostgreSQLContainer;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.is;
 
 @RunWith(VertxUnitRunner.class)
-public class TenantInitdbTest extends TenantPgTestBase {
+public class TenantInitdbTest {
 
   static Vertx vertx;
   static int port = 9230;
+
+  @ClassRule
+  public static PostgreSQLContainer<?> postgresSQLContainer = TenantPgPoolContainer.create();
 
   static class TenantInitHooks implements TenantInit {
     @Override
@@ -60,7 +65,6 @@ public class TenantInitdbTest extends TenantPgTestBase {
 
   @AfterClass
   public static void afterClass(TestContext context) {
-    postgresSQLContainer.close();
     vertx.close(context.asyncAssertSuccess());
   }
 

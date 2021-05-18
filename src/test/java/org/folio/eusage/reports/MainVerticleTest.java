@@ -8,21 +8,26 @@ import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.folio.eusage.reports.postgres.TenantPgTestBase;
+import org.folio.eusage.reports.postgres.TenantPgPoolContainer;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
+import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.testcontainers.containers.PostgreSQLContainer;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.is;
 
 @RunWith(VertxUnitRunner.class)
-public class MainVerticleTest extends TenantPgTestBase {
+public class MainVerticleTest {
   private final static Logger log = LogManager.getLogger("MainVerticleTest");
 
   static Vertx vertx;
   static int port = 9230;
+
+  @ClassRule
+  public static PostgreSQLContainer<?> postgresSQLContainer = TenantPgPoolContainer.create();
 
   @BeforeClass
   public static void beforeClass(TestContext context) {
@@ -36,7 +41,6 @@ public class MainVerticleTest extends TenantPgTestBase {
 
   @AfterClass
   public static void afterClass(TestContext context) {
-    postgresSQLContainer.close();
     vertx.close(context.asyncAssertSuccess());
   }
 
