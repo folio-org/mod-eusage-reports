@@ -12,20 +12,17 @@ import io.vertx.ext.unit.junit.VertxUnitRunner;
 import io.vertx.pgclient.PgConnectOptions;
 import java.util.UUID;
 import org.folio.eusage.reports.postgres.TenantPgPool;
+import org.folio.eusage.reports.postgres.TenantPgTestBase;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.testcontainers.containers.PostgreSQLContainer;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.is;
 
 @RunWith(VertxUnitRunner.class)
-public class TenantInitdbTest {
-
-  private static PostgreSQLContainer<?> postgresSQLContainer;
-  private static PgConnectOptions pgConnectOptions = new PgConnectOptions();
+public class TenantInitdbTest extends TenantPgTestBase {
 
   static Vertx vertx;
   static int port = 9230;
@@ -48,14 +45,6 @@ public class TenantInitdbTest {
   public static void beforeClass(TestContext context) {
     TenantPgPool.setModule("mod-tenant");
     vertx = Vertx.vertx();
-    postgresSQLContainer = new PostgreSQLContainer<>("postgres:12-alpine");
-    postgresSQLContainer.start();
-    pgConnectOptions.setHost(postgresSQLContainer.getHost());
-    pgConnectOptions.setPort(postgresSQLContainer.getFirstMappedPort());
-    pgConnectOptions.setUser(postgresSQLContainer.getUsername());
-    pgConnectOptions.setPassword(postgresSQLContainer.getPassword());
-    pgConnectOptions.setDatabase(postgresSQLContainer.getDatabaseName());
-    TenantPgPool.setDefaultConnectOptions(pgConnectOptions);
     RestAssured.enableLoggingOfRequestAndResponseIfValidationFails();
     RestAssured.port = port;
 
@@ -105,6 +94,7 @@ public class TenantInitdbTest {
   public void testPostTenantBadDatabase(TestContext context) {
     String tenant = "testlib";
     PgConnectOptions bad = new PgConnectOptions();
+    PgConnectOptions pgConnectOptions = TenantPgPool.getDefaultConnectOptions();
     bad.setHost(pgConnectOptions.getHost());
     bad.setPort(pgConnectOptions.getPort());
     bad.setUser(pgConnectOptions.getUser());

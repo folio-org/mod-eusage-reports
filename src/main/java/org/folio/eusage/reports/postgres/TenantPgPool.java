@@ -38,7 +38,7 @@ public class TenantPgPool implements PgPool {
   static String module;
   static PgConnectOptions pgConnectOptions = new PgConnectOptions();
 
-  String tenant = null;
+  String tenant;
   PgPool pgPool;
 
   static String substTenant(String v, String tenant) {
@@ -50,6 +50,10 @@ public class TenantPgPool implements PgPool {
       throw new IllegalArgumentException(v);
     }
     return v.replace("-", "_").replace(".", "_");
+  }
+
+  public static PgConnectOptions getDefaultConnectOptions() {
+    return TenantPgPool.pgConnectOptions;
   }
 
   public static void setDefaultConnectOptions(PgConnectOptions connectOptions) {
@@ -85,7 +89,7 @@ public class TenantPgPool implements PgPool {
     }
     PgConnectOptions connectOptions = pgConnectOptions;
     if (host != null) {
-      connectOptions.setDatabase(substTenant(host, tenant));
+      connectOptions.setHost(substTenant(host, tenant));
     }
     if (port != null) {
       connectOptions.setPort(Integer.parseInt(port));
