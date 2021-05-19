@@ -3,24 +3,23 @@ package org.folio.eusage.reports;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Future;
 import io.vertx.core.Promise;
-import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServerOptions;
 import io.vertx.ext.web.Router;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.folio.eusage.reports.api.EusageReportsApi;
-import org.folio.tlib.api.HealthApi;
-import org.folio.tlib.api.Tenant2Api;
-import org.folio.tlib.postgres.impl.TenantPgPoolImpl;
 import org.folio.okapi.common.Config;
 import org.folio.okapi.common.ModuleVersionReporter;
+import org.folio.tlib.api.HealthApi;
+import org.folio.tlib.api.Tenant2Api;
+import org.folio.tlib.postgres.TenantPgPool;
 
 public class MainVerticle extends AbstractVerticle {
-  final Logger log = LogManager.getLogger("MainVerticle");
+  final Logger log = LogManager.getLogger(MainVerticle.class);
 
   @Override
   public void start(Promise<Void> promise) {
-    TenantPgPoolImpl.setModule("mod-eusage-reports");
+    TenantPgPool.setModule("mod-eusage-reports");
     ModuleVersionReporter m = new ModuleVersionReporter("org.folio/mod-eusage-reports");
     log.info("Starting {} {} {}", m.getModule(), m.getVersion(), m.getCommitId());
 
