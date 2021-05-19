@@ -1,11 +1,11 @@
-package org.folio.eusage.reports.postgres;
+package org.folio.tlib.postgres;
 
 import io.vertx.core.Future;
 import io.vertx.core.Vertx;
 import io.vertx.pgclient.PgConnectOptions;
 import io.vertx.pgclient.PgPool;
 import java.util.List;
-import org.folio.eusage.reports.postgres.impl.TenantPgPoolImpl;
+import org.folio.tlib.postgres.impl.TenantPgPoolImpl;
 
 public interface TenantPgPool extends PgPool {
 

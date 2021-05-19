@@ -1,4 +1,4 @@
-package org.folio.eusage.reports;
+package org.folio.tlib.api;
 
 import io.vertx.core.Future;
 import io.vertx.core.Promise;
@@ -18,17 +18,19 @@ import java.util.Map;
 import java.util.UUID;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.folio.eusage.reports.postgres.impl.TenantPgPoolImpl;
+import org.folio.tlib.RouterCreator;
+import org.folio.tlib.TenantInitHooks;
+import org.folio.tlib.postgres.impl.TenantPgPoolImpl;
 import org.folio.okapi.common.XOkapiHeaders;
 
-public class TenantInitDb {
-  private static final Logger log = LogManager.getLogger(TenantInitDb.class);
+public class Tenant2Api implements RouterCreator {
+  private static final Logger log = LogManager.getLogger(Tenant2Api.class);
 
   private final Map<UUID, List<Promise<Void>>> waiters = new HashMap<>();
 
-  private final TenantInit hooks;
+  private final TenantInitHooks hooks;
 
-  public TenantInitDb(TenantInit hooks) {
+  public Tenant2Api(TenantInitHooks hooks) {
     this.hooks = hooks;
   }
 
@@ -183,7 +185,7 @@ public class TenantInitDb {
             failHandler400(ctx, e.getMessage());
           }
         })
-        .failureHandler(ctx -> TenantInitDb.failHandler400(ctx, "Failure"));
+        .failureHandler(ctx -> Tenant2Api.failHandler400(ctx, "Failure"));
     routerBuilder
         .operation("getTenantJob")
         .handler(ctx -> {
@@ -210,7 +212,7 @@ public class TenantInitDb {
             failHandler400(ctx, e.getMessage());
           }
         })
-        .failureHandler(ctx -> TenantInitDb.failHandler400(ctx, "Failure"));
+        .failureHandler(ctx -> Tenant2Api.failHandler400(ctx, "Failure"));
     routerBuilder
         .operation("deleteTenantJob")
         .handler(ctx -> {
@@ -233,7 +235,7 @@ public class TenantInitDb {
             failHandler400(ctx, e.getMessage());
           }
         })
-        .failureHandler(ctx -> TenantInitDb.failHandler400(ctx, "Failure"));
+        .failureHandler(ctx -> Tenant2Api.failHandler400(ctx, "Failure"));
     log.info("setting up tenant handlers ... done");
   }
 
@@ -242,6 +244,7 @@ public class TenantInitDb {
    * @param vertx Vert.x handle
    * @return async result: router
    */
+  @Override
   public Future<Router> createRouter(Vertx vertx) {
     return RouterBuilder.create(vertx, "openapi/tenant-2.0.yaml")
         .map(routerBuilder -> {

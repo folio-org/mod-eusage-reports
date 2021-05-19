@@ -3,20 +3,19 @@ package org.folio.eusage.reports;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Future;
 import io.vertx.core.Promise;
-import io.vertx.core.Vertx;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServerOptions;
-import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.Router;
-import io.vertx.ext.web.RoutingContext;
-import io.vertx.ext.web.openapi.RouterBuilder;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.folio.eusage.reports.postgres.impl.TenantPgPoolImpl;
+import org.folio.eusage.reports.api.EusageReportsApi;
+import org.folio.tlib.api.HealthApi;
+import org.folio.tlib.api.Tenant2Api;
+import org.folio.tlib.postgres.impl.TenantPgPoolImpl;
 import org.folio.okapi.common.Config;
 import org.folio.okapi.common.ModuleVersionReporter;
 
-public class MainVerticle extends AbstractVerticle implements TenantInit {
+public class MainVerticle extends AbstractVerticle {
   final Logger log = LogManager.getLogger("MainVerticle");
 
   @Override
@@ -28,18 +27,17 @@ public class MainVerticle extends AbstractVerticle implements TenantInit {
     final int port = Integer.parseInt(
         Config.getSysConf("http.port", "port", "8081", config()));
 
+    EusageReportsApi eusageReportsApi = new EusageReportsApi(m.getVersion());
+    Tenant2Api tenant2Api = new Tenant2Api(eusageReportsApi);
+
     Router router = Router.router(vertx);
-
     Future<Void> future = Future.succeededFuture();
-    future = future.compose(x -> new TenantInitDb(this).createRouter(vertx))
+    future = future.compose(x -> tenant2Api.createRouter(vertx))
         .onSuccess(x -> router.mountSubRouter("/", x)).mapEmpty();
-    future = future.compose(x -> createRoutereUsageReports(m.getVersion()))
+    future = future.compose(x -> eusageReportsApi.createRouter(vertx))
         .onSuccess(x -> router.mountSubRouter("/", x)).mapEmpty();
-
-    router.route(HttpMethod.GET, "/admin/health").handler(ctx -> {
-      ctx.response().putHeader("Content-Type", "text/plain");
-      ctx.response().end("OK");
-    });
+    future = future.compose(x -> new HealthApi().createRouter(vertx))
+        .onSuccess(x -> router.mountSubRouter("/", x)).mapEmpty();
 
     future = future.compose(x -> {
       HttpServerOptions so = new HttpServerOptions().setHandle100ContinueAutomatically(true);
@@ -48,37 +46,5 @@ public class MainVerticle extends AbstractVerticle implements TenantInit {
           .listen(port).mapEmpty();
     });
     future.onComplete(promise);
-  }
-
-  void failHandler(RoutingContext ctx) {
-    ctx.response().setStatusCode(400);
-    ctx.response().putHeader("Content-Type", "text/plain");
-    ctx.response().end("Failure");
-  }
-
-  Future<Router> createRoutereUsageReports(String version) {
-    return RouterBuilder.create(vertx, "openapi/eusage-reports-1.0.yaml")
-        .compose(routerBuilder -> {
-          routerBuilder
-              .operation("getVersion")
-              .handler(ctx -> {
-                log.info("getVersion handler");
-                ctx.response().setStatusCode(200);
-                ctx.response().putHeader("Content-Type", "text/plain");
-                ctx.response().end(version == null ? "0.0" : version);
-              })
-              .failureHandler(this::failHandler);
-          return Future.succeededFuture(routerBuilder.createRouter());
-        });
-  }
-
-  @Override
-  public Future<Void> postInit(Vertx vertx, String tenant, JsonObject tenantAttributes) {
-    return Future.succeededFuture();
-  }
-
-  @Override
-  public Future<Void> preInit(Vertx vertx, String tenant, JsonObject tenantAttributes) {
-    return Future.succeededFuture();
   }
 }

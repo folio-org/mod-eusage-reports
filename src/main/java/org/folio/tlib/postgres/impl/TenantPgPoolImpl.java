@@ -1,4 +1,4 @@
-package org.folio.eusage.reports.postgres.impl;
+package org.folio.tlib.postgres.impl;
 
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;
@@ -22,7 +22,7 @@ import java.util.List;
 import java.util.Map;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.folio.eusage.reports.postgres.TenantPgPool;
+import org.folio.tlib.postgres.TenantPgPool;
 
 public class TenantPgPoolImpl implements TenantPgPool {
 

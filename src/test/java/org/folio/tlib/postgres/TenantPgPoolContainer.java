@@ -1,4 +1,4 @@
-package org.folio.eusage.reports.postgres;
+package org.folio.tlib.postgres;
 
 import io.vertx.pgclient.PgConnectOptions;
 import org.testcontainers.containers.PostgreSQLContainer;

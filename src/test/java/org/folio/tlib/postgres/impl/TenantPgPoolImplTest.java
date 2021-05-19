@@ -1,4 +1,4 @@
-package org.folio.eusage.reports.postgres.impl;
+package org.folio.tlib.postgres.impl;
 
 import io.vertx.core.Vertx;
 import io.vertx.ext.unit.TestContext;

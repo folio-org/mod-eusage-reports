@@ -1,4 +1,4 @@
-package org.folio.eusage.reports.postgres;
+package org.folio.tlib.postgres;
 
 import io.vertx.core.Vertx;
 import io.vertx.ext.unit.TestContext;
@@ -10,7 +10,7 @@ import java.util.LinkedList;
 import java.util.List;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.folio.eusage.reports.postgres.impl.TenantPgPoolImpl;
+import org.folio.tlib.postgres.impl.TenantPgPoolImpl;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;

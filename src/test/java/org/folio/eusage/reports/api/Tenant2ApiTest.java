@@ -1,4 +1,4 @@
-package org.folio.eusage.reports;
+package org.folio.eusage.reports.api;
 
 import io.restassured.RestAssured;
 import io.restassured.response.ExtractableResponse;
@@ -15,8 +15,9 @@ import java.util.UUID;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.folio.eusage.reports.postgres.TenantPgPool;
-import org.folio.eusage.reports.postgres.TenantPgPoolContainer;
+import org.folio.tlib.api.Tenant2Api;
+import org.folio.tlib.postgres.TenantPgPool;
+import org.folio.tlib.postgres.TenantPgPoolContainer;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
@@ -28,8 +29,8 @@ import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.is;
 
 @RunWith(VertxUnitRunner.class)
-public class TenantInitdbTest {
-  private final static Logger log = LogManager.getLogger(TenantInitdbTest.class);
+public class Tenant2ApiTest {
+  private final static Logger log = LogManager.getLogger(Tenant2ApiTest.class);
 
   static Vertx vertx;
   static int port = 9230;
@@ -37,7 +38,7 @@ public class TenantInitdbTest {
   @ClassRule
   public static PostgreSQLContainer<?> postgresSQLContainer = TenantPgPoolContainer.create();
 
-  static class TenantInitHooks implements TenantInit {
+  static class TenantInitHooks implements org.folio.tlib.TenantInitHooks {
 
     Promise<Void> preInitPromise;
     Promise<Void> postInitPromise;
@@ -68,7 +69,7 @@ public class TenantInitdbTest {
     RestAssured.enableLoggingOfRequestAndResponseIfValidationFails();
     RestAssured.port = port;
 
-    new TenantInitDb(hooks).createRouter(vertx)
+    new Tenant2Api(hooks).createRouter(vertx)
         .compose(router -> {
           HttpServerOptions so = new HttpServerOptions().setHandle100ContinueAutomatically(true);
           return vertx.createHttpServer(so)
