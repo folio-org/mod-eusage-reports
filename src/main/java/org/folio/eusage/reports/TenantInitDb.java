@@ -58,7 +58,11 @@ public class TenantInitDb {
         .onComplete(x -> {
           tenantJob.put("complete", true);
           if (x.failed()) {
-            tenantJob.put("error", x.cause().getMessage());
+            String msg = x.cause().getMessage();
+            if (msg == null) {
+              msg = x.cause().getClass().getName();
+            }
+            tenantJob.put("error", msg);
           }
           updateJob(vertx, tenantJob)
               .onComplete(y -> {

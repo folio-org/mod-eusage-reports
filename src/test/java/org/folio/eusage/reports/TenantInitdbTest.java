@@ -258,6 +258,54 @@ public class TenantInitdbTest {
         .header("X-Okapi-Tenant", tenant)
         .delete(location)
         .then().statusCode(204);
+
+    RestAssured.given()
+        .header("X-Okapi-Tenant", tenant)
+        .header("Content-Type", "application/json")
+        .body("{\"module_to\" : \"mod-eusage-reports-1.0.0\", \"purge\":true}")
+        .post("/_/tenant")
+        .then().statusCode(204);
+  }
+
+  @Test
+  public void testPostTenantPostInitFailNull(TestContext context) {
+    String tenant = "testlib";
+    ExtractableResponse<Response> response = RestAssured.given()
+        .header("X-Okapi-Tenant", tenant)
+        .header("Content-Type", "application/json")
+        .body("{\"module_to\" : \"mod-eusage-reports-1.0.0\"}")
+        .post("/_/tenant")
+        .then().statusCode(201)
+        .header("Content-Type", is("application/json"))
+        .body("tenant", is(tenant))
+        .extract();
+
+    String location = response.header("Location");
+    JsonObject tenantJob = new JsonObject(response.asString());
+    context.assertEquals("/_/tenant/" + tenantJob.getString("id"), location);
+
+    hooks.postInitPromise.fail((String) null);
+    String s = RestAssured.given()
+        .header("X-Okapi-Tenant", tenant)
+        .get(location)
+        .then().statusCode(200)
+        .extract().body().asString();
+    JsonObject tenantJob2 = new JsonObject(s);
+    context.assertTrue(tenantJob2.getBoolean("complete"));
+    context.assertTrue(tenantJob2.containsKey("error"));
+    context.assertEquals("io.vertx.core.impl.NoStackTraceThrowable", tenantJob2.getString("error"));
+
+    RestAssured.given()
+        .header("X-Okapi-Tenant", tenant)
+        .delete(location)
+        .then().statusCode(204);
+
+    RestAssured.given()
+        .header("X-Okapi-Tenant", tenant)
+        .header("Content-Type", "application/json")
+        .body("{\"module_to\" : \"mod-eusage-reports-1.0.0\", \"purge\":true}")
+        .post("/_/tenant")
+        .then().statusCode(204);
   }
 
   @Test
