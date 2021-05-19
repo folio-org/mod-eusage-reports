@@ -24,7 +24,7 @@ import org.folio.okapi.common.XOkapiHeaders;
 public class TenantInitDb {
   private static final Logger log = LogManager.getLogger(TenantInitDb.class);
 
-  private Map<UUID, List<Promise<Void>>> waiters = new HashMap<>();
+  private final Map<UUID, List<Promise<Void>>> waiters = new HashMap<>();
 
   private final TenantInit hooks;
 
