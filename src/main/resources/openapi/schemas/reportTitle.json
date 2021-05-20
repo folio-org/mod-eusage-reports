@@ -1,0 +1,22 @@
+{
+  "description": "report title entry",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string",
+      "description": "Parsed title"
+    },
+    "counterReportId": {
+      "type": "string",
+      "description": "Counter report identifier"
+    },
+    "kbId": {
+      "type": "string",
+      "description": "Knowledge Base identifier"
+    }
+  },
+  "additionalProperties": false,
+  "required": [
+    "title"
+  ]
+}

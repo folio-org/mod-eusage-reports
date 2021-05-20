@@ -5,6 +5,8 @@ import io.restassured.response.ExtractableResponse;
 import io.restassured.response.Response;
 import io.vertx.core.DeploymentOptions;
 import io.vertx.core.Vertx;
+import io.vertx.core.json.Json;
+import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
@@ -65,7 +67,6 @@ public class MainVerticleTest {
   @Test
   public void testPostTenantOK(TestContext context) {
     String tenant = "testlib";
-    log.info("AD: POST begin");
     ExtractableResponse<Response> response = RestAssured.given()
         .header("X-Okapi-Tenant", tenant)
         .header("Content-Type", "application/json")
@@ -76,7 +77,6 @@ public class MainVerticleTest {
         .body("tenant", is(tenant))
         .extract();
 
-    log.info("AD: POST completed");
     String location = response.header("Location");
     JsonObject tenantJob = new JsonObject(response.asString());
     context.assertEquals("/_/tenant/" + tenantJob.getString("id"), location);
@@ -88,11 +88,21 @@ public class MainVerticleTest {
         .extract();
 
     context.assertTrue(response.path("complete"));
+    context.assertEquals(null, response.path("error"));
 
     RestAssured.given()
         .header("X-Okapi-Tenant", tenant)
         .delete(location)
         .then().statusCode(204);
+
+    response = RestAssured.given()
+        .header("X-Okapi-Tenant", tenant)
+        .get("/eusage-reports/report-titles")
+        .then().statusCode(200)
+        .header("Content-Type", is("application/json"))
+        .extract();
+    context.assertEquals(new JsonObject().put("titles", new JsonArray()).encode(),
+      new JsonObject(response.body().asString()).encode());
 
 
     response = RestAssured.given()
@@ -105,7 +115,6 @@ public class MainVerticleTest {
         .body("tenant", is(tenant))
         .extract();
 
-    log.info("AD: POST completed");
     location = response.header("Location");
     tenantJob = new JsonObject(response.asString());
     context.assertEquals("/_/tenant/" + tenantJob.getString("id"), location);
@@ -117,6 +126,7 @@ public class MainVerticleTest {
         .extract();
 
     context.assertTrue(response.path("complete"));
+    context.assertEquals(null, response.path("error"));
 
     RestAssured.given()
         .header("X-Okapi-Tenant", tenant)

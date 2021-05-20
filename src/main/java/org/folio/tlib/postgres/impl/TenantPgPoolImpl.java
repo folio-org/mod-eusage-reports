@@ -149,12 +149,16 @@ public class TenantPgPoolImpl implements TenantPgPool {
 
   @Override
   public Query<RowSet<Row>> query(String s) {
-    return pgPool.query(subst(s));
+    String e = subst(s);
+    log.info("query {}", e);
+    return pgPool.query(e);
   }
 
   @Override
   public PreparedQuery<RowSet<Row>> preparedQuery(String s) {
-    return pgPool.preparedQuery(subst(s));
+    String e = subst(s);
+    log.info("preparedQuery {}", e);
+    return pgPool.preparedQuery(e);
   }
 
   @Override
@@ -181,7 +185,6 @@ public class TenantPgPoolImpl implements TenantPgPool {
     Future<Void> future = Future.succeededFuture();
     for (String cmd : queries) {
       future = future.compose(res -> query(cmd).execute()
-          .onSuccess(x -> log.info("{}", cmd))
           .onFailure(x -> log.warn("{} FAIL: {}", cmd, x.getMessage()))
           .mapEmpty());
     }
