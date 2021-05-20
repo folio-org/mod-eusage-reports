@@ -146,12 +146,7 @@ public class Tenant2Api implements RouterCreator {
     TenantPgPoolImpl tenantPgPool = TenantPgPoolImpl.tenantPgPool(vertx, tenant);
     return tenantPgPool.preparedQuery("DELETE FROM {schema}.job WHERE ID= $1")
         .execute(Tuple.of(jobId))
-        .compose(res -> {
-          if (res.rowCount() == 0) {
-            return Future.succeededFuture(Boolean.FALSE);
-          }
-          return Future.succeededFuture(Boolean.TRUE);
-        });
+        .map(res -> (res.rowCount() > 0));
   }
 
   private static Future<Void> updateJob(Vertx vertx, JsonObject tenantJob) {
