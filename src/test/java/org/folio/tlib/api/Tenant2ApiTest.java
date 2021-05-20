@@ -1,4 +1,4 @@
-package org.folio.eusage.reports.api;
+package org.folio.tlib.api;
 
 import io.restassured.RestAssured;
 import io.restassured.response.ExtractableResponse;
@@ -15,7 +15,6 @@ import java.util.UUID;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.folio.tlib.api.Tenant2Api;
 import org.folio.tlib.postgres.TenantPgPool;
 import org.folio.tlib.postgres.TenantPgPoolContainer;
 import org.junit.AfterClass;
@@ -151,62 +150,44 @@ public class Tenant2ApiTest {
   public void testPostTenantOK(TestContext context) {
     String tenant = "testlib";
     log.info("AD: POST begin");
-    ExtractableResponse<Response> response = RestAssured.given()
-        .header("X-Okapi-Tenant", tenant)
-        .header("Content-Type", "application/json")
-        .body("{\"module_to\" : \"mod-eusage-reports-1.0.0\"}")
-        .post("/_/tenant")
-        .then().statusCode(201)
-        .header("Content-Type", is("application/json"))
-        .body("tenant", is(tenant))
-        .extract();
 
-    log.info("AD: POST completed");
-    String location = response.header("Location");
-    JsonObject tenantJob = new JsonObject(response.asString());
-    context.assertEquals("/_/tenant/" + tenantJob.getString("id"), location);
+    // init
+    String error = tenantOp(context, tenant, new JsonObject()
+        .put("module_to", "mod-eusage-reports-1.0.0")
+    );
+    context.assertNull(error);
 
-    Boolean complete = RestAssured.given()
-            .header("X-Okapi-Tenant", tenant)
-            .get(location)
-            .then().statusCode(200)
-            .extract().path("complete");
-    context.assertFalse(complete);
-    while (!complete) {
-      complete = RestAssured.given()
-          .header("X-Okapi-Tenant", tenant)
-          .get(location + "?wait=1")
-          .then().statusCode(200)
-          .extract().path("complete");
-      hooks.postInitPromise.tryComplete();
-    }
+    // upgrade
+    error = tenantOp(context, tenant, new JsonObject()
+        .put("module_from", "mod-eusage-reports-1.0.0")
+        .put("module_to", "mod-eusage-reports-1.0.1")
+    );
+    context.assertNull(error);
 
-    RestAssured.given()
-        .header("X-Okapi-Tenant", tenant)
-        .delete(location)
-        .then().statusCode(204);
+    // disable
+    error = tenantOp(context, tenant, new JsonObject()
+        .put("module_from", "mod-eusage-reports-1.0.1")
+    );
+    context.assertNull(error);
 
-    RestAssured.given()
-        .header("X-Okapi-Tenant", tenant)
-        .delete(location)
-        .then().statusCode(404);
-
-    RestAssured.given()
-        .header("X-Okapi-Tenant", tenant)
-        .get(location)
-        .then().statusCode(404);
-
+    // purge
     RestAssured.given()
         .header("X-Okapi-Tenant", tenant)
         .header("Content-Type", "application/json")
-        .body("{\"module_to\" : \"mod-eusage-reports-1.0.0\", \"purge\":true}")
+        .body(new JsonObject()
+            .put("module_from", "mod-eusage-reports-1.0.1")
+            .put("purge", true)
+            .encode())
         .post("/_/tenant")
         .then().statusCode(204);
 
     RestAssured.given()
         .header("X-Okapi-Tenant", tenant)
         .header("Content-Type", "application/json")
-        .body("{\"module_to\" : \"mod-eusage-reports-1.0.0\", \"purge\":true}")
+        .body(new JsonObject()
+            .put("module_from", "mod-eusage-reports-1.0.1")
+            .put("purge", true)
+            .encode())
         .post("/_/tenant")
         .then().statusCode(204);
   }
@@ -226,6 +207,52 @@ public class Tenant2ApiTest {
         .extract();
 
     context.assertEquals("pre init failure", response.body().asString());
+  }
+
+  String tenantOp(TestContext context, String tenant, JsonObject body) {
+    log.info("AD: POST begin");
+    ExtractableResponse<Response> response = RestAssured.given()
+        .header("X-Okapi-Tenant", tenant)
+        .header("Content-Type", "application/json")
+        .body(body.encode())
+        .post("/_/tenant")
+        .then().statusCode(201)
+        .header("Content-Type", is("application/json"))
+        .body("tenant", is(tenant))
+        .extract();
+
+    log.info("AD: POST completed");
+    String location = response.header("Location");
+    JsonObject tenantJob = new JsonObject(response.asString());
+    context.assertEquals("/_/tenant/" + tenantJob.getString("id"), location);
+
+    response = RestAssured.given()
+        .header("X-Okapi-Tenant", tenant)
+        .get(location)
+        .then().statusCode(200)
+        .extract();
+    boolean complete = response.path("complete");
+    context.assertFalse(complete);
+    while (!complete) {
+      response = RestAssured.given()
+          .header("X-Okapi-Tenant", tenant)
+          .get(location + "?wait=1")
+          .then().statusCode(200)
+          .extract();
+      complete = response.path("complete");
+      hooks.postInitPromise.tryComplete();
+    }
+
+    RestAssured.given()
+        .header("X-Okapi-Tenant", tenant)
+        .delete(location)
+        .then().statusCode(204);
+
+    RestAssured.given()
+        .header("X-Okapi-Tenant", tenant)
+        .delete(location)
+        .then().statusCode(404);
+    return response.path("error");
   }
 
   @Test

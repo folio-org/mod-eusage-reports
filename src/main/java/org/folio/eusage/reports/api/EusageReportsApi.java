@@ -10,9 +10,12 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.folio.tlib.RouterCreator;
 import org.folio.tlib.TenantInitHooks;
+import org.folio.tlib.postgres.TenantPgPool;
 
 public class EusageReportsApi implements RouterCreator, TenantInitHooks {
-  final Logger log = LogManager.getLogger(EusageReportsApi.class);
+  private static final String TE_TABLE = "{schema}.te_table";
+
+  private final Logger log = LogManager.getLogger(EusageReportsApi.class);
 
   String version;
 
@@ -45,7 +48,14 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
 
   @Override
   public Future<Void> postInit(Vertx vertx, String tenant, JsonObject tenantAttributes) {
-    return Future.succeededFuture();
+    if (!tenantAttributes.containsKey("module_to")) {
+      return Future.succeededFuture(); // doing nothing for disable
+    }
+    TenantPgPool pool = TenantPgPool.pool(vertx, tenant);
+    return pool.query("CREATE IF NOT EXISTS " + TE_TABLE + " ( "
+        + "id UUID PRIMARY KEY, "
+        + "counterReportTitle text"
+        + ")").execute().mapEmpty();
   }
 
   @Override

@@ -1,6 +1,8 @@
 package org.folio.eusage.reports;
 
 import io.restassured.RestAssured;
+import io.restassured.response.ExtractableResponse;
+import io.restassured.response.Response;
 import io.vertx.core.DeploymentOptions;
 import io.vertx.core.Vertx;
 import io.vertx.core.json.JsonObject;
@@ -59,4 +61,75 @@ public class MainVerticleTest {
         .then().statusCode(200)
         .body(containsString("0.0"));
   }
+
+  @Test
+  public void testPostTenantOK(TestContext context) {
+    String tenant = "testlib";
+    log.info("AD: POST begin");
+    ExtractableResponse<Response> response = RestAssured.given()
+        .header("X-Okapi-Tenant", tenant)
+        .header("Content-Type", "application/json")
+        .body("{\"module_to\" : \"mod-eusage-reports-1.0.0\"}")
+        .post("/_/tenant")
+        .then().statusCode(201)
+        .header("Content-Type", is("application/json"))
+        .body("tenant", is(tenant))
+        .extract();
+
+    log.info("AD: POST completed");
+    String location = response.header("Location");
+    JsonObject tenantJob = new JsonObject(response.asString());
+    context.assertEquals("/_/tenant/" + tenantJob.getString("id"), location);
+
+    response = RestAssured.given()
+        .header("X-Okapi-Tenant", tenant)
+        .get(location + "?wait=10000")
+        .then().statusCode(200)
+        .extract();
+
+    context.assertTrue(response.path("complete"));
+
+    RestAssured.given()
+        .header("X-Okapi-Tenant", tenant)
+        .delete(location)
+        .then().statusCode(204);
+
+
+    response = RestAssured.given()
+        .header("X-Okapi-Tenant", tenant)
+        .header("Content-Type", "application/json")
+        .body("{\"module_from\" : \"mod-eusage-reports-1.0.0\"}")
+        .post("/_/tenant")
+        .then().statusCode(201)
+        .header("Content-Type", is("application/json"))
+        .body("tenant", is(tenant))
+        .extract();
+
+    log.info("AD: POST completed");
+    location = response.header("Location");
+    tenantJob = new JsonObject(response.asString());
+    context.assertEquals("/_/tenant/" + tenantJob.getString("id"), location);
+
+    response = RestAssured.given()
+        .header("X-Okapi-Tenant", tenant)
+        .get(location + "?wait=10000")
+        .then().statusCode(200)
+        .extract();
+
+    context.assertTrue(response.path("complete"));
+
+    RestAssured.given()
+        .header("X-Okapi-Tenant", tenant)
+        .delete(location)
+        .then().statusCode(204);
+
+    RestAssured.given()
+        .header("X-Okapi-Tenant", tenant)
+        .header("Content-Type", "application/json")
+        .body("{\"module_from\" : \"mod-eusage-reports-1.0.0\", \"purge\":true}")
+        .post("/_/tenant")
+        .then().statusCode(204);
+  }
+
+
 }

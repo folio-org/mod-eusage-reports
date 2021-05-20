@@ -82,31 +82,43 @@ public class Tenant2Api implements RouterCreator {
                                        JsonObject tenantAttributes) {
     log.info("postTenant got {}", tenantAttributes.encode());
     TenantPgPoolImpl tenantPgPool = TenantPgPoolImpl.tenantPgPool(vertx, tenant);
-    List<String> cmds = new LinkedList<>();
-    if (Boolean.TRUE.equals(tenantAttributes.getBoolean("purge"))) {
-      cmds.add("DROP SCHEMA IF EXISTS {schema} CASCADE");
-      cmds.add("DROP ROLE IF EXISTS {schema}");
-    } else {
-      cmds.add("CREATE ROLE {schema} PASSWORD 'tenant' NOSUPERUSER NOCREATEDB INHERIT LOGIN");
-      cmds.add("GRANT {schema} TO CURRENT_USER");
-      cmds.add("CREATE SCHEMA {schema} AUTHORIZATION {schema}");
-      cmds.add("CREATE TABLE IF NOT EXISTS {schema}.job "
-          + "(id UUID PRIMARY KEY, jsonb JSONB NOT NULL)");
-    }
     return hooks.preInit(vertx, tenant, tenantAttributes)
-        .compose(res -> tenantPgPool.execute(cmds))
         .compose(res -> {
           if (Boolean.TRUE.equals(tenantAttributes.getBoolean("purge"))) {
-            return Future.succeededFuture(null);
+            return tenantPgPool.execute(List.of(
+                "DROP SCHEMA IF EXISTS {schema} CASCADE",
+                "DROP ROLE IF EXISTS {schema}"
+            )).map((JsonObject) null);
           }
-          JsonObject tenantJob = new JsonObject();
-          tenantJob.put("id", UUID.randomUUID().toString());
-          tenantJob.put("complete", false);
-          tenantJob.put("tenant", tenant);
-          tenantJob.put("tenantAttributes", tenantAttributes);
-          return saveJob(vertx, tenantJob)
-              .onSuccess(x -> runAsync(vertx, tenantJob))
-              .map(tenantJob);
+          return tenantPgPool.query("SELECT EXISTS(SELECT 1 FROM pg_namespace WHERE"
+              + " nspname = '{schema}')")
+              .execute()
+              .map(rowSet -> rowSet.iterator().next().getBoolean(0))
+              .compose(exists -> {
+                if (exists) {
+                  return Future.succeededFuture();
+                }
+                return tenantPgPool.execute(List.of(
+                    "CREATE ROLE {schema} PASSWORD 'tenant' NOSUPERUSER NOCREATEDB INHERIT LOGIN",
+                    "GRANT {schema} TO CURRENT_USER",
+                    "CREATE SCHEMA {schema} AUTHORIZATION {schema}"
+                ));
+              })
+              .compose(res1 ->
+                  tenantPgPool.query("CREATE TABLE IF NOT EXISTS {schema}.job "
+                      + "(id UUID PRIMARY KEY, jsonb JSONB NOT NULL)")
+                      .execute()
+              )
+              .compose(res1 -> {
+                JsonObject tenantJob = new JsonObject();
+                tenantJob.put("id", UUID.randomUUID().toString());
+                tenantJob.put("complete", false);
+                tenantJob.put("tenant", tenant);
+                tenantJob.put("tenantAttributes", tenantAttributes);
+                return saveJob(vertx, tenantJob)
+                    .onSuccess(x -> runAsync(vertx, tenantJob))
+                    .map(tenantJob);
+              });
         });
   }
 
