@@ -15,6 +15,8 @@ public interface TenantPgPool extends PgPool {
 
   Future<Void> execute(List<String> queries);
 
+  String getSchema();
+
   static void setDefaultConnectOptions(PgConnectOptions connectOptions) {
     TenantPgPoolImpl.setDefaultConnectOptions(connectOptions);
   }
