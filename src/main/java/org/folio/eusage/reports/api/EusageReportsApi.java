@@ -11,6 +11,7 @@ import io.vertx.ext.web.RoutingContext;
 import io.vertx.ext.web.client.WebClient;
 import io.vertx.ext.web.codec.BodyCodec;
 import io.vertx.ext.web.openapi.RouterBuilder;
+import io.vertx.ext.web.validation.RequestParameter;
 import io.vertx.ext.web.validation.RequestParameters;
 import io.vertx.ext.web.validation.ValidationHandler;
 import io.vertx.sqlclient.Row;
@@ -54,8 +55,13 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
   }
 
   Future<Void> getReportTitles(Vertx vertx, RoutingContext ctx) {
+    return populateCounterReportTitles(ctx)
+        .compose(x -> returnReportTitles(vertx, ctx));
+  }
+
+  Future<Void> returnReportTitles(Vertx vertx, RoutingContext ctx) {
     RequestParameters params = ctx.get(ValidationHandler.REQUEST_CONTEXT_KEY);
-    String tenant = params.headerParameter(XOkapiHeaders.TENANT).getString();
+    String tenant = stringOrNull(params.headerParameter(XOkapiHeaders.TENANT));
 
     TenantPgPool pool = TenantPgPool.pool(vertx, tenant);
     return pool.getConnection()
@@ -87,15 +93,25 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
                 ));
   }
 
-  Future<Void> populateCounterReportTitles(Vertx vertx, RoutingContext ctx) {
+  static String stringOrNull(RequestParameter requestParameter) {
+    return requestParameter == null ? null : requestParameter.getString();
+  }
+
+
+  Future<Void> populateCounterReportTitles(RoutingContext ctx) {
     RequestParameters params = ctx.get(ValidationHandler.REQUEST_CONTEXT_KEY);
-    String tenant = params.headerParameter(XOkapiHeaders.TENANT).getString();
-    String okapiUrl = params.headerParameter(XOkapiHeaders.URL).getString();
-    String token = params.headerParameter(XOkapiHeaders.TOKEN).getString();
+    log.info("params={}", params.toJson());
+    final String tenant = stringOrNull(params.headerParameter(XOkapiHeaders.TENANT));
+    final String okapiUrl = stringOrNull(params.headerParameter(XOkapiHeaders.URL));
+    final String token = stringOrNull(params.headerParameter(XOkapiHeaders.TOKEN));
+
+    if (okapiUrl == null) {
+      return Future.failedFuture("Missing " + XOkapiHeaders.URL);
+    }
 
     Promise<Void> promise = Promise.promise();
     JsonParser parser = JsonParser.newParser();
-    parser.handler(event -> log.info("obj={}", event.objectValue().encodePrettily()));
+    parser.handler(event -> log.info("obj={}", event));
     parser.endHandler(e -> promise.complete());
     return webClient.getAbs(okapiUrl + "/counter-reports")
         .putHeader(XOkapiHeaders.TOKEN, token)

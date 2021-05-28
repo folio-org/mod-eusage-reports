@@ -7,6 +7,7 @@ paths:
     parameters:
       - $ref: headers/okapi-tenant.yaml
       - $ref: headers/okapi-token.yaml
+      - $ref: headers/okapi-url.yaml
     get:
       description: get version
       operationId: getVersion
@@ -31,6 +32,7 @@ paths:
     parameters:
       - $ref: headers/okapi-tenant.yaml
       - $ref: headers/okapi-token.yaml
+      - $ref: headers/okapi-url.yaml
     get:
       description: Get titles with links to KB and COUNTER reports.
       operationId: getReportTitles
