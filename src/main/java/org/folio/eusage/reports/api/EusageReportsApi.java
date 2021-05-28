@@ -1,11 +1,15 @@
 package org.folio.eusage.reports.api;
 
 import io.vertx.core.Future;
+import io.vertx.core.Promise;
 import io.vertx.core.Vertx;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
+import io.vertx.core.parsetools.JsonParser;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
+import io.vertx.ext.web.client.WebClient;
+import io.vertx.ext.web.codec.BodyCodec;
 import io.vertx.ext.web.openapi.RouterBuilder;
 import io.vertx.ext.web.validation.RequestParameters;
 import io.vertx.ext.web.validation.ValidationHandler;
@@ -23,14 +27,17 @@ import org.folio.tlib.TenantInitHooks;
 import org.folio.tlib.postgres.TenantPgPool;
 
 public class EusageReportsApi implements RouterCreator, TenantInitHooks {
-  private static final String TE_TABLE = "{schema}.te_table";
-
   private final Logger log = LogManager.getLogger(EusageReportsApi.class);
 
   String version;
+  WebClient webClient;
 
   public EusageReportsApi(String version) {
     this.version = version;
+  }
+
+  static String teTable(TenantPgPool pool) {
+    return pool.getSchema() + ".te_table";
   }
 
   static void failHandler(int statusCode, RoutingContext ctx, Throwable e) {
@@ -53,7 +60,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     TenantPgPool pool = TenantPgPool.pool(vertx, tenant);
     return pool.getConnection()
         .compose(sqlConnection ->
-            sqlConnection.prepare("SELECT * FROM " + pool.getSchema() + ".te_table")
+            sqlConnection.prepare("SELECT * FROM " + teTable(pool))
                 .compose(pq ->
                     sqlConnection.begin().compose(tx -> {
                       ctx.response().setChunked(true);
@@ -80,8 +87,32 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
                 ));
   }
 
+  Future<Void> populateCounterReportTitles(Vertx vertx, RoutingContext ctx) {
+    RequestParameters params = ctx.get(ValidationHandler.REQUEST_CONTEXT_KEY);
+    String tenant = params.headerParameter(XOkapiHeaders.TENANT).getString();
+    String okapiUrl = params.headerParameter(XOkapiHeaders.URL).getString();
+    String token = params.headerParameter(XOkapiHeaders.TOKEN).getString();
+
+    Promise<Void> promise = Promise.promise();
+    JsonParser parser = JsonParser.newParser();
+    parser.handler(event -> log.info("obj={}", event.objectValue().encodePrettily()));
+    parser.endHandler(e -> promise.complete());
+    return webClient.getAbs(okapiUrl + "/counter-reports")
+        .putHeader(XOkapiHeaders.TOKEN, token)
+        .putHeader(XOkapiHeaders.TENANT, tenant)
+        .as(BodyCodec.jsonStream(parser))
+        .send()
+        .compose(res -> {
+          if (res.statusCode() != 200) {
+            return Future.failedFuture("Bad status code {} for /counter-reports");
+          }
+          return promise.future();
+        });
+  }
+
   @Override
   public Future<Router> createRouter(Vertx vertx) {
+    webClient = WebClient.create(vertx);
     return RouterBuilder.create(vertx, "openapi/eusage-reports-1.0.yaml")
         .compose(routerBuilder -> {
           routerBuilder
@@ -121,7 +152,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     }
     TenantPgPool pool = TenantPgPool.pool(vertx, tenant);
     Future<Void> future = pool
-        .query("CREATE TABLE IF NOT EXISTS " + TE_TABLE + " ( "
+        .query("CREATE TABLE IF NOT EXISTS " + teTable(pool) + " ( "
             + "id UUID PRIMARY KEY, "
             + "counterReportTitle text, "
             + "counterReportId UUID, "
@@ -136,7 +167,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
       for (int j = 0; j < 100; j++) {
         final var titleId = j;
         future = future.compose(res ->
-            pool.preparedQuery("INSERT INTO " + TE_TABLE
+            pool.preparedQuery("INSERT INTO " + teTable(pool)
                 + "(id, counterReportTitle, counterReportId, kbTitleName,"
                 + " kbTitleId, kbPackageName, kbPackageId, kbManualMatch)"
                 + " VALUES ($1, $2, $3, $4, $5, $6, $7, $8)")
