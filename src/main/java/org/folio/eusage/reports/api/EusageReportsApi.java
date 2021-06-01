@@ -17,11 +17,14 @@ import io.vertx.ext.web.validation.ValidationHandler;
 import io.vertx.sqlclient.Row;
 import io.vertx.sqlclient.RowStream;
 import io.vertx.sqlclient.Tuple;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.folio.okapi.common.GenericCompositeFuture;
 import org.folio.okapi.common.XOkapiHeaders;
 import org.folio.tlib.RouterCreator;
 import org.folio.tlib.TenantInitHooks;
@@ -41,6 +44,10 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     return pool.getSchema() + ".te_table";
   }
 
+  static String tdTable(TenantPgPool pool) {
+    return pool.getSchema() + ".td_table";
+  }
+
   static void failHandler(int statusCode, RoutingContext ctx, Throwable e) {
     ctx.response().setStatusCode(statusCode);
     ctx.response().putHeader("Content-Type", "text/plain");
@@ -55,7 +62,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
   }
 
   Future<Void> getReportTitles(Vertx vertx, RoutingContext ctx) {
-    return populateCounterReportTitles(ctx)
+    return populateCounterReportTitles(vertx, ctx)
         .compose(x -> returnReportTitles(vertx, ctx));
   }
 
@@ -93,12 +100,15 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
                 ));
   }
 
+  Future<Void> upsertTeEntry(TenantPgPool tenantPgPool, JsonObject jsonObject) {
+    return Future.succeededFuture();
+  }
+
   static String stringOrNull(RequestParameter requestParameter) {
     return requestParameter == null ? null : requestParameter.getString();
   }
 
-
-  Future<Void> populateCounterReportTitles(RoutingContext ctx) {
+  Future<Void> populateCounterReportTitles(Vertx vertx, RoutingContext ctx) {
     RequestParameters params = ctx.get(ValidationHandler.REQUEST_CONTEXT_KEY);
     log.info("params={}", params.toJson());
     final String tenant = stringOrNull(params.headerParameter(XOkapiHeaders.TENANT));
@@ -108,11 +118,31 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     if (okapiUrl == null) {
       return Future.failedFuture("Missing " + XOkapiHeaders.URL);
     }
-
     Promise<Void> promise = Promise.promise();
     JsonParser parser = JsonParser.newParser();
-    parser.handler(event -> log.info("obj={}", event));
-    parser.endHandler(e -> promise.complete());
+    AtomicBoolean objectMode = new AtomicBoolean(false);
+    TenantPgPool pool = TenantPgPool.pool(vertx, tenant);
+    List<Future> futures = new LinkedList<>();
+
+    parser.handler(event -> {
+      log.info("event type={}", event.type().name());
+      if (objectMode.get() && event.isObject()) {
+        JsonObject obj = event.objectValue();
+        log.info("Object value {}", obj.encodePrettily());
+        futures.add(upsertTeEntry(pool, obj));
+      } else {
+        String f = event.fieldName();
+        if ("counterReports".equals(f)) {
+          objectMode.set(true);
+          parser.objectValueMode();
+        }
+      }
+    });
+    parser.exceptionHandler(promise::fail);
+    parser.endHandler(e -> {
+      GenericCompositeFuture.all(futures)
+          .onComplete(x -> promise.handle(x.mapEmpty()));
+    });
     return webClient.getAbs(okapiUrl + "/counter-reports")
         .putHeader(XOkapiHeaders.TOKEN, token)
         .putHeader(XOkapiHeaders.TENANT, tenant)
@@ -171,7 +201,6 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
         .query("CREATE TABLE IF NOT EXISTS " + teTable(pool) + " ( "
             + "id UUID PRIMARY KEY, "
             + "counterReportTitle text, "
-            + "counterReportId UUID, "
             + "kbTitleName text, "
             + "kbTitleId UUID, "
             + "kbPackageName text, "
@@ -179,16 +208,28 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
             + "kbManualMatch boolean"
             + ")")
         .execute().mapEmpty();
+    future = future.compose(x -> pool
+        .query("CREATE TABLE IF NOT EXISTS " + tdTable(pool) + " ( "
+            + "id UUID PRIMARY KEY, "
+            + "reportTitleId UUID, "
+            + "counterReportId UUID, "
+            + "pubYear text, "
+            + "usageYearMonth text, "
+            + "uniqueAccessCount integer, "
+            + "totalAccessCount integer, "
+            + "openAccess boolean"
+            + ")")
+        .execute().mapEmpty());
     if (lookupTenantParameter(tenantAttributes, "loadSample")) {
       for (int j = 0; j < 100; j++) {
         final var titleId = j;
         future = future.compose(res ->
             pool.preparedQuery("INSERT INTO " + teTable(pool)
-                + "(id, counterReportTitle, counterReportId, kbTitleName,"
+                + "(id, counterReportTitle, kbTitleName,"
                 + " kbTitleId, kbPackageName, kbPackageId, kbManualMatch)"
-                + " VALUES ($1, $2, $3, $4, $5, $6, $7, $8)")
+                + " VALUES ($1, $2, $3, $4, $5, $6, $7)")
                 .execute(Tuple.tuple(List.of(UUID.randomUUID(),
-                    "counter title " + titleId, UUID.randomUUID(),
+                    "counter title " + titleId,
                     "kb title name " + titleId, UUID.randomUUID(),
                     "kb package name " + titleId, UUID.randomUUID(),
                     false)))

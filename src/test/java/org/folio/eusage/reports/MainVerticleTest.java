@@ -45,9 +45,17 @@ public class MainVerticleTest {
       return;
     }
     String lead = cnt.get() > 1 ? "," : "";
+    JsonObject counterReport = new JsonObject();
+    counterReport.put("id", UUID.randomUUID().toString());
+    counterReport.put("yearMonth", "2021-01");
     JsonObject report = new JsonObject();
-    report.put("id", UUID.randomUUID().toString());
-    report.put("yearMonth", "2021-01");
+    counterReport.put("report", report);
+    report.put("vendor", new JsonObject()
+        .put("id", "This is take vendor")
+        .put("contact", new JsonArray())
+    );
+    report.put("name", "JR1");
+    report.put("title", "Journal Report " + cnt.get());
     report.put("customer", new JsonArray()
         .add(new JsonObject()
             .put("id", "fake customer id")
@@ -55,19 +63,61 @@ public class MainVerticleTest {
                 .add(new JsonObject()
                     .put("itemName", "The cats journal")
                     .put("itemDataType", "JOURNAL")
+                    .put("itemIdentifier", new JsonArray()
+                        .add(new JsonObject()
+                            .put("type", "DOI")
+                            .put("value", "10.10XX")
+                        )
+                        .add(new JsonObject()
+                            .put("type", "PRINT_ISSN")
+                            .put("value", "1111-2222")
+                        )
+                        .add(new JsonObject()
+                            .put("type", "ONLINE_ISSN")
+                            .put("value", "3333-4444")
+                        )
+                    )
                 )
                 .add(new JsonObject()
                     .put("itemName", "The dogs journal")
                     .put("itemDataType", "JOURNAL")
+                    .put("itemIdentifier", new JsonArray()
+                        .add(new JsonObject()
+                            .put("type", "DOI")
+                            .put("value", "10.10YY")
+                        )
+                        .add(new JsonObject()
+                            .put("type", "PRINT_ISSN")
+                            .put("value", "1111-2222")
+                        )
+                        .add(new JsonObject()
+                            .put("type", "ONLINE_ISSN")
+                            .put("value", "3333-4444")
+                        )
+                    )
                 )
                 .add(new JsonObject()
                     .put("itemName", "Best " + cnt.get() + " pets of all time")
                     .put("itemDataType", "JOURNAL")
+                    .put("itemIdentifier", new JsonArray()
+                        .add(new JsonObject()
+                            .put("type", "DOI")
+                            .put("value", "10.10ZZ")
+                        )
+                        .add(new JsonObject()
+                            .put("type", "PRINT_ISSN")
+                            .put("value", "1111-2222")
+                        )
+                        .add(new JsonObject()
+                            .put("type", "ONLINE_ISSN")
+                            .put("value", "3333-4444")
+                        )
+                    )
                 )
             )
         )
     );
-    ctx.response().write(lead + report.encode())
+    ctx.response().write(lead + counterReport.encode())
         .onComplete(x -> getCounterReportsChunk(ctx, cnt, max));
   }
 
@@ -75,7 +125,7 @@ public class MainVerticleTest {
     ctx.response().setChunked(true);
     ctx.response().putHeader("Content-Type", "application/json");
 
-    ctx.response().write("{ \"counter-reports\": [ ")
+    ctx.response().write("{ \"counterReports\": [ ")
         .onComplete(x ->
             getCounterReportsChunk(ctx, new AtomicInteger(0), 5));
   }
