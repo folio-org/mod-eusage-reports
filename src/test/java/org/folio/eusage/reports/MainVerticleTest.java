@@ -285,7 +285,7 @@ public class MainVerticleTest {
         .header("Content-Type", is("application/json"))
         .extract();
     JsonObject res = new JsonObject(response.body().asString());
-    context.assertEquals(7, res.getJsonArray("titles").size());
+    context.assertEquals(0, res.getJsonArray("titles").size());
 
     tenantOp(context, tenant, new JsonObject()
         .put("module_from", "mod-eusage-reports-1.0.0")
@@ -304,16 +304,6 @@ public class MainVerticleTest {
     response = RestAssured.given()
         .header(XOkapiHeaders.TENANT, tenant)
         .header(XOkapiHeaders.URL, "http://localhost:" + MOCK_PORT)
-        .get("/eusage-reports/report-titles")
-        .then().statusCode(200)
-        .header("Content-Type", is("application/json"))
-        .extract();
-    res = new JsonObject(response.body().asString());
-    context.assertEquals(7, res.getJsonArray("titles").size());
-
-    response = RestAssured.given()
-        .header(XOkapiHeaders.TENANT, tenant)
-        .header(XOkapiHeaders.URL, "http://localhost:" + MOCK_PORT)
         .header("Content-Type", "application/json")
         .body("{}")
         .post("/eusage-reports/report-titles/from-counter")
@@ -322,6 +312,16 @@ public class MainVerticleTest {
         .extract();
     res = new JsonObject(response.body().asString());
     context.assertEquals(15, res.getJsonArray("titles").size());
+
+    response = RestAssured.given()
+        .header(XOkapiHeaders.TENANT, tenant)
+        .header(XOkapiHeaders.URL, "http://localhost:" + MOCK_PORT)
+        .get("/eusage-reports/report-titles")
+        .then().statusCode(200)
+        .header("Content-Type", is("application/json"))
+        .extract();
+    res = new JsonObject(response.body().asString());
+    context.assertEquals(7, res.getJsonArray("titles").size());
 
     // disable
     tenantOp(context, tenant,

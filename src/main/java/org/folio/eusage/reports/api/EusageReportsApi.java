@@ -62,8 +62,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
   }
 
   Future<Void> getReportTitles(Vertx vertx, RoutingContext ctx) {
-    return populateCounterReportTitles(vertx, ctx)
-        .compose(x -> returnTitleEntries(vertx, ctx));
+    return returnTitleEntries(vertx, ctx);
   }
 
   Future<Void> returnTitleEntries(Vertx vertx, RoutingContext ctx) {
@@ -189,8 +188,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
         + " counterReportId,"
         + " pubYear, usageYearMonth,"
         + " uniqueAccessCount, totalAccessCount, openAccess)"
-        + " VALUES ($1, $2, $3, $4, $5, $6, $7, $8)"
-            + " ON CONFLICT (counterReportId) DO NOTHING")
+        + " VALUES ($1, $2, $3, $4, $5, $6, $7, $8)")
         .execute(Tuple.tuple(List.of(UUID.randomUUID(), reportTitleId,
             counterReportId,
             "", usageYearMonth,
@@ -362,7 +360,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
         .query("CREATE TABLE IF NOT EXISTS " + tdTable(pool) + " ( "
             + "id UUID PRIMARY KEY, "
             + "reportTitleId UUID, "
-            + "counterReportId UUID UNIQUE, "
+            + "counterReportId UUID, "
             + "pubYear text, "
             + "usageYearMonth text, "
             + "uniqueAccessCount integer, "
