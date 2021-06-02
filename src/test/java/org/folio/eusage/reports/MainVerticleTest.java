@@ -40,7 +40,7 @@ public class MainVerticleTest {
   public static PostgreSQLContainer<?> postgresSQLContainer = TenantPgPoolContainer.create();
 
   static void getCounterReportsChunk(RoutingContext ctx, AtomicInteger cnt, int max) {
-    if (cnt.incrementAndGet() >= max) {
+    if (cnt.incrementAndGet() > max) {
       ctx.response().end("], \"totalRecords\": " + max + "}");
       return;
     }
@@ -59,7 +59,7 @@ public class MainVerticleTest {
     report.put("customer", new JsonArray()
         .add(new JsonObject()
             .put("id", "fake customer id")
-            .put("reportedItems", new JsonArray()
+            .put("reportItems", new JsonArray()
                 .add(new JsonObject()
                     .put("itemName", "The cats journal")
                     .put("itemDataType", "JOURNAL")
@@ -155,7 +155,7 @@ public class MainVerticleTest {
   }
 
   @Test
-  public void testAdminHealth(TestContext context) {
+  public void testAdminHealth() {
     RestAssured.given()
         .get("/admin/health")
         .then().statusCode(200)
@@ -163,7 +163,7 @@ public class MainVerticleTest {
   }
 
   @Test
-  public void testEUsageVersionOK(TestContext context) {
+  public void testEUsageVersionOK() {
     RestAssured.given()
         .get("/eusage/version")
         .then().statusCode(200)
@@ -171,7 +171,7 @@ public class MainVerticleTest {
   }
 
   @Test
-  public void testGetTitlesNoInit(TestContext context) {
+  public void testGetTitlesNoInit() {
     String tenant = "testlib";
     RestAssured.given()
         .header(XOkapiHeaders.TENANT, tenant)
@@ -183,7 +183,7 @@ public class MainVerticleTest {
   }
 
   @Test
-  public void testGetTitlesNoOkapiUrl(TestContext context) {
+  public void testGetTitlesNoOkapiUrl() {
     String tenant = "testlib";
     RestAssured.given()
         .header(XOkapiHeaders.TENANT, tenant)
@@ -240,7 +240,7 @@ public class MainVerticleTest {
         .header("Content-Type", is("application/json"))
         .extract();
     JsonObject res = new JsonObject(response.body().asString());
-    context.assertEquals(0, res.getJsonArray("titles").size());
+    context.assertEquals(7, res.getJsonArray("titles").size());
 
     tenantOp(context, tenant, new JsonObject()
         .put("module_from", "mod-eusage-reports-1.0.0")
@@ -264,7 +264,7 @@ public class MainVerticleTest {
         .header("Content-Type", is("application/json"))
         .extract();
     res = new JsonObject(response.body().asString());
-    context.assertEquals(100, res.getJsonArray("titles").size());
+    context.assertEquals(107, res.getJsonArray("titles").size());
 
     // disable
     tenantOp(context, tenant,

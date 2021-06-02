@@ -100,8 +100,74 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
                 ));
   }
 
-  Future<Void> upsertTeEntry(TenantPgPool tenantPgPool, JsonObject jsonObject) {
+  Future<UUID> upsertTeEntry(TenantPgPool tenantPgPool, String counterReportTitle, String match) {
+    return tenantPgPool.getConnection().compose(con -> con.begin()
+        .compose(tx ->
+            con.preparedQuery("SELECT id FROM " + teTable(tenantPgPool)
+                + " WHERE counterReportTitle = $1")
+                .execute(Tuple.of(counterReportTitle))
+                .compose(res1 -> {
+                  if (res1.iterator().hasNext()) {
+                    return Future.succeededFuture(res1.iterator().next().getUUID(0));
+                  }
+                  // TODO: lookup KB here
+                  return con.preparedQuery("INSERT INTO " + teTable(tenantPgPool)
+                      + "(id, counterReportTitle, matchCriteria,"
+                      + " kbTitleName, kbTitleId,"
+                      + " kbPackageName, kbPackageId,"
+                      + " kbManualMatch)"
+                      + " VALUES ($1, $2, $3, $4, $5, $6, $7, $8)"
+                      + " ON CONFLICT (counterReportTitle) DO NOTHING")
+                      .execute(Tuple.tuple(List.of(UUID.randomUUID(), counterReportTitle, match,
+                          "", UUID.randomUUID(),
+                          "", UUID.randomUUID(),
+                          false)))
+                      .compose(x ->
+                          con.preparedQuery("SELECT id FROM " + teTable(tenantPgPool)
+                              + " WHERE counterReportTitle = $1")
+                              .execute(Tuple.of(counterReportTitle))
+                              .map(res2 -> res2.iterator().next().getUUID(0))
+                      );
+                })
+                .compose(id -> {
+                  tx.commit();
+                  return Future.succeededFuture(id);
+                })
+        )
+        .eventually(x -> con.close()));
+  }
+
+  Future<Void> upsertTdEntry(TenantPgPool tenantPgPool, UUID reportTitleId, String match) {
     return Future.succeededFuture();
+  }
+
+  Future<Void> handleReport(TenantPgPool tenantPgPool, JsonObject jsonObject) {
+    Future<Void> future = Future.succeededFuture();
+    JsonArray customers = jsonObject.getJsonObject("report").getJsonArray("customer");
+    for (int i = 0; i < customers.size(); i++) {
+      JsonObject customer = customers.getJsonObject(i);
+      JsonArray reportItems = customer.getJsonArray("reportItems");
+      for (int j = 0; j < reportItems.size(); j++) {
+        JsonObject reportItem = reportItems.getJsonObject(j);
+        final String counterReportTitle = reportItem.getString("itemName");
+        JsonArray itemIdentifiers = reportItem.getJsonArray("itemIdentifier");
+        String issn = null;
+        for (int k = 0; k < itemIdentifiers.size(); k++) {
+          JsonObject itemIdentifier = itemIdentifiers.getJsonObject(k);
+          String type = itemIdentifier.getString("type");
+          String value = itemIdentifier.getString("value");
+          if ("ONLINE_ISSN".equals(type)) {
+            issn = value;
+          }
+        }
+        final String match = issn;
+        future = future.compose(x ->
+          upsertTeEntry(tenantPgPool, counterReportTitle, match)
+              .compose(reportTitleId -> upsertTdEntry(tenantPgPool, reportTitleId, match))
+        );
+      }
+    }
+    return future;
   }
 
   static String stringOrNull(RequestParameter requestParameter) {
@@ -122,14 +188,14 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     JsonParser parser = JsonParser.newParser();
     AtomicBoolean objectMode = new AtomicBoolean(false);
     TenantPgPool pool = TenantPgPool.pool(vertx, tenant);
-    List<Future> futures = new LinkedList<>();
+    List<Future<Void>> futures = new LinkedList<>();
 
     parser.handler(event -> {
       log.info("event type={}", event.type().name());
       if (objectMode.get() && event.isObject()) {
         JsonObject obj = event.objectValue();
         log.info("Object value {}", obj.encodePrettily());
-        futures.add(upsertTeEntry(pool, obj));
+        futures.add(handleReport(pool, obj));
       } else {
         String f = event.fieldName();
         if ("counterReports".equals(f)) {
@@ -138,8 +204,9 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
         }
       }
     });
-    parser.exceptionHandler(promise::fail);
+    parser.exceptionHandler(x -> log.error("parser.exceptionHandler {}", x.getMessage(), x));
     parser.endHandler(e -> {
+      log.error("parser.endHandler");
       GenericCompositeFuture.all(futures)
           .onComplete(x -> promise.handle(x.mapEmpty()));
     });
@@ -200,7 +267,8 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     Future<Void> future = pool
         .query("CREATE TABLE IF NOT EXISTS " + teTable(pool) + " ( "
             + "id UUID PRIMARY KEY, "
-            + "counterReportTitle text, "
+            + "counterReportTitle text UNIQUE, "
+            + "matchCriteria text, "
             + "kbTitleName text, "
             + "kbTitleId UUID, "
             + "kbPackageName text, "
@@ -212,7 +280,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
         .query("CREATE TABLE IF NOT EXISTS " + tdTable(pool) + " ( "
             + "id UUID PRIMARY KEY, "
             + "reportTitleId UUID, "
-            + "counterReportId UUID, "
+            + "counterReportId UUID UNIQUE, "
             + "pubYear text, "
             + "usageYearMonth text, "
             + "uniqueAccessCount integer, "
@@ -225,11 +293,11 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
         final var titleId = j;
         future = future.compose(res ->
             pool.preparedQuery("INSERT INTO " + teTable(pool)
-                + "(id, counterReportTitle, kbTitleName,"
+                + "(id, counterReportTitle, matchCriteria, kbTitleName,"
                 + " kbTitleId, kbPackageName, kbPackageId, kbManualMatch)"
-                + " VALUES ($1, $2, $3, $4, $5, $6, $7)")
+                + " VALUES ($1, $2, $3, $4, $5, $6, $7, $8)")
                 .execute(Tuple.tuple(List.of(UUID.randomUUID(),
-                    "counter title " + titleId,
+                    "counter title " + titleId, "123" + titleId,
                     "kb title name " + titleId, UUID.randomUUID(),
                     "kb package name " + titleId, UUID.randomUUID(),
                     false)))
