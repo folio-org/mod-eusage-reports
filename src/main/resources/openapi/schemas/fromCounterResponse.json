@@ -1,0 +1,18 @@
+{
+  "description": "report data titles",
+  "type": "object",
+  "properties": {
+    "titles": {
+      "description": "List of titles",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "$ref": "titleDataEntry.json"
+      }
+    }
+  },
+  "additionalProperties": false,
+  "required": [
+    "titles"
+  ]
+}

@@ -63,10 +63,10 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
 
   Future<Void> getReportTitles(Vertx vertx, RoutingContext ctx) {
     return populateCounterReportTitles(vertx, ctx)
-        .compose(x -> returnReportTitles(vertx, ctx));
+        .compose(x -> returnTitleEntries(vertx, ctx));
   }
 
-  Future<Void> returnReportTitles(Vertx vertx, RoutingContext ctx) {
+  Future<Void> returnTitleEntries(Vertx vertx, RoutingContext ctx) {
     RequestParameters params = ctx.get(ValidationHandler.REQUEST_CONTEXT_KEY);
     String tenant = stringOrNull(params.headerParameter(XOkapiHeaders.TENANT));
 
@@ -100,10 +100,55 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
                 ));
   }
 
-  Future<UUID> upsertTeEntry(TenantPgPool tenantPgPool, String counterReportTitle, String match) {
-    return tenantPgPool.getConnection().compose(con -> con.begin()
+  Future<Void> returnTitleData(Vertx vertx, RoutingContext ctx) {
+    RequestParameters params = ctx.get(ValidationHandler.REQUEST_CONTEXT_KEY);
+    String tenant = stringOrNull(params.headerParameter(XOkapiHeaders.TENANT));
+
+    TenantPgPool pool = TenantPgPool.pool(vertx, tenant);
+    return pool.getConnection()
+        .compose(sqlConnection ->
+            sqlConnection.prepare("SELECT * FROM " + tdTable(pool))
+                .compose(pq ->
+                    sqlConnection.begin().compose(tx -> {
+                      ctx.response().setChunked(true);
+                      ctx.response().putHeader("Content-Type", "application/json");
+                      ctx.response().write("{ \"titles\" : [");
+                      AtomicInteger offset = new AtomicInteger();
+                      RowStream<Row> stream = pq.createStream(50);
+                      stream.handler(row -> {
+                        if (offset.incrementAndGet() > 1) {
+                          ctx.response().write(",");
+                        }
+                        JsonObject obj = new JsonObject()
+                            .put("id", row.getUUID(0))
+                            .put("reportTitleId", row.getUUID(1))
+                            .put("counterReportId", row.getUUID(2))
+                            .put("pubYear", row.getString(3))
+                            .put("usageYearMonth", row.getString(4))
+                            .put("uniqueAccessCount", row.getInteger(5))
+                            .put("totalAccessCount", row.getInteger(6))
+                            .put("openAccess", row.getBoolean(7));
+                        ctx.response().write(obj.encode());
+                      });
+                      stream.endHandler(end -> {
+                        ctx.response().write("] }");
+                        ctx.response().end();
+                        tx.commit();
+                      });
+                      return Future.succeededFuture();
+                    })
+                ));
+  }
+
+  Future<Void> postFromCounter(Vertx vertx, RoutingContext ctx) {
+    return populateCounterReportTitles(vertx, ctx)
+        .compose(x -> returnTitleData(vertx, ctx));
+  }
+
+  static Future<UUID> upsertTeEntry(TenantPgPool pool, String counterReportTitle, String match) {
+    return pool.getConnection().compose(con -> con.begin()
         .compose(tx ->
-            con.preparedQuery("SELECT id FROM " + teTable(tenantPgPool)
+            con.preparedQuery("SELECT id FROM " + teTable(pool)
                 + " WHERE counterReportTitle = $1")
                 .execute(Tuple.of(counterReportTitle))
                 .compose(res1 -> {
@@ -111,7 +156,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
                     return Future.succeededFuture(res1.iterator().next().getUUID(0));
                   }
                   // TODO: lookup KB here
-                  return con.preparedQuery("INSERT INTO " + teTable(tenantPgPool)
+                  return con.preparedQuery("INSERT INTO " + teTable(pool)
                       + "(id, counterReportTitle, matchCriteria,"
                       + " kbTitleName, kbTitleId,"
                       + " kbPackageName, kbPackageId,"
@@ -123,7 +168,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
                           "", UUID.randomUUID(),
                           false)))
                       .compose(x ->
-                          con.preparedQuery("SELECT id FROM " + teTable(tenantPgPool)
+                          con.preparedQuery("SELECT id FROM " + teTable(pool)
                               + " WHERE counterReportTitle = $1")
                               .execute(Tuple.of(counterReportTitle))
                               .map(res2 -> res2.iterator().next().getUUID(0))
@@ -137,12 +182,53 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
         .eventually(x -> con.close()));
   }
 
-  Future<Void> upsertTdEntry(TenantPgPool tenantPgPool, UUID reportTitleId, String match) {
-    return Future.succeededFuture();
+  static Future<Void> upsertTdEntry(TenantPgPool pool, UUID reportTitleId, UUID counterReportId,
+                             String usageYearMonth, int totalAccessCount) {
+    return pool.preparedQuery("INSERT INTO " + tdTable(pool)
+        + "(id, reportTitleId,"
+        + " counterReportId,"
+        + " pubYear, usageYearMonth,"
+        + " uniqueAccessCount, totalAccessCount, openAccess)"
+        + " VALUES ($1, $2, $3, $4, $5, $6, $7, $8)"
+            + " ON CONFLICT (counterReportId) DO NOTHING")
+        .execute(Tuple.tuple(List.of(UUID.randomUUID(), reportTitleId,
+            counterReportId,
+            "", usageYearMonth,
+            totalAccessCount, totalAccessCount, false)))
+        .mapEmpty();
   }
 
-  Future<Void> handleReport(TenantPgPool tenantPgPool, JsonObject jsonObject) {
+  static int getTotalCount(JsonObject reportItem) {
+    int count = 0;
+    JsonArray itemPerformances = reportItem.getJsonArray("itemPerformance");
+    for (int i = 0; i < itemPerformances.size(); i++) {
+      JsonObject itemPerformance = itemPerformances.getJsonObject(i);
+      JsonArray instances = itemPerformance.getJsonArray("instance");
+      for (int j = 0; j < instances.size(); j++) {
+        JsonObject instance = instances.getJsonObject(j);
+        count += instance.getInteger("count");
+      }
+    }
+    return count;
+  }
+
+  static String getMatch(JsonObject reportItem) {
+    JsonArray itemIdentifiers = reportItem.getJsonArray("itemIdentifier");
+    for (int k = 0; k < itemIdentifiers.size(); k++) {
+      JsonObject itemIdentifier = itemIdentifiers.getJsonObject(k);
+      String type = itemIdentifier.getString("type");
+      String value = itemIdentifier.getString("value");
+      if ("ONLINE_ISSN".equals(type)) {
+        return value;
+      }
+    }
+    return null;
+  }
+
+  static Future<Void> handleReport(TenantPgPool pool, JsonObject jsonObject) {
     Future<Void> future = Future.succeededFuture();
+    final UUID counterReportId = UUID.fromString(jsonObject.getString("id"));
+    final String usageYearMonth = jsonObject.getString("yearMonth");
     JsonArray customers = jsonObject.getJsonObject("report").getJsonArray("customer");
     for (int i = 0; i < customers.size(); i++) {
       JsonObject customer = customers.getJsonObject(i);
@@ -150,20 +236,12 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
       for (int j = 0; j < reportItems.size(); j++) {
         JsonObject reportItem = reportItems.getJsonObject(j);
         final String counterReportTitle = reportItem.getString("itemName");
-        JsonArray itemIdentifiers = reportItem.getJsonArray("itemIdentifier");
-        String issn = null;
-        for (int k = 0; k < itemIdentifiers.size(); k++) {
-          JsonObject itemIdentifier = itemIdentifiers.getJsonObject(k);
-          String type = itemIdentifier.getString("type");
-          String value = itemIdentifier.getString("value");
-          if ("ONLINE_ISSN".equals(type)) {
-            issn = value;
-          }
-        }
-        final String match = issn;
+        final String match = getMatch(reportItem);
+        final int totalAccessCount = getTotalCount(reportItem);
         future = future.compose(x ->
-          upsertTeEntry(tenantPgPool, counterReportTitle, match)
-              .compose(reportTitleId -> upsertTdEntry(tenantPgPool, reportTitleId, match))
+          upsertTeEntry(pool, counterReportTitle, match)
+              .compose(reportTitleId -> upsertTdEntry(pool, reportTitleId, counterReportId,
+                  usageYearMonth, totalAccessCount))
         );
       }
     }
@@ -241,6 +319,10 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
               .operation("getReportTitles")
               .handler(ctx -> getReportTitles(vertx, ctx)
                   .onFailure(cause -> failHandler(400, ctx, cause)));
+          routerBuilder
+              .operation("postFromCounter")
+              .handler(ctx -> postFromCounter(vertx, ctx)
+                  .onFailure(cause -> failHandler(400, ctx, cause)));
           return Future.succeededFuture(routerBuilder.createRouter());
         });
   }
@@ -288,23 +370,6 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
             + "openAccess boolean"
             + ")")
         .execute().mapEmpty());
-    if (lookupTenantParameter(tenantAttributes, "loadSample")) {
-      for (int j = 0; j < 100; j++) {
-        final var titleId = j;
-        future = future.compose(res ->
-            pool.preparedQuery("INSERT INTO " + teTable(pool)
-                + "(id, counterReportTitle, matchCriteria, kbTitleName,"
-                + " kbTitleId, kbPackageName, kbPackageId, kbManualMatch)"
-                + " VALUES ($1, $2, $3, $4, $5, $6, $7, $8)")
-                .execute(Tuple.tuple(List.of(UUID.randomUUID(),
-                    "counter title " + titleId, "123" + titleId,
-                    "kb title name " + titleId, UUID.randomUUID(),
-                    "kb package name " + titleId, UUID.randomUUID(),
-                    false)))
-                .mapEmpty()
-        );
-      }
-    }
     return future;
   }
 

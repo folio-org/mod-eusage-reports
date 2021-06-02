@@ -1,0 +1,11 @@
+{
+  "description": "Specify what counter to report from",
+  "type": "object",
+  "properties": {
+    "counterReportId": {
+      "description": "Counter report identifier",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false
+}

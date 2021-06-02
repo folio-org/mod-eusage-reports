@@ -1,0 +1,42 @@
+{
+  "description": "title data entry",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "title data identifier"
+    },
+    "reportTitleId": {
+      "type": "string",
+      "description": "title identifier"
+    },
+    "counterReportId": {
+      "type": "string",
+      "description": "counter report identifier"
+    },
+    "pubYear": {
+      "type": "string",
+      "description": "Publication year"
+    },
+    "usageYearMonth": {
+      "type": "string",
+      "description": "Usage year month (YYYY-MM)"
+    },
+    "uniqueAccessCount": {
+      "type": "integer",
+      "description": "Unique access count"
+    },
+    "totalAccessCount": {
+      "type": "integer",
+      "description": "Total access count"
+    },
+    "openAccess": {
+      "type": "boolean",
+      "description": "Whether open access"
+    }
+  },
+  "additionalProperties": false,
+  "required": [
+    "id", "titleDataId"
+  ]
+}
