@@ -174,6 +174,21 @@ public class MainVerticleTest {
             getCounterReportsChunk(ctx, new AtomicInteger(0), 5));
   }
 
+  static void getErmResource(RoutingContext ctx) {
+    ctx.response().setChunked(true);
+    ctx.response().putHeader("Content-Type", "application/json");
+    String term = ctx.request().getParam("term");
+    JsonArray ar = new JsonArray();
+    if (!"1001-1002".equals(term)) { // for "The dogs journal" , no kb match
+      ar.add(new JsonObject()
+          .put("id", UUID.randomUUID())
+          .put("name", "fake kb title name")
+      );
+    }
+    ctx.response().end(ar.encode());
+  }
+
+
   @BeforeClass
   public static void beforeClass(TestContext context) {
     vertx = Vertx.vertx();
@@ -182,6 +197,7 @@ public class MainVerticleTest {
 
     Router router = Router.router(vertx);
     router.get("/counter-reports").handler(MainVerticleTest::getCounterReports);
+    router.get("/erm/resource").handler(MainVerticleTest::getErmResource);
     vertx.createHttpServer()
         .requestHandler(router)
         .listen(MOCK_PORT)

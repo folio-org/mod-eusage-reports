@@ -148,7 +148,37 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
         .compose(x -> returnTitleData(vertx, ctx));
   }
 
-  static Future<UUID> upsertTeEntry(TenantPgPool pool, String counterReportTitle, String match) {
+  Future<Tuple> ermLookup(RoutingContext ctx, String identifier) {
+    RequestParameters params = ctx.get(ValidationHandler.REQUEST_CONTEXT_KEY);
+
+    final String tenant = stringOrNull(params.headerParameter(XOkapiHeaders.TENANT));
+    final String okapiUrl = stringOrNull(params.headerParameter(XOkapiHeaders.URL));
+    final String token = stringOrNull(params.headerParameter(XOkapiHeaders.TOKEN));
+
+    // assuming identifier only has unreserved characters
+    return webClient.getAbs(okapiUrl + "/erm/resource?match=identifiers.identifier.value"
+        + "&term=" + identifier)
+        .putHeader(XOkapiHeaders.TOKEN, token)
+        .putHeader(XOkapiHeaders.TENANT, tenant)
+        .send()
+        .compose(res -> {
+          if (res.statusCode() != 200) {
+            return Future.failedFuture("/erm returned " + res.statusCode());
+          }
+          JsonArray ar = res.bodyAsJsonArray();
+          if (ar.isEmpty()) {
+            return Future.succeededFuture(null);
+          }
+          JsonObject resource = ar.getJsonObject(0);
+          return Future.succeededFuture(Tuple.of(
+              UUID.fromString(resource.getString("id")),
+              resource.getString("name")
+          ));
+        });
+  }
+
+  Future<UUID> upsertTeEntry(TenantPgPool pool, RoutingContext ctx, String counterReportTitle,
+                             String match) {
     return pool.getConnection().compose(con -> con.begin()
         .compose(tx ->
             con.preparedQuery("SELECT id FROM " + teTable(pool)
@@ -158,24 +188,40 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
                   if (res1.iterator().hasNext()) {
                     return Future.succeededFuture(res1.iterator().next().getUUID(0));
                   }
-                  // TODO: lookup KB here
-                  return con.preparedQuery("INSERT INTO " + teTable(pool)
-                      + "(id, counterReportTitle, matchCriteria,"
-                      + " kbTitleName, kbTitleId,"
-                      + " kbPackageName, kbPackageId,"
-                      + " kbManualMatch)"
-                      + " VALUES ($1, $2, $3, $4, $5, $6, $7, $8)"
-                      + " ON CONFLICT (counterReportTitle) DO NOTHING")
-                      .execute(Tuple.tuple(List.of(UUID.randomUUID(), counterReportTitle, match,
-                          "", UUID.randomUUID(),
-                          "", UUID.randomUUID(),
-                          false)))
-                      .compose(x ->
-                          con.preparedQuery("SELECT id FROM " + teTable(pool)
-                              + " WHERE counterReportTitle = $1")
-                              .execute(Tuple.of(counterReportTitle))
-                              .map(res2 -> res2.iterator().next().getUUID(0))
-                      );
+                  return ermLookup(ctx, match).compose(erm -> {
+                    Future<Void> future;
+                    if (erm == null) {
+                      future = con.preparedQuery("INSERT INTO " + teTable(pool)
+                          + "(id, counterReportTitle, matchCriteria,"
+                          + " kbManualMatch)"
+                          + " VALUES ($1, $2, $3, $4)"
+                          + " ON CONFLICT (counterReportTitle) DO NOTHING")
+                          .execute(Tuple.tuple(List.of(UUID.randomUUID(), counterReportTitle, match,
+                              false))).mapEmpty();
+                    } else {
+                      UUID kbTitleId = erm.getUUID(0);
+                      String kbTitleName = erm.getString(1);
+                      UUID kbPackageId = kbTitleId; // TODO ermLookup must return package Id
+                      String kbPackageName = ""; // TODO ermLookup must return package name
+                      future = con.preparedQuery("INSERT INTO " + teTable(pool)
+                          + "(id, counterReportTitle, matchCriteria,"
+                          + " kbTitleName, kbTitleId,"
+                          + " kbPackageName, kbPackageId,"
+                          + " kbManualMatch)"
+                          + " VALUES ($1, $2, $3, $4, $5, $6, $7, $8)"
+                          + " ON CONFLICT (counterReportTitle) DO NOTHING")
+                          .execute(Tuple.tuple(List.of(UUID.randomUUID(), counterReportTitle, match,
+                              kbTitleName, kbTitleId,
+                              kbPackageName, kbPackageId,
+                              false))).mapEmpty();
+                    }
+                    return future.compose(x ->
+                            con.preparedQuery("SELECT id FROM " + teTable(pool)
+                                + " WHERE counterReportTitle = $1")
+                                .execute(Tuple.of(counterReportTitle))
+                                .map(res2 -> res2.iterator().next().getUUID(0))
+                        );
+                  });
                 })
                 .compose(id -> {
                   tx.commit();
@@ -227,7 +273,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     return null;
   }
 
-  static Future<Void> handleReport(TenantPgPool pool, JsonObject jsonObject) {
+  Future<Void> handleReport(TenantPgPool pool, RoutingContext ctx, JsonObject jsonObject) {
     Future<Void> future = Future.succeededFuture();
     final UUID counterReportId = UUID.fromString(jsonObject.getString("id"));
     final String usageYearMonth = jsonObject.getString("yearMonth");
@@ -241,7 +287,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
         final String match = getMatch(reportItem);
         final int totalAccessCount = getTotalCount(reportItem);
         future = future.compose(x ->
-          upsertTeEntry(pool, counterReportTitle, match)
+          upsertTeEntry(pool, ctx, counterReportTitle, match)
               .compose(reportTitleId -> upsertTdEntry(pool, reportTitleId, counterReportId,
                   usageYearMonth, totalAccessCount))
         );
@@ -275,7 +321,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
       if (objectMode.get() && event.isObject()) {
         JsonObject obj = event.objectValue();
         log.info("Object value {}", obj.encodePrettily());
-        futures.add(handleReport(pool, obj));
+        futures.add(handleReport(pool, ctx, obj));
       } else {
         String f = event.fieldName();
         if ("counterReports".equals(f)) {
