@@ -11,6 +11,8 @@ import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
+import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.folio.okapi.common.XOkapiHeaders;
@@ -21,9 +23,6 @@ import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.testcontainers.containers.PostgreSQLContainer;
-
-import java.util.UUID;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.is;
@@ -218,13 +217,15 @@ public class MainVerticleTest {
   @Test
   public void testGetTitlesNoInit() {
     String tenant = "testlib";
-    RestAssured.given()
-        .header(XOkapiHeaders.TENANT, tenant)
-        .header(XOkapiHeaders.URL, "http://localhost:" + MOCK_PORT)
-        .get("/eusage-reports/report-titles")
-        .then().statusCode(400)
-        .header("Content-Type", is("text/plain"))
-        .body(containsString("testlib_mod_eusage_reports.te_table"));
+    for (int i = 0; i < 5; i++) { // would hang wo connection close
+      RestAssured.given()
+          .header(XOkapiHeaders.TENANT, tenant)
+          .header(XOkapiHeaders.URL, "http://localhost:" + MOCK_PORT)
+          .get("/eusage-reports/report-titles")
+          .then().statusCode(400)
+          .header("Content-Type", is("text/plain"))
+          .body(containsString("testlib_mod_eusage_reports.te_table"));
+    }
   }
 
   @Test
@@ -232,7 +233,9 @@ public class MainVerticleTest {
     String tenant = "testlib";
     RestAssured.given()
         .header(XOkapiHeaders.TENANT, tenant)
-        .get("/eusage-reports/report-titles")
+        .header("Content-Type", "application/json")
+        .body("{}")
+        .post("/eusage-reports/report-titles/from-counter")
         .then().statusCode(400)
         .header("Content-Type", is("text/plain"))
         .body(is("Missing " + XOkapiHeaders.URL));

@@ -33,8 +33,8 @@ import org.folio.tlib.postgres.TenantPgPool;
 public class EusageReportsApi implements RouterCreator, TenantInitHooks {
   private final Logger log = LogManager.getLogger(EusageReportsApi.class);
 
-  String version;
-  WebClient webClient;
+  private String version;
+  private WebClient webClient;
 
   public EusageReportsApi(String version) {
     this.version = version;
@@ -73,7 +73,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     return pool.getConnection()
         .compose(sqlConnection ->
             sqlConnection.prepare("SELECT * FROM " + teTable(pool))
-                .compose(pq ->
+                .<Void>compose(pq ->
                     sqlConnection.begin().compose(tx -> {
                       ctx.response().setChunked(true);
                       ctx.response().putHeader("Content-Type", "application/json");
@@ -96,7 +96,9 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
                       });
                       return Future.succeededFuture();
                     })
-                ));
+                )
+            .eventually(x -> sqlConnection.close())
+        );
   }
 
   Future<Void> returnTitleData(Vertx vertx, RoutingContext ctx) {
@@ -107,7 +109,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     return pool.getConnection()
         .compose(sqlConnection ->
             sqlConnection.prepare("SELECT * FROM " + tdTable(pool))
-                .compose(pq ->
+                .<Void>compose(pq ->
                     sqlConnection.begin().compose(tx -> {
                       ctx.response().setChunked(true);
                       ctx.response().putHeader("Content-Type", "application/json");
@@ -136,7 +138,9 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
                       });
                       return Future.succeededFuture();
                     })
-                ));
+                )
+                .eventually(x -> sqlConnection.close())
+        );
   }
 
   Future<Void> postFromCounter(Vertx vertx, RoutingContext ctx) {
@@ -323,19 +327,6 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
                   .onFailure(cause -> failHandler(400, ctx, cause)));
           return Future.succeededFuture(routerBuilder.createRouter());
         });
-  }
-
-  boolean lookupTenantParameter(JsonObject tenantAttributes, String key) {
-    JsonArray parameters = tenantAttributes.getJsonArray("parameters");
-    if (parameters != null) {
-      for (int i = 0; i < parameters.size(); i++) {
-        JsonObject o = parameters.getJsonObject(i);
-        if (key.equals(o.getString("key")) && "true".equals(o.getString("value"))) {
-          return true;
-        }
-      }
-    }
-    return false;
   }
 
   @Override
