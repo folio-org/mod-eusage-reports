@@ -33,7 +33,7 @@ import org.folio.tlib.postgres.TenantPgPool;
 public class EusageReportsApi implements RouterCreator, TenantInitHooks {
   private final Logger log = LogManager.getLogger(EusageReportsApi.class);
 
-  private String version;
+  private final String version;
   private WebClient webClient;
 
   public EusageReportsApi(String version) {
