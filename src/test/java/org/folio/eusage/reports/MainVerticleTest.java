@@ -182,12 +182,25 @@ public class MainVerticleTest {
     if (!"1001-1002".equals(term)) { // for "The dogs journal" , no kb match
       ar.add(new JsonObject()
           .put("id", UUID.randomUUID())
-          .put("name", "fake kb title name")
+          .put("name", "fake kb title instance name")
       );
     }
     ctx.response().end(ar.encode());
   }
 
+  static void getErmResourceEntitlement(RoutingContext ctx) {
+    ctx.response().setChunked(true);
+    ctx.response().putHeader("Content-Type", "application/json");
+    String term = ctx.request().getParam("term");
+    JsonArray ar = new JsonArray();
+    if ("org.olf.kb.Pkg".equals(term)) {
+      ar.add(new JsonObject()
+          .put("id", UUID.randomUUID())
+          .put("name", "fake kb package name")
+      );
+    }
+    ctx.response().end(ar.encode());
+  }
 
   @BeforeClass
   public static void beforeClass(TestContext context) {
@@ -198,6 +211,7 @@ public class MainVerticleTest {
     Router router = Router.router(vertx);
     router.get("/counter-reports").handler(MainVerticleTest::getCounterReports);
     router.get("/erm/resource").handler(MainVerticleTest::getErmResource);
+    router.getWithRegex("/erm/resource/[-0-9a-z]*/entitlementOptions").handler(MainVerticleTest::getErmResourceEntitlement);
     vertx.createHttpServer()
         .requestHandler(router)
         .listen(MOCK_PORT)
@@ -333,6 +347,9 @@ public class MainVerticleTest {
         .extract();
     res = new JsonObject(response.body().asString());
     context.assertEquals(7, res.getJsonArray("titles").size());
+    context.assertNull(res.getJsonArray("titles").getJsonObject(0).getString("kbTitleName"));
+    context.assertEquals("fake kb title instance name", res.getJsonArray("titles").getJsonObject(1).getString("kbTitleName"));
+    context.assertEquals("fake kb package name", res.getJsonArray("titles").getJsonObject(1).getString("kbPackageName"));
 
     // disable
     tenantOp(context, tenant,

@@ -86,10 +86,17 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
                         if (offset.incrementAndGet() > 1) {
                           ctx.response().write(",");
                         }
-                        ctx.response().write(new JsonObject()
+                        JsonObject response = new JsonObject()
                             .put("id", row.getUUID(0))
-                            .put("counterReportTitle", row.getString(1))
-                            .encode());
+                            .put("counterReportTitle", row.getString(1));
+                        String titleName = row.getString(3);
+                        if (titleName != null) {
+                          response.put("kbTitleName", titleName)
+                              .put("kbTitleId", row.getUUID(4))
+                              .put("kbPackageName", row.getString(5))
+                              .put("kbPackageId", row.getUUID(6));
+                        }
+                        ctx.response().write(response.encode());
                       });
                       stream.endHandler(end -> {
                         ctx.response().write("] }");
@@ -99,7 +106,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
                       return Future.succeededFuture();
                     })
                 )
-            .eventually(x -> sqlConnection.close())
+                .eventually(x -> sqlConnection.close())
         );
   }
 
@@ -158,25 +165,50 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     final String token = stringOrNull(params.headerParameter(XOkapiHeaders.TOKEN));
 
     // assuming identifier only has unreserved characters
-    return webClient.getAbs(okapiUrl + "/erm/resource?match=identifiers.identifier.value"
-        + "&term=" + identifier)
+    String url = okapiUrl + "/erm/resource?match=identifiers.identifier.value&term=" + identifier;
+    Future<JsonArray> future = webClient.getAbs(url)
         .putHeader(XOkapiHeaders.TOKEN, token)
         .putHeader(XOkapiHeaders.TENANT, tenant)
         .send()
         .compose(res -> {
           if (res.statusCode() != 200) {
-            return Future.failedFuture("/erm returned " + res.statusCode());
+            return Future.failedFuture(url + " returned " + res.statusCode());
           }
           JsonArray ar = res.bodyAsJsonArray();
-          if (ar.isEmpty()) {
-            return Future.succeededFuture(null);
-          }
-          JsonObject resource = ar.getJsonObject(0);
-          return Future.succeededFuture(Tuple.of(
-              UUID.fromString(resource.getString("id")),
-              resource.getString("name")
-          ));
+          return Future.succeededFuture(ar);
         });
+    return future.compose(ar -> {
+      if (ar.isEmpty()) {
+        return Future.succeededFuture(null);
+      }
+      // TODO : there could be more than one package associated with title
+      JsonObject resource = ar.getJsonObject(0);
+      String titleId = resource.getString("id");
+      String url2 = okapiUrl + "/erm/resource/" + titleId + "/entitlementOptions"
+          + "?match=class&term=org.olf.kb.Pkg";
+      return webClient.getAbs(url2)
+          .putHeader(XOkapiHeaders.TOKEN, token)
+          .putHeader(XOkapiHeaders.TENANT, tenant)
+          .send()
+          .compose(res -> {
+            if (res.statusCode() != 200) {
+              return Future.failedFuture(url2 + " returned " + res.statusCode());
+            }
+            JsonArray ar2 = res.bodyAsJsonArray();
+            if (ar2.isEmpty()) {
+              return Future.succeededFuture(null);
+            }
+            JsonObject packageObject = ar2.getJsonObject(0);
+            String kbId = packageObject.getString("id");
+
+            return Future.succeededFuture(Tuple.of(
+                UUID.fromString(titleId),
+                resource.getString("name"),
+                UUID.fromString(kbId),
+                packageObject.getString("name")
+            ));
+          });
+    });
   }
 
   Future<UUID> upsertTeEntry(TenantPgPool pool, SqlConnection con, RoutingContext ctx,
@@ -201,8 +233,8 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
             } else {
               UUID kbTitleId = erm.getUUID(0);
               String kbTitleName = erm.getString(1);
-              UUID kbPackageId = kbTitleId; // TODO ermLookup must return package Id
-              String kbPackageName = ""; // TODO ermLookup must return package name
+              UUID kbPackageId = erm.getUUID(2);
+              String kbPackageName = erm.getString(3);
               future = con.preparedQuery("INSERT INTO " + teTable(pool)
                   + "(id, counterReportTitle, matchCriteria,"
                   + " kbTitleName, kbTitleId,"
@@ -321,7 +353,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     JsonObject reportObj = new JsonObject();
     Deque<String> path = new LinkedList<>();
     parser.handler(event -> {
-      log.info("event type={}", event.type().name());
+      log.debug("event type={}", event.type().name());
       JsonEventType type = event.type();
       if (JsonEventType.END_OBJECT.equals(type)) {
         path.removeLast();
@@ -333,11 +365,11 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
       }
       if (objectMode.get() && event.isObject()) {
         reportObj.put("reportItem", event.objectValue());
-        log.info("Object value {}", reportObj.encodePrettily());
+        log.debug("Object value {}", reportObj.encodePrettily());
         futures.add(handleReport2(pool, ctx, reportObj));
       } else {
         String f = event.fieldName();
-        log.info("Field = {}", f);
+        log.debug("Field = {}", f);
         if ("id".equals(f) && path.size() == 2) {
           reportObj.put("id", event.stringValue());
           futures.add(clearTdEntry(pool, UUID.fromString(reportObj.getString("id"))));
