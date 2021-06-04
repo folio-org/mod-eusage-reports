@@ -223,14 +223,6 @@ public class MainVerticleTest {
   }
 
   @Test
-  public void testEUsageVersionOK() {
-    RestAssured.given()
-        .get("/eusage/version")
-        .then().statusCode(200)
-        .body(containsString("0.0"));
-  }
-
-  @Test
   public void testGetTitlesNoInit() {
     String tenant = "testlib";
     for (int i = 0; i < 5; i++) { // would hang wo connection close

@@ -361,15 +361,6 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     return RouterBuilder.create(vertx, "openapi/eusage-reports-1.0.yaml")
         .compose(routerBuilder -> {
           routerBuilder
-              .operation("getVersion")
-              .handler(ctx -> {
-                log.info("getVersion handler");
-                ctx.response().setStatusCode(200);
-                ctx.response().putHeader("Content-Type", "text/plain");
-                ctx.response().end(version == null ? "0.0" : version);
-              })
-              .failureHandler(ctx -> failHandler(400, ctx, null));
-          routerBuilder
               .operation("getReportTitles")
               .handler(ctx -> getReportTitles(vertx, ctx)
                   .onFailure(cause -> failHandler(400, ctx, cause)));
