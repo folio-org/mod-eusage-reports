@@ -20,6 +20,33 @@
           "pathPattern": "/_/tenant/{id}"
         }
       ]
+    }, {
+      "id": "eusage-reports",
+      "version": "1.0",
+      "handlers": [
+	{
+          "methods": [ "GET" ],
+          "pathPattern": "/eusage-reports/report-titles",
+          "permissionsRequired": [ "eusage-reports-report-titles.get" ]
+	},
+	{
+
+          "methods": [ "POST" ],
+          "pathPattern": "/eusage-reports/report-titles/from-counter",
+          "permissionsRequired": [ "eusage-reports-report-titles-from-counter.post" ],
+	  "modulePermissions": [
+            "counterreports.collection.get",
+            "counterreports.item.get",
+            "erm.resources.collection.get",
+            "erm.resources.item.get",
+            "erm.resources.item.entitlement.get",
+            "erm.packages.collection.get",
+            "erm.packages.item.get",
+            "erm.entitlements.collection.get",
+            "erm.entitlements.item.get"
+	  ]
+	}
+      ]
     }
   ],
   "requires" : [
@@ -49,6 +76,16 @@
     }
   ],
   "permissionSets" : [
+    {
+      "permissionName": "eusage-reports-report-titles.get",
+      "displayName" : "Report titles get",
+      "description" : "Get Counter report titles"
+    },
+    {
+      "permissionName": "eusage-reports-report-titles-from-counter.post",
+      "displayName" : "Counter reports parse",
+      "description" : "Parse counter reports and return them"
+    }
   ],
   "launchDescriptor": {
     "dockerImage": "${artifactId}:${version}",
