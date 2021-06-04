@@ -5,6 +5,7 @@ import io.vertx.core.Promise;
 import io.vertx.core.Vertx;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
+import io.vertx.core.parsetools.JsonEventType;
 import io.vertx.core.parsetools.JsonParser;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
@@ -18,6 +19,7 @@ import io.vertx.sqlclient.Row;
 import io.vertx.sqlclient.RowStream;
 import io.vertx.sqlclient.SqlConnection;
 import io.vertx.sqlclient.Tuple;
+import java.util.Deque;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.UUID;
@@ -34,12 +36,7 @@ import org.folio.tlib.postgres.TenantPgPool;
 public class EusageReportsApi implements RouterCreator, TenantInitHooks {
   private final Logger log = LogManager.getLogger(EusageReportsApi.class);
 
-  private final String version;
   private WebClient webClient;
-
-  public EusageReportsApi(String version) {
-    this.version = version;
-  }
 
   static String teTable(TenantPgPool pool) {
     return pool.getSchema() + ".te_table";
@@ -60,6 +57,10 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
       msg = "Failure";
     }
     ctx.response().end(msg);
+  }
+
+  static String stringOrNull(RequestParameter requestParameter) {
+    return requestParameter == null ? null : requestParameter.getString();
   }
 
   Future<Void> getReportTitles(Vertx vertx, RoutingContext ctx) {
@@ -145,7 +146,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
   }
 
   Future<Void> postFromCounter(Vertx vertx, RoutingContext ctx) {
-    return populateCounterReportTitles(vertx, ctx)
+    return populateCounterReportTitles2(vertx, ctx)
         .compose(x -> returnTitleData(vertx, ctx));
   }
 
@@ -231,6 +232,12 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
         .mapEmpty();
   }
 
+  static Future<Void> clearTdEntry(TenantPgPool pool, UUID counterReportId) {
+    return pool.getConnection()
+        .compose(con -> clearTdEntry(pool, con, counterReportId)
+            .eventually(x -> con.close()));
+  }
+
   static Future<Void> insertTdEntry(TenantPgPool pool, SqlConnection con, UUID reportTitleId,
                                     UUID counterReportId, String usageYearMonth,
                                     int totalAccessCount) {
@@ -274,39 +281,28 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     return null;
   }
 
-  Future<Void> handleReport(TenantPgPool pool, RoutingContext ctx, JsonObject jsonObject) {
+  Future<Void> handleReport2(TenantPgPool pool, RoutingContext ctx, JsonObject jsonObject) {
     final UUID counterReportId = UUID.fromString(jsonObject.getString("id"));
     final String usageYearMonth = jsonObject.getString("yearMonth");
-    JsonArray customers = jsonObject.getJsonObject("report").getJsonArray("customer");
+    final JsonObject reportItem = jsonObject.getJsonObject("reportItem");
 
     return pool.getConnection().compose(con -> con.begin().compose(tx -> {
-      Future<Void> future = clearTdEntry(pool, con, counterReportId);
-      for (int i = 0; i < customers.size(); i++) {
-        JsonObject customer = customers.getJsonObject(i);
-        JsonArray reportItems = customer.getJsonArray("reportItems");
-        for (int j = 0; j < reportItems.size(); j++) {
-          JsonObject reportItem = reportItems.getJsonObject(j);
-          final String counterReportTitle = reportItem.getString("itemName");
-          final String match = getMatch(reportItem);
-          final int totalAccessCount = getTotalCount(reportItem);
-          future = future.compose(x ->
-              upsertTeEntry(pool, con, ctx, counterReportTitle, match)
-                  .compose(reportTitleId -> insertTdEntry(pool, con, reportTitleId, counterReportId,
-                      usageYearMonth, totalAccessCount))
-          );
-        }
-      }
+      Future<Void> future = Future.succeededFuture();
+      final String counterReportTitle = reportItem.getString("itemName");
+      final String match = getMatch(reportItem);
+      final int totalAccessCount = getTotalCount(reportItem);
+      future = future.compose(x ->
+          upsertTeEntry(pool, con, ctx, counterReportTitle, match)
+              .compose(reportTitleId -> insertTdEntry(pool, con, reportTitleId, counterReportId,
+                  usageYearMonth, totalAccessCount))
+      );
       return future
           .compose(x -> tx.commit())
           .eventually(x -> con.close());
     }));
   }
 
-  static String stringOrNull(RequestParameter requestParameter) {
-    return requestParameter == null ? null : requestParameter.getString();
-  }
-
-  Future<Void> populateCounterReportTitles(Vertx vertx, RoutingContext ctx) {
+  Future<Void> populateCounterReportTitles2(Vertx vertx, RoutingContext ctx) {
     RequestParameters params = ctx.get(ValidationHandler.REQUEST_CONTEXT_KEY);
     log.info("params={}", params.toJson());
     final String tenant = stringOrNull(params.headerParameter(XOkapiHeaders.TENANT));
@@ -322,15 +318,34 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     TenantPgPool pool = TenantPgPool.pool(vertx, tenant);
     List<Future<Void>> futures = new LinkedList<>();
 
+    JsonObject reportObj = new JsonObject();
+    Deque<String> path = new LinkedList<>();
     parser.handler(event -> {
       log.info("event type={}", event.type().name());
+      JsonEventType type = event.type();
+      if (JsonEventType.END_OBJECT.equals(type)) {
+        path.removeLast();
+        objectMode.set(false);
+        parser.objectEventMode();
+      }
+      if (JsonEventType.START_OBJECT.equals(type)) {
+        path.addLast(null);
+      }
       if (objectMode.get() && event.isObject()) {
-        JsonObject obj = event.objectValue();
-        log.info("Object value {}", obj.encodePrettily());
-        futures.add(handleReport(pool, ctx, obj));
+        reportObj.put("reportItem", event.objectValue());
+        log.info("Object value {}", reportObj.encodePrettily());
+        futures.add(handleReport2(pool, ctx, reportObj));
       } else {
         String f = event.fieldName();
-        if ("counterReports".equals(f)) {
+        log.info("Field = {}", f);
+        if ("id".equals(f) && path.size() == 2) {
+          reportObj.put("id", event.stringValue());
+          futures.add(clearTdEntry(pool, UUID.fromString(reportObj.getString("id"))));
+        }
+        if ("yearMonth".equals(f) && path.size() == 2) {
+          reportObj.put("yearMonth", event.stringValue());
+        }
+        if ("reportItems".equals(f)) {
           objectMode.set(true);
           parser.objectValueMode();
         }

@@ -26,7 +26,7 @@ public class MainVerticle extends AbstractVerticle {
     final int port = Integer.parseInt(
         Config.getSysConf("http.port", "port", "8081", config()));
 
-    EusageReportsApi eusageReportsApi = new EusageReportsApi(m.getVersion());
+    EusageReportsApi eusageReportsApi = new EusageReportsApi();
     Tenant2Api tenant2Api = new Tenant2Api(eusageReportsApi);
 
     Router router = Router.router(vertx);
