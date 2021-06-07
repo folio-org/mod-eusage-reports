@@ -64,10 +64,6 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
   }
 
   Future<Void> getReportTitles(Vertx vertx, RoutingContext ctx) {
-    return returnTitleEntries(vertx, ctx);
-  }
-
-  Future<Void> returnTitleEntries(Vertx vertx, RoutingContext ctx) {
     RequestParameters params = ctx.get(ValidationHandler.REQUEST_CONTEXT_KEY);
     String tenant = stringOrNull(params.headerParameter(XOkapiHeaders.TENANT));
 
@@ -110,7 +106,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
         );
   }
 
-  Future<Void> returnTitleData(Vertx vertx, RoutingContext ctx) {
+  Future<Void> getTitleData(Vertx vertx, RoutingContext ctx) {
     RequestParameters params = ctx.get(ValidationHandler.REQUEST_CONTEXT_KEY);
     String tenant = stringOrNull(params.headerParameter(XOkapiHeaders.TENANT));
 
@@ -122,7 +118,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
                     sqlConnection.begin().compose(tx -> {
                       ctx.response().setChunked(true);
                       ctx.response().putHeader("Content-Type", "application/json");
-                      ctx.response().write("{ \"titles\" : [");
+                      ctx.response().write("{ \"data\" : [");
                       AtomicInteger offset = new AtomicInteger();
                       RowStream<Row> stream = pq.createStream(50);
                       stream.handler(row -> {
@@ -153,8 +149,16 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
   }
 
   Future<Void> postFromCounter(Vertx vertx, RoutingContext ctx) {
-    return populateCounterReportTitles2(vertx, ctx)
-        .compose(x -> returnTitleData(vertx, ctx));
+    return populateCounterReportTitles(vertx, ctx)
+        .compose(x -> {
+          if (Boolean.TRUE.equals(x)) {
+            return getReportTitles(vertx, ctx);
+          }
+          ctx.response().setStatusCode(404);
+          ctx.response().putHeader("Content-Type", "text/plain");
+          ctx.response().end("Not found");
+          return Future.succeededFuture();
+        });
   }
 
   Future<Tuple> ermLookup(RoutingContext ctx, String identifier) {
@@ -313,7 +317,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     return null;
   }
 
-  Future<Void> handleReport2(TenantPgPool pool, RoutingContext ctx, JsonObject jsonObject) {
+  Future<Void> handleReport(TenantPgPool pool, RoutingContext ctx, JsonObject jsonObject) {
     final UUID counterReportId = UUID.fromString(jsonObject.getString("id"));
     final String usageYearMonth = jsonObject.getString("yearMonth");
     final JsonObject reportItem = jsonObject.getJsonObject("reportItem");
@@ -334,12 +338,13 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     }));
   }
 
-  Future<Void> populateCounterReportTitles2(Vertx vertx, RoutingContext ctx) {
+  Future<Boolean> populateCounterReportTitles(Vertx vertx, RoutingContext ctx) {
     RequestParameters params = ctx.get(ValidationHandler.REQUEST_CONTEXT_KEY);
     log.info("params={}", params.toJson());
     final String tenant = stringOrNull(params.headerParameter(XOkapiHeaders.TENANT));
     final String okapiUrl = stringOrNull(params.headerParameter(XOkapiHeaders.URL));
     final String token = stringOrNull(params.headerParameter(XOkapiHeaders.TOKEN));
+    final String id = ctx.getBodyAsJson().getString("counterReportId");
 
     if (okapiUrl == null) {
       return Future.failedFuture("Missing " + XOkapiHeaders.URL);
@@ -352,6 +357,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
 
     JsonObject reportObj = new JsonObject();
     Deque<String> path = new LinkedList<>();
+    final String url = okapiUrl + "/counter-reports" + (id != null ? "/" + id : "");
     parser.handler(event -> {
       log.debug("event type={}", event.type().name());
       JsonEventType type = event.type();
@@ -366,15 +372,15 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
       if (objectMode.get() && event.isObject()) {
         reportObj.put("reportItem", event.objectValue());
         log.debug("Object value {}", reportObj.encodePrettily());
-        futures.add(handleReport2(pool, ctx, reportObj));
+        futures.add(handleReport(pool, ctx, reportObj));
       } else {
         String f = event.fieldName();
         log.debug("Field = {}", f);
-        if ("id".equals(f) && path.size() == 2) {
+        if ("id".equals(f) && path.size() <= 2) {
           reportObj.put("id", event.stringValue());
           futures.add(clearTdEntry(pool, UUID.fromString(reportObj.getString("id"))));
         }
-        if ("yearMonth".equals(f) && path.size() == 2) {
+        if ("yearMonth".equals(f) && path.size() <= 2) {
           reportObj.put("yearMonth", event.stringValue());
         }
         if ("reportItems".equals(f)) {
@@ -389,16 +395,19 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
       GenericCompositeFuture.all(futures)
           .onComplete(x -> promise.handle(x.mapEmpty()));
     });
-    return webClient.getAbs(okapiUrl + "/counter-reports")
+    return webClient.getAbs(url)
         .putHeader(XOkapiHeaders.TOKEN, token)
         .putHeader(XOkapiHeaders.TENANT, tenant)
         .as(BodyCodec.jsonStream(parser))
         .send()
         .compose(res -> {
-          if (res.statusCode() != 200) {
-            return Future.failedFuture("Bad status code {} for /counter-reports");
+          if (res.statusCode() == 404) {
+            return Future.succeededFuture(false);
           }
-          return promise.future();
+          if (res.statusCode() != 200) {
+            return Future.failedFuture("GET " + url + " returned status code " + res.statusCode());
+          }
+          return promise.future().map(true);
         });
   }
 
@@ -414,6 +423,10 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
           routerBuilder
               .operation("postFromCounter")
               .handler(ctx -> postFromCounter(vertx, ctx)
+                  .onFailure(cause -> failHandler(400, ctx, cause)));
+          routerBuilder
+              .operation("getTitleData")
+              .handler(ctx -> getTitleData(vertx, ctx)
                   .onFailure(cause -> failHandler(400, ctx, cause)));
           return Future.succeededFuture(routerBuilder.createRouter());
         });

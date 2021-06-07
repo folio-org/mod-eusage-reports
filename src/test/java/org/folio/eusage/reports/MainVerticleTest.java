@@ -34,18 +34,14 @@ public class MainVerticleTest {
   static Vertx vertx;
   static final int MODULE_PORT = 9230;
   static final int MOCK_PORT = 9231;
+  static final UUID goodCounterReportId = UUID.randomUUID();
 
   @ClassRule
   public static PostgreSQLContainer<?> postgresSQLContainer = TenantPgPoolContainer.create();
 
-  static void getCounterReportsChunk(RoutingContext ctx, AtomicInteger cnt, int max) {
-    if (cnt.incrementAndGet() > max) {
-      ctx.response().end("], \"totalRecords\": " + max + "}");
-      return;
-    }
-    String lead = cnt.get() > 1 ? "," : "";
+  static JsonObject getCounterReportMock(UUID id, int cnt) {
     JsonObject counterReport = new JsonObject();
-    counterReport.put("id", UUID.randomUUID().toString());
+    counterReport.put("id", id);
     counterReport.put("yearMonth", "2021-01");
     JsonObject report = new JsonObject();
     counterReport.put("report", report);
@@ -54,7 +50,7 @@ public class MainVerticleTest {
         .put("contact", new JsonArray())
     );
     report.put("name", "JR1");
-    report.put("title", "Journal Report " + cnt.get());
+    report.put("title", "Journal Report " + cnt);
     report.put("customer", new JsonArray()
         .add(new JsonObject()
             .put("id", "fake customer id")
@@ -126,7 +122,7 @@ public class MainVerticleTest {
                     )
                 )
                 .add(new JsonObject()
-                    .put("itemName", "Best " + cnt.get() + " pets of all time")
+                    .put("itemName", "Best " + cnt + " pets of all time")
                     .put("itemDataType", "JOURNAL")
                     .put("itemIdentifier", new JsonArray()
                         .add(new JsonObject()
@@ -135,11 +131,11 @@ public class MainVerticleTest {
                         )
                         .add(new JsonObject()
                             .put("type", "PRINT_ISSN")
-                            .put("value", "1002-" + String.format("%04d", cnt.get()))
+                            .put("value", "1002-" + String.format("%04d", cnt))
                         )
                         .add(new JsonObject()
                             .put("type", "ONLINE_ISSN")
-                            .put("value", "1003-" + String.format("%04d", cnt.get()))
+                            .put("value", "1003-" + String.format("%04d", cnt))
                         )
                     )
                     .put("itemPerformance", new JsonArray()
@@ -161,6 +157,15 @@ public class MainVerticleTest {
             )
         )
     );
+    return counterReport;
+  }
+  static void getCounterReportsChunk(RoutingContext ctx, AtomicInteger cnt, int max) {
+    if (cnt.incrementAndGet() > max) {
+      ctx.response().end("], \"totalRecords\": " + max + "}");
+      return;
+    }
+    String lead = cnt.get() > 1 ? "," : "";
+    JsonObject counterReport = getCounterReportMock(UUID.randomUUID(), cnt.get());
     ctx.response().write(lead + counterReport.encode())
         .onComplete(x -> getCounterReportsChunk(ctx, cnt, max));
   }
@@ -172,6 +177,23 @@ public class MainVerticleTest {
     ctx.response().write("{ \"counterReports\": [ ")
         .onComplete(x ->
             getCounterReportsChunk(ctx, new AtomicInteger(0), 5));
+  }
+
+  static void getCounterReport(RoutingContext ctx) {
+    String path = ctx.request().path();
+    int offset = path.lastIndexOf('/');
+    UUID id = UUID.fromString(path.substring(offset + 1));
+    log.info("xxxxxxx AD: getCounterReport id={}", id.toString());
+    log.info("xxxxxxx AD: good id={}", goodCounterReportId);
+    if (id.equals(goodCounterReportId)) {
+      ctx.response().setChunked(true);
+      ctx.response().putHeader("Content-Type", "application/json");
+      ctx.response().end(getCounterReportMock(id, 0).encode());
+    } else {
+      ctx.response().putHeader("Content-Type", "text/plain");
+      ctx.response().setStatusCode(404);
+      ctx.response().end("not found");
+    }
   }
 
   static void getErmResource(RoutingContext ctx) {
@@ -209,7 +231,8 @@ public class MainVerticleTest {
     RestAssured.port = MODULE_PORT;
 
     Router router = Router.router(vertx);
-    router.get("/counter-reports").handler(MainVerticleTest::getCounterReports);
+    router.getWithRegex("/counter-reports").handler(MainVerticleTest::getCounterReports);
+    router.getWithRegex("/counter-reports/[-0-9a-z]*").handler(MainVerticleTest::getCounterReport);
     router.get("/erm/resource").handler(MainVerticleTest::getErmResource);
     router.getWithRegex("/erm/resource/[-0-9a-z]*/entitlementOptions").handler(MainVerticleTest::getErmResourceEntitlement);
     vertx.createHttpServer()
@@ -336,7 +359,10 @@ public class MainVerticleTest {
         .header("Content-Type", is("application/json"))
         .extract();
     res = new JsonObject(response.body().asString());
-    context.assertEquals(15, res.getJsonArray("titles").size());
+    context.assertEquals(7, res.getJsonArray("titles").size());
+    context.assertNull(res.getJsonArray("titles").getJsonObject(0).getString("kbTitleName"));
+    context.assertEquals("fake kb title instance name", res.getJsonArray("titles").getJsonObject(1).getString("kbTitleName"));
+    context.assertEquals("fake kb package name", res.getJsonArray("titles").getJsonObject(1).getString("kbPackageName"));
 
     response = RestAssured.given()
         .header(XOkapiHeaders.TENANT, tenant)
@@ -350,6 +376,40 @@ public class MainVerticleTest {
     context.assertNull(res.getJsonArray("titles").getJsonObject(0).getString("kbTitleName"));
     context.assertEquals("fake kb title instance name", res.getJsonArray("titles").getJsonObject(1).getString("kbTitleName"));
     context.assertEquals("fake kb package name", res.getJsonArray("titles").getJsonObject(1).getString("kbPackageName"));
+
+    response = RestAssured.given()
+        .header(XOkapiHeaders.TENANT, tenant)
+        .header(XOkapiHeaders.URL, "http://localhost:" + MOCK_PORT)
+        .get("/eusage-reports/title-data")
+        .then().statusCode(200)
+        .header("Content-Type", is("application/json"))
+        .extract();
+    res = new JsonObject(response.body().asString());
+    context.assertEquals(15, res.getJsonArray("data").size());
+
+    response = RestAssured.given()
+        .header(XOkapiHeaders.TENANT, tenant)
+        .header(XOkapiHeaders.URL, "http://localhost:" + MOCK_PORT)
+        .header("Content-Type", "application/json")
+        .body(new JsonObject()
+            .put("counterReportId", goodCounterReportId)
+            .encode())
+        .post("/eusage-reports/report-titles/from-counter")
+        .then().statusCode(200)
+        .header("Content-Type", is("application/json"))
+        .extract();
+    res = new JsonObject(response.body().asString());
+    context.assertEquals(8, res.getJsonArray("titles").size());
+
+    RestAssured.given()
+        .header(XOkapiHeaders.TENANT, tenant)
+        .header(XOkapiHeaders.URL, "http://localhost:" + MOCK_PORT)
+        .header("Content-Type", "application/json")
+        .body(new JsonObject()
+            .put("counterReportId", UUID.randomUUID()) // unknown ID
+            .encode())
+        .post("/eusage-reports/report-titles/from-counter")
+        .then().statusCode(404);
 
     // disable
     tenantOp(context, tenant,

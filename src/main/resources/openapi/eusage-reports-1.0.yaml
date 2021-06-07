@@ -9,7 +9,7 @@ paths:
       - $ref: headers/okapi-token.yaml
       - $ref: headers/okapi-url.yaml
     get:
-      description: Get titles with links to KB and COUNTER reports.
+      description: Get titles with links to KB
       operationId: getReportTitles
       responses:
         "200":
@@ -41,7 +41,26 @@ paths:
           content:
             application/json:
               schema:
-                $ref: schemas/fromCounterResponse.json
+                $ref: schemas/reportTitles.json
+        "400":
+          $ref: "#/components/responses/trait_400"
+        "500":
+          $ref: "#/components/responses/trait_500"
+  /eusage-reports/title-data:
+    parameters:
+      - $ref: headers/okapi-tenant.yaml
+      - $ref: headers/okapi-token.yaml
+      - $ref: headers/okapi-url.yaml
+    get:
+      description: Get title data
+      operationId: getTitleData
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: schemas/reportTitleData.json
         "400":
           $ref: "#/components/responses/trait_400"
         "500":
