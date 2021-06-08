@@ -289,7 +289,38 @@ public class MainVerticleTest {
         .body(is("Missing " + XOkapiHeaders.URL));
   }
 
-  String tenantOp(TestContext context, String tenant, JsonObject tenantAttributes, String expectedError) {
+  @Test
+  public void testPostTitlesNoInit() {
+    String tenant = "testlib";
+    RestAssured.given()
+        .header(XOkapiHeaders.TENANT, tenant)
+        .header("Content-Type", "application/json")
+        .body(new JsonObject().put("titles", new JsonArray()).encode()) // no titles
+        .post("/eusage-reports/report-titles")
+        .then().statusCode(204);
+  }
+
+  @Test
+  public void testPostTitlesNoInit2() {
+    String tenant = "testlib";
+    RestAssured.given()
+        .header(XOkapiHeaders.TENANT, tenant)
+        .header("Content-Type", "application/json")
+        .body(new JsonObject().put("titles", new JsonArray()
+            .add(new JsonObject()
+                .put("id", UUID.randomUUID().toString())
+                .put("kbTitleName", "kb title name")
+                .put("kbTitleId", UUID.randomUUID().toString())
+                .put("kbPackageName", "kb package name")
+                .put("kbPackageId", UUID.randomUUID().toString())
+            )
+        ).encode())
+        .post("/eusage-reports/report-titles")
+        .then().statusCode(400)
+        .body(containsString("testlib_mod_eusage_reports.te_table"));
+  }
+
+  void tenantOp(TestContext context, String tenant, JsonObject tenantAttributes, String expectedError) {
     ExtractableResponse<Response> response = RestAssured.given()
         .header(XOkapiHeaders.TENANT, tenant)
         .header("Content-Type", "application/json")
@@ -317,7 +348,6 @@ public class MainVerticleTest {
         .header(XOkapiHeaders.TENANT, tenant)
         .delete(location)
         .then().statusCode(204);
-    return location;
   }
 
   @Test
@@ -378,10 +408,39 @@ public class MainVerticleTest {
         .header("Content-Type", is("application/json"))
         .extract();
     res = new JsonObject(response.body().asString());
-    context.assertEquals(7, res.getJsonArray("titles").size());
-    context.assertNull(res.getJsonArray("titles").getJsonObject(0).getString("kbTitleName"));
-    context.assertEquals("fake kb title instance name", res.getJsonArray("titles").getJsonObject(1).getString("kbTitleName"));
-    context.assertEquals("fake kb package name", res.getJsonArray("titles").getJsonObject(1).getString("kbPackageName"));
+    JsonArray titlesAr = res.getJsonArray("titles");
+    context.assertEquals(7, titlesAr.size());
+    int noDefined = 0;
+    int noUndefined = 0;
+    JsonObject unmatchedTitle = null;
+    for (int i = 0; i < titlesAr.size(); i++) {
+      if (titlesAr.getJsonObject(i).containsKey("kbTitleName")) {
+        noDefined++;
+        context.assertEquals("fake kb title instance name", titlesAr.getJsonObject(i).getString("kbTitleName"));
+        context.assertEquals("fake kb package name", titlesAr.getJsonObject(i).getString("kbPackageName"));
+      } else {
+        unmatchedTitle = titlesAr.getJsonObject(i);
+        context.assertEquals("The dogs journal", unmatchedTitle.getString("counterReportTitle"));
+        noUndefined++;
+      }
+    }
+    context.assertEquals(6, noDefined);
+    context.assertEquals(1, noUndefined);
+
+    unmatchedTitle.put("kbTitleName", "correct kb title name");
+    unmatchedTitle.put("kbTitleId", UUID.randomUUID().toString());
+    unmatchedTitle.put("kbPackageName", "correct kb package name");
+    unmatchedTitle.put("kbPackageId", UUID.randomUUID().toString());
+    JsonObject postTitleObject = new JsonObject();
+    postTitleObject.put("titles", new JsonArray().add(unmatchedTitle));
+
+    RestAssured.given()
+        .header(XOkapiHeaders.TENANT, tenant)
+        .header(XOkapiHeaders.URL, "http://localhost:" + MOCK_PORT)
+        .header("Content-Type", "application/json")
+        .body(postTitleObject.encode())
+        .post("/eusage-reports/report-titles")
+        .then().statusCode(204);
 
     response = RestAssured.given()
         .header(XOkapiHeaders.TENANT, tenant)
@@ -391,10 +450,68 @@ public class MainVerticleTest {
         .header("Content-Type", is("application/json"))
         .extract();
     res = new JsonObject(response.body().asString());
-    context.assertEquals(7, res.getJsonArray("titles").size());
-    context.assertNull(res.getJsonArray("titles").getJsonObject(0).getString("kbTitleName"));
-    context.assertEquals("fake kb title instance name", res.getJsonArray("titles").getJsonObject(1).getString("kbTitleName"));
-    context.assertEquals("fake kb package name", res.getJsonArray("titles").getJsonObject(1).getString("kbPackageName"));
+    titlesAr = res.getJsonArray("titles");
+    context.assertEquals(7, titlesAr.size());
+    int noManual = 0;
+    for (int i = 0; i < titlesAr.size(); i++) {
+      context.assertTrue(titlesAr.getJsonObject(i).containsKey("kbTitleName"));
+      if (titlesAr.getJsonObject(i).getBoolean("kbManualMatch")) {
+        noManual++;
+      }
+    }
+    context.assertEquals(1, noManual);
+
+    JsonObject n = new JsonObject();
+    n.put("id", UUID.randomUUID());
+    n.put("kbTitleName", "correct kb title name");
+    n.put("kbTitleId", UUID.randomUUID().toString());
+    n.put("kbPackageName", "correct kb package name");
+    n.put("kbPackageId", UUID.randomUUID().toString());
+    postTitleObject = new JsonObject();
+    postTitleObject.put("titles", new JsonArray().add(n));
+    RestAssured.given()
+        .header(XOkapiHeaders.TENANT, tenant)
+        .header(XOkapiHeaders.URL, "http://localhost:" + MOCK_PORT)
+        .header("Content-Type", "application/json")
+        .body(postTitleObject.encode())
+        .post("/eusage-reports/report-titles")
+        .then().statusCode(400)
+        .header("Content-Type", is("text/plain"))
+        .body(is("title " + n.getString("id") + " matches nothing"));
+
+    // missing kbPackageName, kbPackageId
+    n = new JsonObject();
+    n.put("id", UUID.randomUUID());
+    n.put("kbTitleName", "correct kb title name");
+    n.put("kbTitleId", UUID.randomUUID().toString());
+    postTitleObject = new JsonObject();
+    postTitleObject.put("titles", new JsonArray().add(n));
+    RestAssured.given()
+        .header(XOkapiHeaders.TENANT, tenant)
+        .header(XOkapiHeaders.URL, "http://localhost:" + MOCK_PORT)
+        .header("Content-Type", "application/json")
+        .body(postTitleObject.encode())
+        .post("/eusage-reports/report-titles")
+        .then().statusCode(400)
+        .header("Content-Type", is("text/plain"))
+        .body(containsString("because \"name\" is null"));
+
+    // missing id
+    n = new JsonObject();
+    n.put("kbTitleName", "correct kb title name");
+    n.put("kbTitleId", UUID.randomUUID().toString());
+    n.put("kbPackageName", "correct kb package name");
+    n.put("kbPackageId", UUID.randomUUID().toString());
+    postTitleObject = new JsonObject();
+    postTitleObject.put("titles", new JsonArray().add(n));
+    RestAssured.given()
+        .header(XOkapiHeaders.TENANT, tenant)
+        .header(XOkapiHeaders.URL, "http://localhost:" + MOCK_PORT)
+        .header("Content-Type", "application/json")
+        .body(postTitleObject.encode())
+        .post("/eusage-reports/report-titles")
+        .then().statusCode(400)
+        .body(is("Bad Request"));
 
     response = RestAssured.given()
         .header(XOkapiHeaders.TENANT, tenant)

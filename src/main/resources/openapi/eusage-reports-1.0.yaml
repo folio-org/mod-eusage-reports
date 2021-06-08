@@ -22,6 +22,21 @@ paths:
           $ref: "#/components/responses/trait_400"
         "500":
           $ref: "#/components/responses/trait_500"
+    post:
+      description: POST titles with links to KB
+      operationId: postReportTitles
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: schemas/reportTitles.json
+      responses:
+        "204":
+          description: OK
+        "400":
+          $ref: "#/components/responses/trait_400"
+        "500":
+          $ref: "#/components/responses/trait_500"
   /eusage-reports/report-titles/from-counter:
     parameters:
       - $ref: headers/okapi-tenant.yaml

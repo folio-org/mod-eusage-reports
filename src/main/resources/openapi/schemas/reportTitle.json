@@ -2,21 +2,37 @@
   "description": "report title entry",
   "type": "object",
   "properties": {
-    "title": {
+    "id": {
       "type": "string",
-      "description": "Parsed title"
+      "description" : "title identifier"
     },
-    "counterReportId": {
+    "counterReportTitle": {
       "type": "string",
-      "description": "Counter report identifier"
+      "description": "Title as it appears in counter report"
     },
-    "kbId": {
+    "kbTitleName": {
       "type": "string",
-      "description": "Knowledge Base identifier"
+      "description": "KB title name"
+    },
+    "kbTitleId": {
+      "type": "string",
+      "description": "KB title identifier"
+    },
+    "kbPackageName": {
+      "type": "string",
+      "description": "KB package name"
+    },
+    "kbPackageId": {
+      "type": "string",
+      "description": "KB package identifier"
+    },
+    "kbManualMatch": {
+      "type": "boolean",
+      "description": "whether the counter title to kb title is manual"
     }
   },
   "additionalProperties": false,
   "required": [
-    "title"
+    "id"
   ]
 }

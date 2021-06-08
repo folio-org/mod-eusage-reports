@@ -96,6 +96,10 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
                               .put("kbPackageName", row.getString(5))
                               .put("kbPackageId", row.getUUID(6));
                         }
+                        Boolean kbManualMatch = row.getBoolean(7);
+                        if (kbManualMatch != null) {
+                          response.put("kbManualMatch", kbManualMatch);
+                        }
                         ctx.response().write(response.encode());
                       });
                       stream.endHandler(end -> {
@@ -108,6 +112,47 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
                 )
                 .eventually(x -> sqlConnection.close())
         );
+  }
+
+  Future<Void> postReportTitles(Vertx vertx, RoutingContext ctx) {
+    RequestParameters params = ctx.get(ValidationHandler.REQUEST_CONTEXT_KEY);
+    String tenant = stringOrNull(params.headerParameter(XOkapiHeaders.TENANT));
+
+    TenantPgPool pool = TenantPgPool.pool(vertx, tenant);
+    return pool.getConnection()
+        .compose(sqlConnection -> {
+          Future<Void> future = Future.succeededFuture();
+          final JsonArray titles = ctx.getBodyAsJson().getJsonArray("titles");
+          for (int i = 0; i < titles.size(); i++) {
+            final JsonObject titleEntry = titles.getJsonObject(i);
+            UUID id = UUID.fromString(titleEntry.getString("id"));
+            String kbTitleName = titleEntry.getString("kbTitleName");
+            UUID kbTitleId = UUID.fromString(titleEntry.getString("kbTitleId"));
+            String kbPackageName = titleEntry.getString("kbPackageName");
+            UUID kbPackageId = UUID.fromString(titleEntry.getString("kbPackageId"));
+            future = future.compose(x -> sqlConnection.preparedQuery("UPDATE " + teTable(pool)
+                + " SET"
+                + " kbTitleName = $2,"
+                + " kbTitleId = $3,"
+                + " kbPackageName = $4,"
+                + " kbPackageId = $5,"
+                + " kbManualMatch = TRUE"
+                + " WHERE id = $1")
+                .execute(Tuple.of(id, kbTitleName, kbTitleId, kbPackageName, kbPackageId))
+                .compose(rowSet -> {
+                  if (rowSet.rowCount() == 0) {
+                    return Future.failedFuture("title " + id + " matches nothing");
+                  }
+                  return Future.succeededFuture();
+                }));
+          }
+          return future.eventually(x -> sqlConnection.close());
+        })
+        .compose(x -> {
+          ctx.response().setStatusCode(204);
+          ctx.response().end();
+          return Future.succeededFuture();
+        });
   }
 
   Future<Void> getTitleData(Vertx vertx, RoutingContext ctx) {
@@ -423,6 +468,10 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
           routerBuilder
               .operation("getReportTitles")
               .handler(ctx -> getReportTitles(vertx, ctx)
+                  .onFailure(cause -> failHandler(400, ctx, cause)));
+          routerBuilder
+              .operation("postReportTitles")
+              .handler(ctx -> postReportTitles(vertx, ctx)
                   .onFailure(cause -> failHandler(400, ctx, cause)));
           routerBuilder
               .operation("postFromCounter")
