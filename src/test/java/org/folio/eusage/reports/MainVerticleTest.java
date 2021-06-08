@@ -493,8 +493,7 @@ public class MainVerticleTest {
         .body(postTitleObject.encode())
         .post("/eusage-reports/report-titles")
         .then().statusCode(400)
-        .header("Content-Type", is("text/plain"))
-        .body(containsString("because \"name\" is null"));
+        .header("Content-Type", is("text/plain"));
 
     // missing id
     n = new JsonObject();

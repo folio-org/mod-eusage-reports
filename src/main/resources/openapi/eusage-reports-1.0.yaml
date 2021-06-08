@@ -75,7 +75,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: schemas/reportTitleData.json
+                $ref: schemas/titleDataEntries.json
         "400":
           $ref: "#/components/responses/trait_400"
         "500":
