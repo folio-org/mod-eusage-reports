@@ -3,12 +3,16 @@ package org.folio.eusage.reports.api;
 import io.vertx.core.Future;
 import io.vertx.core.Promise;
 import io.vertx.core.Vertx;
+import io.vertx.core.buffer.Buffer;
+import io.vertx.core.http.HttpMethod;
+import io.vertx.core.http.RequestOptions;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.parsetools.JsonEventType;
 import io.vertx.core.parsetools.JsonParser;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
+import io.vertx.ext.web.client.HttpRequest;
 import io.vertx.ext.web.client.WebClient;
 import io.vertx.ext.web.codec.BodyCodec;
 import io.vertx.ext.web.openapi.RouterBuilder;
@@ -162,21 +166,13 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
   }
 
   Future<Tuple> ermLookup(RoutingContext ctx, String identifier) {
-    RequestParameters params = ctx.get(ValidationHandler.REQUEST_CONTEXT_KEY);
-
-    final String tenant = stringOrNull(params.headerParameter(XOkapiHeaders.TENANT));
-    final String okapiUrl = stringOrNull(params.headerParameter(XOkapiHeaders.URL));
-    final String token = stringOrNull(params.headerParameter(XOkapiHeaders.TOKEN));
-
     // assuming identifier only has unreserved characters
-    String url = okapiUrl + "/erm/resource?match=identifiers.identifier.value&term=" + identifier;
-    Future<JsonArray> future = webClient.getAbs(url)
-        .putHeader(XOkapiHeaders.TOKEN, token)
-        .putHeader(XOkapiHeaders.TENANT, tenant)
+    String uri = "/erm/resource?match=identifiers.identifier.value&term=" + identifier;
+    Future<JsonArray> future = createRequest(webClient, HttpMethod.GET, ctx, uri)
         .send()
         .compose(res -> {
           if (res.statusCode() != 200) {
-            return Future.failedFuture(url + " returned " + res.statusCode());
+            return Future.failedFuture(uri + " returned " + res.statusCode());
           }
           JsonArray ar = res.bodyAsJsonArray();
           return Future.succeededFuture(ar);
@@ -188,15 +184,13 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
       // TODO : there could be more than one package associated with title
       JsonObject resource = ar.getJsonObject(0);
       String titleId = resource.getString("id");
-      String url2 = okapiUrl + "/erm/resource/" + titleId + "/entitlementOptions"
+      String uri2 = "/erm/resource/" + titleId + "/entitlementOptions"
           + "?match=class&term=org.olf.kb.Pkg";
-      return webClient.getAbs(url2)
-          .putHeader(XOkapiHeaders.TOKEN, token)
-          .putHeader(XOkapiHeaders.TENANT, tenant)
+      return createRequest(webClient, HttpMethod.GET, ctx, uri2)
           .send()
           .compose(res -> {
             if (res.statusCode() != 200) {
-              return Future.failedFuture(url2 + " returned " + res.statusCode());
+              return Future.failedFuture(uri2 + " returned " + res.statusCode());
             }
             JsonArray ar2 = res.bodyAsJsonArray();
             if (ar2.isEmpty()) {
@@ -338,12 +332,21 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     }));
   }
 
+  static HttpRequest<Buffer> createRequest(WebClient webClient, HttpMethod method,
+                                           RoutingContext ctx, String uri) {
+    RequestParameters params = ctx.get(ValidationHandler.REQUEST_CONTEXT_KEY);
+    final String okapiUrl = stringOrNull(params.headerParameter(XOkapiHeaders.URL));
+    final String tenant = stringOrNull(params.headerParameter(XOkapiHeaders.TENANT));
+    final String token = stringOrNull(params.headerParameter(XOkapiHeaders.TOKEN));
+    return webClient.request(method, new RequestOptions().setAbsoluteURI(okapiUrl + uri))
+        .putHeader(XOkapiHeaders.TOKEN, token)
+        .putHeader(XOkapiHeaders.TENANT, tenant);
+  }
+
   Future<Boolean> populateCounterReportTitles(Vertx vertx, RoutingContext ctx) {
     RequestParameters params = ctx.get(ValidationHandler.REQUEST_CONTEXT_KEY);
-    log.info("params={}", params.toJson());
     final String tenant = stringOrNull(params.headerParameter(XOkapiHeaders.TENANT));
     final String okapiUrl = stringOrNull(params.headerParameter(XOkapiHeaders.URL));
-    final String token = stringOrNull(params.headerParameter(XOkapiHeaders.TOKEN));
     final String id = ctx.getBodyAsJson().getString("counterReportId");
 
     if (okapiUrl == null) {
@@ -355,9 +358,9 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     TenantPgPool pool = TenantPgPool.pool(vertx, tenant);
     List<Future<Void>> futures = new LinkedList<>();
 
+    final String uri = "/counter-reports" + (id != null ? "/" + id : "");
     JsonObject reportObj = new JsonObject();
     Deque<String> path = new LinkedList<>();
-    final String url = okapiUrl + "/counter-reports" + (id != null ? "/" + id : "");
     parser.handler(event -> {
       log.debug("event type={}", event.type().name());
       JsonEventType type = event.type();
@@ -389,15 +392,16 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
         }
       }
     });
-    parser.exceptionHandler(x -> log.error("parser.exceptionHandler {}", x.getMessage(), x));
+    parser.exceptionHandler(x -> {
+      log.error("GET {} returned bad JSON: {}", uri, x.getMessage(), x);
+      promise.fail("GET " + uri + " returned bad JSON: " + x.getMessage());
+    });
     parser.endHandler(e -> {
       log.error("parser.endHandler");
       GenericCompositeFuture.all(futures)
           .onComplete(x -> promise.handle(x.mapEmpty()));
     });
-    return webClient.getAbs(url)
-        .putHeader(XOkapiHeaders.TOKEN, token)
-        .putHeader(XOkapiHeaders.TENANT, tenant)
+    return createRequest(webClient, HttpMethod.GET, ctx, uri)
         .as(BodyCodec.jsonStream(parser))
         .send()
         .compose(res -> {
@@ -405,7 +409,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
             return Future.succeededFuture(false);
           }
           if (res.statusCode() != 200) {
-            return Future.failedFuture("GET " + url + " returned status code " + res.statusCode());
+            return Future.failedFuture("GET " + uri + " returned status code " + res.statusCode());
           }
           return promise.future().map(true);
         });

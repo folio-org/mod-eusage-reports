@@ -35,6 +35,7 @@ public class MainVerticleTest {
   static final int MODULE_PORT = 9230;
   static final int MOCK_PORT = 9231;
   static final UUID goodCounterReportId = UUID.randomUUID();
+  static final UUID badCounterReportId = UUID.randomUUID();
 
   @ClassRule
   public static PostgreSQLContainer<?> postgresSQLContainer = TenantPgPoolContainer.create();
@@ -183,12 +184,14 @@ public class MainVerticleTest {
     String path = ctx.request().path();
     int offset = path.lastIndexOf('/');
     UUID id = UUID.fromString(path.substring(offset + 1));
-    log.info("xxxxxxx AD: getCounterReport id={}", id.toString());
-    log.info("xxxxxxx AD: good id={}", goodCounterReportId);
     if (id.equals(goodCounterReportId)) {
       ctx.response().setChunked(true);
       ctx.response().putHeader("Content-Type", "application/json");
       ctx.response().end(getCounterReportMock(id, 0).encode());
+    } else  if (id.equals(badCounterReportId)) {
+      ctx.response().setChunked(true);
+      ctx.response().putHeader("Content-Type", "application/json");
+      ctx.response().end("{");
     } else {
       ctx.response().putHeader("Content-Type", "text/plain");
       ctx.response().setStatusCode(404);
@@ -318,6 +321,22 @@ public class MainVerticleTest {
   }
 
   @Test
+  public void testFromCounterMissingOkapiUrl(TestContext context) {
+    String tenant = "testlib";
+
+    RestAssured.given()
+        .header(XOkapiHeaders.TENANT, tenant)
+        .header("Content-Type", "application/json")
+        .body(new JsonObject()
+            .put("counterReportId", goodCounterReportId)
+            .encode())
+        .post("/eusage-reports/report-titles/from-counter")
+        .then().statusCode(400)
+        .header("Content-Type", is("text/plain"))
+        .body(is("Missing X-Okapi-Url"));
+  }
+
+  @Test
   public void testPostTenantOK(TestContext context) {
     String tenant = "testlib";
     tenantOp(context, tenant, new JsonObject()
@@ -400,6 +419,18 @@ public class MainVerticleTest {
         .extract();
     res = new JsonObject(response.body().asString());
     context.assertEquals(8, res.getJsonArray("titles").size());
+
+    RestAssured.given()
+        .header(XOkapiHeaders.TENANT, tenant)
+        .header(XOkapiHeaders.URL, "http://localhost:" + MOCK_PORT)
+        .header("Content-Type", "application/json")
+        .body(new JsonObject()
+            .put("counterReportId", badCounterReportId)
+            .encode())
+        .post("/eusage-reports/report-titles/from-counter")
+        .then().statusCode(400)
+        .header("Content-Type", is("text/plain"))
+        .body(containsString("returned bad JSON"));
 
     RestAssured.given()
         .header(XOkapiHeaders.TENANT, tenant)
