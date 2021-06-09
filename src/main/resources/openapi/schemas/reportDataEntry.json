@@ -29,7 +29,7 @@
     "invoicedCost": {
       "type": "string",
       "description": "Total access count"
-    },
+    }
   },
   "additionalProperties": false,
   "required": [
