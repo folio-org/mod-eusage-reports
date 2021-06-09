@@ -55,16 +55,13 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
   }
 
   static void failHandler(int statusCode, RoutingContext ctx, Throwable e) {
+    failHandler(statusCode, ctx, e != null ? e.getMessage() : null);
+  }
+
+  static void failHandler(int statusCode, RoutingContext ctx, String msg) {
     ctx.response().setStatusCode(statusCode);
     ctx.response().putHeader("Content-Type", "text/plain");
-    String msg = null;
-    if (e != null) {
-      msg = e.getMessage();
-    }
-    if (msg == null) {
-      msg = "Failure";
-    }
-    ctx.response().end(msg);
+    ctx.response().end(msg != null ? msg : "Failure");
   }
 
   static String stringOrNull(RequestParameter requestParameter) {
@@ -208,9 +205,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
           if (Boolean.TRUE.equals(x)) {
             return getReportTitles(vertx, ctx);
           }
-          ctx.response().setStatusCode(404);
-          ctx.response().putHeader("Content-Type", "text/plain");
-          ctx.response().end("Not found");
+          failHandler(404, ctx, "Not Found");
           return Future.succeededFuture();
         });
   }
@@ -465,6 +460,36 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
         });
   }
 
+  Future<Void> getReportData(Vertx vertx, RoutingContext ctx) {
+    RequestParameters params = ctx.get(ValidationHandler.REQUEST_CONTEXT_KEY);
+    String tenant = stringOrNull(params.headerParameter(XOkapiHeaders.TENANT));
+    return Future.failedFuture("Not implemented");
+  }
+
+  Future<Integer> populateAgreement(Vertx vertx, RoutingContext ctx) {
+    RequestParameters params = ctx.get(ValidationHandler.REQUEST_CONTEXT_KEY);
+    final String tenant = stringOrNull(params.headerParameter(XOkapiHeaders.TENANT));
+    final String agreementId = ctx.getBodyAsJson().getString("agreementId");
+    if (agreementId == null) {
+      return Future.failedFuture("Missing agreementId property");
+    }
+    return Future.succeededFuture(null); // means not found (for now)
+  }
+
+  Future<Integer> postFromAgreement(Vertx vertx, RoutingContext ctx) {
+    return populateAgreement(vertx, ctx)
+        .compose(linesCreated -> {
+          if (linesCreated == null) {
+            failHandler(404, ctx, "Not found");
+            return Future.succeededFuture();
+          }
+          ctx.response().setStatusCode(200);
+          ctx.response().putHeader("Content-Type", "application/json");
+          ctx.response().end(new JsonObject().put("reportLinesCreated", linesCreated).encode());
+          return Future.succeededFuture();
+        });
+  }
+
   @Override
   public Future<Router> createRouter(Vertx vertx) {
     webClient = WebClient.create(vertx);
@@ -485,6 +510,14 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
           routerBuilder
               .operation("getTitleData")
               .handler(ctx -> getTitleData(vertx, ctx)
+                  .onFailure(cause -> failHandler(400, ctx, cause)));
+          routerBuilder
+              .operation("getReportData")
+              .handler(ctx -> getReportData(vertx, ctx)
+                  .onFailure(cause -> failHandler(400, ctx, cause)));
+          routerBuilder
+              .operation("postFromAgreement")
+              .handler(ctx -> postFromAgreement(vertx, ctx)
                   .onFailure(cause -> failHandler(400, ctx, cause)));
           return Future.succeededFuture(routerBuilder.createRouter());
         });

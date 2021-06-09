@@ -367,6 +367,20 @@ public class MainVerticleTest {
   }
 
   @Test
+  public void testFromAgreementNoId(TestContext context) {
+    String tenant = "testlib";
+    RestAssured.given()
+        .header(XOkapiHeaders.TENANT, tenant)
+        .header(XOkapiHeaders.URL, "http://localhost:" + MOCK_PORT)
+        .header("Content-Type", "application/json")
+        .body(new JsonObject().encode())
+        .post("/eusage-reports/report-data/from-agreement")
+        .then().statusCode(400)
+        .header("Content-Type", is("text/plain"))
+        .body(is("Missing agreementId property"));
+  }
+
+  @Test
   public void testPostTenantOK(TestContext context) {
     String tenant = "testlib";
     tenantOp(context, tenant, new JsonObject()
@@ -556,6 +570,24 @@ public class MainVerticleTest {
             .put("counterReportId", UUID.randomUUID()) // unknown ID
             .encode())
         .post("/eusage-reports/report-titles/from-counter")
+        .then().statusCode(404);
+
+    RestAssured.given()
+        .header(XOkapiHeaders.TENANT, tenant)
+        .header(XOkapiHeaders.URL, "http://localhost:" + MOCK_PORT)
+        .get("/eusage-reports/report-data")
+        .then().statusCode(400)
+        .header("Content-Type", is("text/plain"))
+        .body(is("Not implemented"));
+
+    RestAssured.given()
+        .header(XOkapiHeaders.TENANT, tenant)
+        .header(XOkapiHeaders.URL, "http://localhost:" + MOCK_PORT)
+        .header("Content-Type", "application/json")
+        .body(new JsonObject()
+            .put("agreementId", UUID.randomUUID()) // unknown ID
+            .encode())
+        .post("/eusage-reports/report-data/from-agreement")
         .then().statusCode(404);
 
     // disable
