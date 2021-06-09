@@ -1,13 +1,13 @@
 {
-  "description": "return title data entries",
+  "description": "report data entries",
   "type": "object",
   "properties": {
     "data": {
-      "description": "List of title data entries",
+      "description": "List of data entries",
       "type": "array",
       "items": {
         "type": "object",
-        "$ref": "titleDataEntry.json"
+        "$ref": "reportDataEntry.json"
       }
     }
   },

@@ -1,0 +1,38 @@
+{
+  "description": "report data entry",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "report data identifier"
+    },
+    "titleDataId": {
+      "type": "string",
+      "description": "title data identifier"
+    },
+    "type": {
+      "type": "string",
+      "description": "one of journal, pacakge, ebook"
+    },
+    "title": {
+      "type": "string",
+      "description": "Counter report title"
+    },
+    "agreementLineId": {
+      "type": "string",
+      "description": "agreement identifier"
+    },
+    "encumberedCost": {
+      "type": "string",
+      "description": "cost from the PO line"
+    },
+    "invoicedCost": {
+      "type": "string",
+      "description": "Total access count"
+    },
+  },
+  "additionalProperties": false,
+  "required": [
+    "id", "titleDataId"
+  ]
+}
