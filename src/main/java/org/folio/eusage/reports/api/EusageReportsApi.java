@@ -42,12 +42,16 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
 
   private WebClient webClient;
 
-  static String teTable(TenantPgPool pool) {
+  static String titleEntriesTable(TenantPgPool pool) {
     return pool.getSchema() + ".te_table";
   }
 
-  static String tdTable(TenantPgPool pool) {
+  static String titleDataTable(TenantPgPool pool) {
     return pool.getSchema() + ".td_table";
+  }
+
+  static String reportDataTable(TenantPgPool pool) {
+    return pool.getSchema() + ".rd_table";
   }
 
   static void failHandler(int statusCode, RoutingContext ctx, Throwable e) {
@@ -74,7 +78,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     TenantPgPool pool = TenantPgPool.pool(vertx, tenant);
     return pool.getConnection()
         .compose(sqlConnection ->
-            sqlConnection.prepare("SELECT * FROM " + teTable(pool))
+            sqlConnection.prepare("SELECT * FROM " + titleEntriesTable(pool))
                 .<Void>compose(pq ->
                     sqlConnection.begin().compose(tx -> {
                       ctx.response().setChunked(true);
@@ -130,21 +134,22 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
             UUID kbTitleId = UUID.fromString(titleEntry.getString("kbTitleId"));
             String kbPackageName = titleEntry.getString("kbPackageName");
             UUID kbPackageId = UUID.fromString(titleEntry.getString("kbPackageId"));
-            future = future.compose(x -> sqlConnection.preparedQuery("UPDATE " + teTable(pool)
-                + " SET"
-                + " kbTitleName = $2,"
-                + " kbTitleId = $3,"
-                + " kbPackageName = $4,"
-                + " kbPackageId = $5,"
-                + " kbManualMatch = TRUE"
-                + " WHERE id = $1")
-                .execute(Tuple.of(id, kbTitleName, kbTitleId, kbPackageName, kbPackageId))
-                .compose(rowSet -> {
-                  if (rowSet.rowCount() == 0) {
-                    return Future.failedFuture("title " + id + " matches nothing");
-                  }
-                  return Future.succeededFuture();
-                }));
+            future = future.compose(x ->
+                sqlConnection.preparedQuery("UPDATE " + titleEntriesTable(pool)
+                    + " SET"
+                    + " kbTitleName = $2,"
+                    + " kbTitleId = $3,"
+                    + " kbPackageName = $4,"
+                    + " kbPackageId = $5,"
+                    + " kbManualMatch = TRUE"
+                    + " WHERE id = $1")
+                    .execute(Tuple.of(id, kbTitleName, kbTitleId, kbPackageName, kbPackageId))
+                    .compose(rowSet -> {
+                      if (rowSet.rowCount() == 0) {
+                        return Future.failedFuture("title " + id + " matches nothing");
+                      }
+                      return Future.succeededFuture();
+                    }));
           }
           return future.eventually(x -> sqlConnection.close());
         })
@@ -162,7 +167,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     TenantPgPool pool = TenantPgPool.pool(vertx, tenant);
     return pool.getConnection()
         .compose(sqlConnection ->
-            sqlConnection.prepare("SELECT * FROM " + tdTable(pool))
+            sqlConnection.prepare("SELECT * FROM " + titleDataTable(pool))
                 .<Void>compose(pq ->
                     sqlConnection.begin().compose(tx -> {
                       ctx.response().setChunked(true);
@@ -256,7 +261,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
 
   Future<UUID> upsertTeEntry(TenantPgPool pool, SqlConnection con, RoutingContext ctx,
                              String counterReportTitle, String match) {
-    return con.preparedQuery("SELECT id FROM " + teTable(pool)
+    return con.preparedQuery("SELECT id FROM " + titleEntriesTable(pool)
         + " WHERE counterReportTitle = $1")
         .execute(Tuple.of(counterReportTitle))
         .compose(res1 -> {
@@ -266,7 +271,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
           return ermLookup(ctx, match).compose(erm -> {
             Future<Void> future;
             if (erm == null) {
-              future = con.preparedQuery("INSERT INTO " + teTable(pool)
+              future = con.preparedQuery("INSERT INTO " + titleEntriesTable(pool)
                   + "(id, counterReportTitle, matchCriteria,"
                   + " kbManualMatch)"
                   + " VALUES ($1, $2, $3, $4)"
@@ -278,7 +283,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
               String kbTitleName = erm.getString(1);
               UUID kbPackageId = erm.getUUID(2);
               String kbPackageName = erm.getString(3);
-              future = con.preparedQuery("INSERT INTO " + teTable(pool)
+              future = con.preparedQuery("INSERT INTO " + titleEntriesTable(pool)
                   + "(id, counterReportTitle, matchCriteria,"
                   + " kbTitleName, kbTitleId,"
                   + " kbPackageName, kbPackageId,"
@@ -291,7 +296,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
                       false))).mapEmpty();
             }
             return future.compose(x ->
-                con.preparedQuery("SELECT id FROM " + teTable(pool)
+                con.preparedQuery("SELECT id FROM " + titleEntriesTable(pool)
                     + " WHERE counterReportTitle = $1")
                     .execute(Tuple.of(counterReportTitle))
                     .map(res2 -> res2.iterator().next().getUUID(0))
@@ -301,7 +306,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
   }
 
   static Future<Void> clearTdEntry(TenantPgPool pool, SqlConnection con, UUID counterReportId) {
-    return con.preparedQuery("DELETE FROM " + tdTable(pool)
+    return con.preparedQuery("DELETE FROM " + titleDataTable(pool)
         + " WHERE counterReportId = $1")
         .execute(Tuple.of(counterReportId))
         .mapEmpty();
@@ -316,7 +321,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
   static Future<Void> insertTdEntry(TenantPgPool pool, SqlConnection con, UUID reportTitleId,
                                     UUID counterReportId, String usageYearMonth,
                                     int totalAccessCount) {
-    return con.preparedQuery("INSERT INTO " + tdTable(pool)
+    return con.preparedQuery("INSERT INTO " + titleDataTable(pool)
         + "(id, reportTitleId,"
         + " counterReportId,"
         + " pubYear, usageYearMonth,"
@@ -492,7 +497,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     }
     TenantPgPool pool = TenantPgPool.pool(vertx, tenant);
     Future<Void> future = pool
-        .query("CREATE TABLE IF NOT EXISTS " + teTable(pool) + " ( "
+        .query("CREATE TABLE IF NOT EXISTS " + titleEntriesTable(pool) + " ( "
             + "id UUID PRIMARY KEY, "
             + "counterReportTitle text UNIQUE, "
             + "matchCriteria text, "
@@ -504,7 +509,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
             + ")")
         .execute().mapEmpty();
     future = future.compose(x -> pool
-        .query("CREATE TABLE IF NOT EXISTS " + tdTable(pool) + " ( "
+        .query("CREATE TABLE IF NOT EXISTS " + titleDataTable(pool) + " ( "
             + "id UUID PRIMARY KEY, "
             + "reportTitleId UUID, "
             + "counterReportId UUID, "
@@ -513,6 +518,17 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
             + "uniqueAccessCount integer, "
             + "totalAccessCount integer, "
             + "openAccess boolean"
+            + ")")
+        .execute().mapEmpty());
+    future = future.compose(x -> pool
+        .query("CREATE TABLE IF NOT EXISTS " + reportDataTable(pool) + " ( "
+            + "id UUID PRIMARY KEY, "
+            + "titleDataId UUID, "
+            + "type text, "
+            + "counterReportTitle text, "
+            + "agreementLineId UUID, "
+            + "encumberedCost money, "
+            + "invoicedCost money"
             + ")")
         .execute().mapEmpty());
     return future;
