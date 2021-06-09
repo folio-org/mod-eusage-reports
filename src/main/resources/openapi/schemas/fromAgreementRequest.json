@@ -1,0 +1,11 @@
+{
+  "description": "Import from agreement request",
+  "type": "object",
+  "properties": {
+    "agreementId": {
+      "description": "Agreement Identifier",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false
+}
