@@ -59,6 +59,8 @@ paths:
                 $ref: schemas/reportTitles.json
         "400":
           $ref: "#/components/responses/trait_400"
+        "404":
+          $ref: "#/components/responses/trait_404"
         "500":
           $ref: "#/components/responses/trait_500"
   /eusage-reports/title-data:
@@ -102,6 +104,8 @@ paths:
                 $ref: schemas/fromAgreementResponse.json
         "400":
           $ref: "#/components/responses/trait_400"
+        "404":
+          $ref: "#/components/responses/trait_404"
         "500":
           $ref: "#/components/responses/trait_500"
 components:
@@ -117,6 +121,17 @@ components:
           schema:
             type: object
             example: {"error":"Invalid JSON in request"}
+    trait_404:
+      description: Not Found
+      content:
+        text/plain:
+          schema:
+            type: string
+            example: Identifier 596d9f60-cda3-44d2-a4a1-2f48b7d4d23c not found
+        application/json:
+          schema:
+            type: object
+            example: {"error":"Identifier 596d9f60-cda3-44d2-a4a1-2f48b7d4d23c not found"}
     trait_500:
       description: Internal error
       content:
