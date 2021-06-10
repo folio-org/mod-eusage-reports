@@ -27,7 +27,7 @@
 	{
           "methods": [ "GET" ],
           "pathPattern": "/eusage-reports/report-titles",
-          "permissionsRequired": [ "eusage-reports-report-titles.get" ]
+          "permissionsRequired": [ "eusage-reports-report-titles.collection.get" ]
 	},
 	{
 
@@ -37,13 +37,41 @@
 	  "modulePermissions": [
             "counterreports.collection.get",
             "counterreports.item.get",
-            "erm.resources.collection.get",
-            "erm.resources.item.get",
-            "erm.resources.item.entitlement.get",
+            "erm.entitlements.collection.get",
+            "erm.entitlements.item.get",
             "erm.packages.collection.get",
             "erm.packages.item.get",
+            "erm.resources.collection.get",
+            "erm.resources.item.entitlement.get",
+            "erm.resources.item.get"
+	  ]
+	},
+	{
+          "methods": [ "GET" ],
+          "pathPattern": "/eusage-reports/title-data",
+          "permissionsRequired": [ "eusage-reports-title-data.collection.get" ]
+	},
+	{
+          "methods": [ "GET" ],
+          "pathPattern": "/eusage-reports/report-data",
+          "permissionsRequired": [ "eusage-reports-report-data.collection.get" ]
+	},
+	{
+
+          "methods": [ "POST" ],
+          "pathPattern": "/eusage-reports/report-data/from-agreement",
+          "permissionsRequired": [ "eusage-reports-report-data-from-agreement.post" ],
+	  "modulePermissions": [
+            "erm.agreements.collection.get",
+            "erm.agreements.item.resources.get",
+            "erm.agreements.item.get",
             "erm.entitlements.collection.get",
-            "erm.entitlements.item.get"
+            "erm.entitlements.item.get",
+            "erm.packages.collection.get",
+            "erm.packages.item.get",
+            "erm.resources.collection.get",
+            "erm.resources.item.entitlement.get",
+            "erm.resources.item.get"
 	  ]
 	}
       ]
@@ -77,14 +105,29 @@
   ],
   "permissionSets" : [
     {
-      "permissionName": "eusage-reports-report-titles.get",
-      "displayName" : "Report titles get",
+      "permissionName": "eusage-reports-report-titles.collection.get",
+      "displayName" : "report titles get",
       "description" : "Get Counter report titles"
     },
     {
       "permissionName": "eusage-reports-report-titles-from-counter.post",
       "displayName" : "Counter reports parse",
       "description" : "Parse counter reports and return them"
+    },
+    {
+      "permissionName": "eusage-reports-title-data.collection.get",
+      "displayName" : "title data get",
+      "description" : "Get title data"
+    },
+    {
+      "permissionName": "eusage-reports-report-data.collection.get",
+      "displayName" : "report data get",
+      "description" : "Get report data"
+    },
+    {
+      "permissionName": "eusage-reports-report-data-from-agreement.post",
+      "displayName" : "report data get",
+      "description" : "Get report data"
     }
   ],
   "launchDescriptor": {
