@@ -427,8 +427,8 @@ public class MainVerticleTest {
         .then().statusCode(200)
         .header("Content-Type", is("application/json"))
         .extract();
-    JsonObject res = new JsonObject(response.body().asString());
-    context.assertEquals(0, res.getJsonArray("titles").size());
+    JsonObject resObject = new JsonObject(response.body().asString());
+    context.assertEquals(0, resObject.getJsonArray("titles").size());
 
     tenantOp(context, tenant, new JsonObject()
         .put("module_from", "mod-eusage-reports-1.0.0")
@@ -453,8 +453,8 @@ public class MainVerticleTest {
         .then().statusCode(200)
         .header("Content-Type", is("application/json"))
         .extract();
-    res = new JsonObject(response.body().asString());
-    JsonArray titlesAr = res.getJsonArray("titles");
+    resObject = new JsonObject(response.body().asString());
+    JsonArray titlesAr = resObject.getJsonArray("titles");
     context.assertEquals(7, titlesAr.size());
     int noDefined = 0;
     int noUndefined = 0;
@@ -495,8 +495,8 @@ public class MainVerticleTest {
         .then().statusCode(200)
         .header("Content-Type", is("application/json"))
         .extract();
-    res = new JsonObject(response.body().asString());
-    titlesAr = res.getJsonArray("titles");
+    resObject = new JsonObject(response.body().asString());
+    titlesAr = resObject.getJsonArray("titles");
     context.assertEquals(7, titlesAr.size());
     int noManual = 0;
     for (int i = 0; i < titlesAr.size(); i++) {
@@ -565,8 +565,8 @@ public class MainVerticleTest {
         .then().statusCode(200)
         .header("Content-Type", is("application/json"))
         .extract();
-    res = new JsonObject(response.body().asString());
-    context.assertEquals(15, res.getJsonArray("data").size());
+    resObject = new JsonObject(response.body().asString());
+    context.assertEquals(15, resObject.getJsonArray("data").size());
 
     response = RestAssured.given()
         .header(XOkapiHeaders.TENANT, tenant)
@@ -579,8 +579,8 @@ public class MainVerticleTest {
         .then().statusCode(200)
         .header("Content-Type", is("application/json"))
         .extract();
-    res = new JsonObject(response.body().asString());
-    context.assertEquals(8, res.getJsonArray("titles").size());
+    resObject = new JsonObject(response.body().asString());
+    context.assertEquals(8, resObject.getJsonArray("titles").size());
 
     RestAssured.given()
         .header(XOkapiHeaders.TENANT, tenant)
@@ -668,8 +668,8 @@ public class MainVerticleTest {
         .then().statusCode(200)
         .header("Content-Type", is("application/json"))
         .extract();
-    res = new JsonObject(response.body().asString());
-    context.assertEquals(0, res.getInteger("reportLinesCreated"));
+    resObject = new JsonObject(response.body().asString());
+    context.assertEquals(0, resObject.getInteger("reportLinesCreated"));
 
     // disable
     tenantOp(context, tenant,
