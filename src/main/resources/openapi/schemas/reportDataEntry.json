@@ -14,7 +14,7 @@
       "type": "string",
       "description": "one of journal, pacakge, ebook"
     },
-    "title": {
+    "counterReportTitle": {
       "type": "string",
       "description": "Counter report title"
     },
@@ -23,11 +23,11 @@
       "description": "agreement identifier"
     },
     "encumberedCost": {
-      "type": "string",
+      "type": "number",
       "description": "cost from the PO line"
     },
     "invoicedCost": {
-      "type": "string",
+      "type": "number",
       "description": "Total access count"
     }
   },

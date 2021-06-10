@@ -463,7 +463,42 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
   Future<Void> getReportData(Vertx vertx, RoutingContext ctx) {
     RequestParameters params = ctx.get(ValidationHandler.REQUEST_CONTEXT_KEY);
     String tenant = stringOrNull(params.headerParameter(XOkapiHeaders.TENANT));
-    return Future.failedFuture("Not implemented");
+
+    TenantPgPool pool = TenantPgPool.pool(vertx, tenant);
+    return pool.getConnection()
+        .compose(sqlConnection ->
+            sqlConnection.prepare("SELECT * FROM " + reportDataTable(pool))
+                .<Void>compose(pq ->
+                    sqlConnection.begin().compose(tx -> {
+                      ctx.response().setChunked(true);
+                      ctx.response().putHeader("Content-Type", "application/json");
+                      ctx.response().write("{ \"data\" : [");
+                      AtomicInteger offset = new AtomicInteger();
+                      RowStream<Row> stream = pq.createStream(50);
+                      stream.handler(row -> {
+                        if (offset.incrementAndGet() > 1) {
+                          ctx.response().write(",");
+                        }
+                        JsonObject obj = new JsonObject()
+                            .put("id", row.getUUID(0))
+                            .put("titleDataId", row.getUUID(1))
+                            .put("type", row.getString(2))
+                            .put("counterReportTitle", row.getString(3))
+                            .put("agreementLineId", row.getUUID(4))
+                            .put("encumberedCost", row.getNumeric(5))
+                            .put("envoicedCost", row.getNumeric(6));
+                        ctx.response().write(obj.encode());
+                      });
+                      stream.endHandler(end -> {
+                        ctx.response().write("] }");
+                        ctx.response().end();
+                        tx.commit();
+                      });
+                      return Future.succeededFuture();
+                    })
+                )
+                .eventually(x -> sqlConnection.close())
+        );
   }
 
   Future<Integer> populateAgreement(Vertx vertx, RoutingContext ctx) {
@@ -484,7 +519,22 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
             return Future.failedFuture("GET " + uri + " returned status code " + res.statusCode());
           }
           JsonObject obj = res.bodyAsJsonObject();
-          return Future.succeededFuture(0);
+          TenantPgPool pool = TenantPgPool.pool(vertx, tenant);
+          // TODO: fake at the moment
+          UUID id = UUID.randomUUID();
+          UUID titleDataId = UUID.randomUUID();
+          String type = "journal";
+          UUID agreementLineId = UUID.randomUUID();
+          String counterReportTitle = "fake counter report title";
+          Number encumberedCost = 21.0;
+          Number invoicedCost = 22.75;
+          return pool.preparedQuery("INSERT INTO " + reportDataTable(pool)
+              + "(id, titleDataId, type, counterReportTitle, agreementLineId,"
+              + " encumberedCost, invoicedCost)"
+              + " VALUES ($1, $2, $3, $4, $5, $6, $7)")
+              .execute(Tuple.of(id, titleDataId, type, counterReportTitle, agreementLineId,
+                  encumberedCost, invoicedCost))
+              .compose(res2 -> Future.succeededFuture(1));
         });
   }
 
@@ -572,8 +622,8 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
             + "type text, "
             + "counterReportTitle text, "
             + "agreementLineId UUID, "
-            + "encumberedCost money, "
-            + "invoicedCost money"
+            + "encumberedCost numeric(20, 8), "
+            + "invoicedCost numeric(20, 8)"
             + ")")
         .execute().mapEmpty());
     return future;

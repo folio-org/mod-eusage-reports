@@ -616,13 +616,15 @@ public class MainVerticleTest {
         .post("/eusage-reports/report-titles/from-counter")
         .then().statusCode(404);
 
-    RestAssured.given()
+    response = RestAssured.given()
         .header(XOkapiHeaders.TENANT, tenant)
         .header(XOkapiHeaders.URL, "http://localhost:" + MOCK_PORT)
         .get("/eusage-reports/report-data")
-        .then().statusCode(400)
-        .header("Content-Type", is("text/plain"))
-        .body(is("Not implemented"));
+        .then().statusCode(200)
+        .header("Content-Type", is("application/json"))
+        .extract();
+    resObject = new JsonObject(response.body().asString());
+    context.assertEquals(0, resObject.getJsonArray("data").size());
 
     RestAssured.given()
         .header(XOkapiHeaders.TENANT, tenant)
@@ -669,7 +671,18 @@ public class MainVerticleTest {
         .header("Content-Type", is("application/json"))
         .extract();
     resObject = new JsonObject(response.body().asString());
-    context.assertEquals(0, resObject.getInteger("reportLinesCreated"));
+    context.assertEquals(1, resObject.getInteger("reportLinesCreated"));
+
+    response = RestAssured.given()
+        .header(XOkapiHeaders.TENANT, tenant)
+        .header(XOkapiHeaders.URL, "http://localhost:" + MOCK_PORT)
+        .get("/eusage-reports/report-data")
+        .then().statusCode(200)
+        .header("Content-Type", is("application/json"))
+        .extract();
+    resObject = new JsonObject(response.body().asString());
+    context.assertEquals(1, resObject.getJsonArray("data").size());
+
 
     // disable
     tenantOp(context, tenant,
