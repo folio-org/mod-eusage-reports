@@ -473,7 +473,19 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     if (agreementId == null) {
       return Future.failedFuture("Missing agreementId property");
     }
-    return Future.succeededFuture(null); // means not found (for now)
+    String uri = "/erm/sas/" + agreementId;
+    return createRequest(webClient, HttpMethod.GET, ctx, uri)
+        .send()
+        .compose(res -> {
+          if (res.statusCode() == 404) {
+            return Future.succeededFuture(null);
+          }
+          if (res.statusCode() != 200) {
+            return Future.failedFuture("GET " + uri + " returned status code " + res.statusCode());
+          }
+          JsonObject obj = res.bodyAsJsonObject();
+          return Future.succeededFuture(0);
+        });
   }
 
   Future<Integer> postFromAgreement(Vertx vertx, RoutingContext ctx) {

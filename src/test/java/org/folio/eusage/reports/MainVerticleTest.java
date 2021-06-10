@@ -35,7 +35,11 @@ public class MainVerticleTest {
   static final int MODULE_PORT = 9230;
   static final int MOCK_PORT = 9231;
   static final UUID goodCounterReportId = UUID.randomUUID();
-  static final UUID badCounterReportId = UUID.randomUUID();
+  static final UUID badJsonCounterReportId = UUID.randomUUID();
+  static final UUID badStatusCounterReportId = UUID.randomUUID();
+  static final UUID goodAgreementId = UUID.randomUUID();
+  static final UUID badJsonAgreementId = UUID.randomUUID();
+  static final UUID badStatusAgreementId = UUID.randomUUID();
 
   @ClassRule
   public static PostgreSQLContainer<?> postgresSQLContainer = TenantPgPoolContainer.create();
@@ -188,7 +192,11 @@ public class MainVerticleTest {
       ctx.response().setChunked(true);
       ctx.response().putHeader("Content-Type", "application/json");
       ctx.response().end(getCounterReportMock(id, 0).encode());
-    } else  if (id.equals(badCounterReportId)) {
+    } else  if (id.equals(badStatusCounterReportId)) {
+      ctx.response().putHeader("Content-Type", "text/plain");
+      ctx.response().setStatusCode(403);
+      ctx.response().end("forbidden");
+    } else  if (id.equals(badJsonCounterReportId)) {
       ctx.response().setChunked(true);
       ctx.response().putHeader("Content-Type", "application/json");
       ctx.response().end("{");
@@ -227,6 +235,29 @@ public class MainVerticleTest {
     ctx.response().end(ar.encode());
   }
 
+  static void getAgreement(RoutingContext ctx) {
+    String path = ctx.request().path();
+    int offset = path.lastIndexOf('/');
+    UUID id = UUID.fromString(path.substring(offset + 1));
+    if (id.equals(goodAgreementId)) {
+      ctx.response().setChunked(true);
+      ctx.response().putHeader("Content-Type", "application/json");
+      ctx.response().end(new JsonObject().encode());
+    } else if (id.equals(badStatusAgreementId)) {
+      ctx.response().putHeader("Content-Type", "text/plain");
+      ctx.response().setStatusCode(403);
+      ctx.response().end("forbidden");
+    } else  if (id.equals(badJsonAgreementId)) {
+      ctx.response().setChunked(true);
+      ctx.response().putHeader("Content-Type", "application/json");
+      ctx.response().end("{");
+    } else {
+      ctx.response().putHeader("Content-Type", "text/plain");
+      ctx.response().setStatusCode(404);
+      ctx.response().end("not found");
+    }
+  }
+
   @BeforeClass
   public static void beforeClass(TestContext context) {
     vertx = Vertx.vertx();
@@ -236,8 +267,9 @@ public class MainVerticleTest {
     Router router = Router.router(vertx);
     router.getWithRegex("/counter-reports").handler(MainVerticleTest::getCounterReports);
     router.getWithRegex("/counter-reports/[-0-9a-z]*").handler(MainVerticleTest::getCounterReport);
-    router.get("/erm/resource").handler(MainVerticleTest::getErmResource);
+    router.getWithRegex("/erm/resource").handler(MainVerticleTest::getErmResource);
     router.getWithRegex("/erm/resource/[-0-9a-z]*/entitlementOptions").handler(MainVerticleTest::getErmResourceEntitlement);
+    router.getWithRegex("/erm/sas/[-0-9a-z]*").handler(MainVerticleTest::getAgreement);
     vertx.createHttpServer()
         .requestHandler(router)
         .listen(MOCK_PORT)
@@ -555,12 +587,24 @@ public class MainVerticleTest {
         .header(XOkapiHeaders.URL, "http://localhost:" + MOCK_PORT)
         .header("Content-Type", "application/json")
         .body(new JsonObject()
-            .put("counterReportId", badCounterReportId)
+            .put("counterReportId", badJsonCounterReportId)
             .encode())
         .post("/eusage-reports/report-titles/from-counter")
         .then().statusCode(400)
         .header("Content-Type", is("text/plain"))
         .body(containsString("returned bad JSON"));
+
+    RestAssured.given()
+        .header(XOkapiHeaders.TENANT, tenant)
+        .header(XOkapiHeaders.URL, "http://localhost:" + MOCK_PORT)
+        .header("Content-Type", "application/json")
+        .body(new JsonObject()
+            .put("counterReportId", badStatusCounterReportId)
+            .encode())
+        .post("/eusage-reports/report-titles/from-counter")
+        .then().statusCode(400)
+        .header("Content-Type", is("text/plain"))
+        .body(containsString("returned status code 403"));
 
     RestAssured.given()
         .header(XOkapiHeaders.TENANT, tenant)
@@ -589,6 +633,43 @@ public class MainVerticleTest {
             .encode())
         .post("/eusage-reports/report-data/from-agreement")
         .then().statusCode(404);
+
+    RestAssured.given()
+        .header(XOkapiHeaders.TENANT, tenant)
+        .header(XOkapiHeaders.URL, "http://localhost:" + MOCK_PORT)
+        .header("Content-Type", "application/json")
+        .body(new JsonObject()
+            .put("agreementId", badJsonAgreementId)
+            .encode())
+        .post("/eusage-reports/report-data/from-agreement")
+        .then().statusCode(400)
+        .body(containsString("Failed to decode"));
+
+    RestAssured.given()
+        .header(XOkapiHeaders.TENANT, tenant)
+        .header(XOkapiHeaders.URL, "http://localhost:" + MOCK_PORT)
+        .header("Content-Type", "application/json")
+        .body(new JsonObject()
+            .put("agreementId", badStatusAgreementId)
+            .encode())
+        .post("/eusage-reports/report-data/from-agreement")
+        .then().statusCode(400)
+        .header("Content-Type", is("text/plain"))
+        .body(containsString("returned status code 403"));
+
+    response = RestAssured.given()
+        .header(XOkapiHeaders.TENANT, tenant)
+        .header(XOkapiHeaders.URL, "http://localhost:" + MOCK_PORT)
+        .header("Content-Type", "application/json")
+        .body(new JsonObject()
+            .put("agreementId", goodAgreementId)
+            .encode())
+        .post("/eusage-reports/report-data/from-agreement")
+        .then().statusCode(200)
+        .header("Content-Type", is("application/json"))
+        .extract();
+    res = new JsonObject(response.body().asString());
+    context.assertEquals(0, res.getInteger("reportLinesCreated"));
 
     // disable
     tenantOp(context, tenant,
