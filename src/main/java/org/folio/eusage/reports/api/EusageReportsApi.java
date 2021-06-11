@@ -93,11 +93,9 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
                         String titleName = row.getString(3);
                         if (titleName != null) {
                           response.put("kbTitleName", titleName)
-                              .put("kbTitleId", row.getUUID(4))
-                              .put("kbPackageName", row.getString(5))
-                              .put("kbPackageId", row.getUUID(6));
+                              .put("kbTitleId", row.getUUID(4));
                         }
-                        Boolean kbManualMatch = row.getBoolean(7);
+                        Boolean kbManualMatch = row.getBoolean(5);
                         if (kbManualMatch != null) {
                           response.put("kbManualMatch", kbManualMatch);
                         }
@@ -129,18 +127,14 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
             UUID id = UUID.fromString(titleEntry.getString("id"));
             String kbTitleName = titleEntry.getString("kbTitleName");
             UUID kbTitleId = UUID.fromString(titleEntry.getString("kbTitleId"));
-            String kbPackageName = titleEntry.getString("kbPackageName");
-            UUID kbPackageId = UUID.fromString(titleEntry.getString("kbPackageId"));
             future = future.compose(x ->
                 sqlConnection.preparedQuery("UPDATE " + titleEntriesTable(pool)
                     + " SET"
                     + " kbTitleName = $2,"
                     + " kbTitleId = $3,"
-                    + " kbPackageName = $4,"
-                    + " kbPackageId = $5,"
                     + " kbManualMatch = TRUE"
                     + " WHERE id = $1")
-                    .execute(Tuple.of(id, kbTitleName, kbTitleId, kbPackageName, kbPackageId))
+                    .execute(Tuple.of(id, kbTitleName, kbTitleId))
                     .compose(rowSet -> {
                       if (rowSet.rowCount() == 0) {
                         return Future.failedFuture("title " + id + " matches nothing");
@@ -226,31 +220,9 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
       if (ar.isEmpty()) {
         return Future.succeededFuture(null);
       }
-      // TODO : there could be more than one package associated with title
       JsonObject resource = ar.getJsonObject(0);
-      String titleId = resource.getString("id");
-      String uri2 = "/erm/resource/" + titleId + "/entitlementOptions"
-          + "?match=class&term=org.olf.kb.Pkg";
-      return createRequest(webClient, HttpMethod.GET, ctx, uri2)
-          .send()
-          .compose(res -> {
-            if (res.statusCode() != 200) {
-              return Future.failedFuture(uri2 + " returned " + res.statusCode());
-            }
-            JsonArray ar2 = res.bodyAsJsonArray();
-            if (ar2.isEmpty()) {
-              return Future.succeededFuture(null);
-            }
-            JsonObject packageObject = ar2.getJsonObject(0);
-            String kbId = packageObject.getString("id");
-
-            return Future.succeededFuture(Tuple.of(
-                UUID.fromString(titleId),
-                resource.getString("name"),
-                UUID.fromString(kbId),
-                packageObject.getString("name")
-            ));
-          });
+      UUID titleId = UUID.fromString(resource.getString("id"));
+      return Future.succeededFuture(Tuple.of(titleId, resource.getString("name")));
     });
   }
 
@@ -276,18 +248,14 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
             } else {
               UUID kbTitleId = erm.getUUID(0);
               String kbTitleName = erm.getString(1);
-              UUID kbPackageId = erm.getUUID(2);
-              String kbPackageName = erm.getString(3);
               future = con.preparedQuery("INSERT INTO " + titleEntriesTable(pool)
                   + "(id, counterReportTitle, matchCriteria,"
                   + " kbTitleName, kbTitleId,"
-                  + " kbPackageName, kbPackageId,"
                   + " kbManualMatch)"
-                  + " VALUES ($1, $2, $3, $4, $5, $6, $7, $8)"
+                  + " VALUES ($1, $2, $3, $4, $5, $6)"
                   + " ON CONFLICT (counterReportTitle) DO NOTHING")
                   .execute(Tuple.tuple(List.of(UUID.randomUUID(), counterReportTitle, match,
                       kbTitleName, kbTitleId,
-                      kbPackageName, kbPackageId,
                       false))).mapEmpty();
             }
             return future.compose(x ->
@@ -598,8 +566,6 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
             + "matchCriteria text, "
             + "kbTitleName text, "
             + "kbTitleId UUID, "
-            + "kbPackageName text, "
-            + "kbPackageId UUID, "
             + "kbManualMatch boolean"
             + ")")
         .execute().mapEmpty();

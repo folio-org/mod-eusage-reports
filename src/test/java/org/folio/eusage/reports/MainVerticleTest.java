@@ -343,8 +343,6 @@ public class MainVerticleTest {
                 .put("id", UUID.randomUUID().toString())
                 .put("kbTitleName", "kb title name")
                 .put("kbTitleId", UUID.randomUUID().toString())
-                .put("kbPackageName", "kb package name")
-                .put("kbPackageId", UUID.randomUUID().toString())
             )
         ).encode())
         .post("/eusage-reports/report-titles")
@@ -463,7 +461,6 @@ public class MainVerticleTest {
       if (titlesAr.getJsonObject(i).containsKey("kbTitleName")) {
         noDefined++;
         context.assertEquals("fake kb title instance name", titlesAr.getJsonObject(i).getString("kbTitleName"));
-        context.assertEquals("fake kb package name", titlesAr.getJsonObject(i).getString("kbPackageName"));
       } else {
         unmatchedTitle = titlesAr.getJsonObject(i);
         context.assertEquals("The dogs journal", unmatchedTitle.getString("counterReportTitle"));
@@ -475,8 +472,6 @@ public class MainVerticleTest {
 
     unmatchedTitle.put("kbTitleName", "correct kb title name");
     unmatchedTitle.put("kbTitleId", UUID.randomUUID().toString());
-    unmatchedTitle.put("kbPackageName", "correct kb package name");
-    unmatchedTitle.put("kbPackageId", UUID.randomUUID().toString());
     JsonObject postTitleObject = new JsonObject();
     postTitleObject.put("titles", new JsonArray().add(unmatchedTitle));
 
@@ -511,8 +506,6 @@ public class MainVerticleTest {
     n.put("id", UUID.randomUUID());
     n.put("kbTitleName", "correct kb title name");
     n.put("kbTitleId", UUID.randomUUID().toString());
-    n.put("kbPackageName", "correct kb package name");
-    n.put("kbPackageId", UUID.randomUUID().toString());
     postTitleObject = new JsonObject();
     postTitleObject.put("titles", new JsonArray().add(n));
     RestAssured.given()
@@ -525,11 +518,10 @@ public class MainVerticleTest {
         .header("Content-Type", is("text/plain"))
         .body(is("title " + n.getString("id") + " matches nothing"));
 
-    // missing kbPackageName, kbPackageId
+    // missing kbTitleId
     n = new JsonObject();
     n.put("id", UUID.randomUUID());
     n.put("kbTitleName", "correct kb title name");
-    n.put("kbTitleId", UUID.randomUUID().toString());
     postTitleObject = new JsonObject();
     postTitleObject.put("titles", new JsonArray().add(n));
     RestAssured.given()
@@ -545,8 +537,6 @@ public class MainVerticleTest {
     n = new JsonObject();
     n.put("kbTitleName", "correct kb title name");
     n.put("kbTitleId", UUID.randomUUID().toString());
-    n.put("kbPackageName", "correct kb package name");
-    n.put("kbPackageId", UUID.randomUUID().toString());
     postTitleObject = new JsonObject();
     postTitleObject.put("titles", new JsonArray().add(n));
     RestAssured.given()
