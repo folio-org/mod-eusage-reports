@@ -18,6 +18,10 @@
       "type": "string",
       "description": "KB title identifier"
     },
+    "ignoreTitle": {
+      "type": "boolean",
+      "description": "whether the title should simply be ignored [default: false]"
+    },
     "kbManualMatch": {
       "type": "boolean",
       "description": "whether the counter title to kb title is manual"
