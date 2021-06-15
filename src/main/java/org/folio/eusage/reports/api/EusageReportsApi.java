@@ -71,46 +71,55 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
   Future<Void> getReportTitles(Vertx vertx, RoutingContext ctx) {
     RequestParameters params = ctx.get(ValidationHandler.REQUEST_CONTEXT_KEY);
     String tenant = stringOrNull(params.headerParameter(XOkapiHeaders.TENANT));
+    String counterReportId = stringOrNull(params.queryParameter("counterReportId"));
 
     TenantPgPool pool = TenantPgPool.pool(vertx, tenant);
     return pool.getConnection()
-        .compose(sqlConnection ->
-            sqlConnection.prepare("SELECT * FROM " + titleEntriesTable(pool))
-                .<Void>compose(pq ->
-                    sqlConnection.begin().compose(tx -> {
-                      ctx.response().setChunked(true);
-                      ctx.response().putHeader("Content-Type", "application/json");
-                      ctx.response().write("{ \"titles\" : [");
-                      AtomicInteger offset = new AtomicInteger();
-                      RowStream<Row> stream = pq.createStream(50);
-                      stream.handler(row -> {
-                        if (offset.incrementAndGet() > 1) {
-                          ctx.response().write(",");
-                        }
-                        JsonObject response = new JsonObject()
-                            .put("id", row.getUUID(0))
-                            .put("counterReportTitle", row.getString(1));
-                        String titleName = row.getString(3);
-                        if (titleName != null) {
-                          response.put("kbTitleName", titleName)
-                              .put("kbTitleId", row.getUUID(4));
-                        }
-                        Boolean kbManualMatch = row.getBoolean(5);
-                        if (kbManualMatch != null) {
-                          response.put("kbManualMatch", kbManualMatch);
-                        }
-                        ctx.response().write(response.encode());
-                      });
-                      stream.endHandler(end -> {
-                        ctx.response().write("] }");
-                        ctx.response().end();
-                        tx.commit();
-                      });
-                      return Future.succeededFuture();
-                    })
-                )
-                .eventually(x -> sqlConnection.close())
-        );
+        .compose(sqlConnection -> {
+          String qry = "SELECT DISTINCT ON (" + titleEntriesTable(pool) + ".id) * FROM "
+              + titleEntriesTable(pool);
+          if (counterReportId != null) {
+            qry = qry + " INNER JOIN " + titleDataTable(pool)
+                + " ON reportTitleId = " + titleEntriesTable(pool) + ".id"
+                + " WHERE counterReportId = '" + UUID.fromString(counterReportId) + "'";
+          }
+          return sqlConnection.prepare(qry)
+              .<Void>compose(pq ->
+                  sqlConnection.begin().compose(tx -> {
+                    ctx.response().setChunked(true);
+                    ctx.response().putHeader("Content-Type", "application/json");
+                    ctx.response().write("{ \"titles\" : [");
+                    AtomicInteger offset = new AtomicInteger();
+                    RowStream<Row> stream = pq.createStream(50);
+                    stream.handler(row -> {
+                      log.info("ROW=" + row.deepToString());
+                      if (offset.incrementAndGet() > 1) {
+                        ctx.response().write(",");
+                      }
+                      JsonObject response = new JsonObject()
+                          .put("id", row.getUUID(0))
+                          .put("counterReportTitle", row.getString(1));
+                      String titleName = row.getString(3);
+                      if (titleName != null) {
+                        response.put("kbTitleName", titleName)
+                            .put("kbTitleId", row.getUUID(4));
+                      }
+                      Boolean kbManualMatch = row.getBoolean(5);
+                      if (kbManualMatch != null) {
+                        response.put("kbManualMatch", kbManualMatch);
+                      }
+                      ctx.response().write(response.encode());
+                    });
+                    stream.endHandler(end -> {
+                      ctx.response().write("] }");
+                      ctx.response().end();
+                      tx.commit();
+                    });
+                    return Future.succeededFuture();
+                  })
+              )
+              .eventually(x -> sqlConnection.close());
+        });
   }
 
   Future<Void> postReportTitles(Vertx vertx, RoutingContext ctx) {
@@ -156,41 +165,39 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     String tenant = stringOrNull(params.headerParameter(XOkapiHeaders.TENANT));
 
     TenantPgPool pool = TenantPgPool.pool(vertx, tenant);
-    return pool.getConnection()
-        .compose(sqlConnection ->
-            sqlConnection.prepare("SELECT * FROM " + titleDataTable(pool))
-                .<Void>compose(pq ->
-                    sqlConnection.begin().compose(tx -> {
-                      ctx.response().setChunked(true);
-                      ctx.response().putHeader("Content-Type", "application/json");
-                      ctx.response().write("{ \"data\" : [");
-                      AtomicInteger offset = new AtomicInteger();
-                      RowStream<Row> stream = pq.createStream(50);
-                      stream.handler(row -> {
-                        if (offset.incrementAndGet() > 1) {
-                          ctx.response().write(",");
-                        }
-                        JsonObject obj = new JsonObject()
-                            .put("id", row.getUUID(0))
-                            .put("reportTitleId", row.getUUID(1))
-                            .put("counterReportId", row.getUUID(2))
-                            .put("pubYear", row.getString(3))
-                            .put("usageYearMonth", row.getString(4))
-                            .put("uniqueAccessCount", row.getInteger(5))
-                            .put("totalAccessCount", row.getInteger(6))
-                            .put("openAccess", row.getBoolean(7));
-                        ctx.response().write(obj.encode());
-                      });
-                      stream.endHandler(end -> {
-                        ctx.response().write("] }");
-                        ctx.response().end();
-                        tx.commit();
-                      });
-                      return Future.succeededFuture();
-                    })
-                )
-                .eventually(x -> sqlConnection.close())
-        );
+    return pool.getConnection().compose(sqlConnection -> sqlConnection
+        .prepare("SELECT * FROM " + titleDataTable(pool))
+        .<Void>compose(pq ->
+            sqlConnection.begin().compose(tx -> {
+              ctx.response().setChunked(true);
+              ctx.response().putHeader("Content-Type", "application/json");
+              ctx.response().write("{ \"data\" : [");
+              AtomicInteger offset = new AtomicInteger();
+              RowStream<Row> stream = pq.createStream(50);
+              stream.handler(row -> {
+                if (offset.incrementAndGet() > 1) {
+                  ctx.response().write(",");
+                }
+                JsonObject obj = new JsonObject()
+                    .put("id", row.getUUID(0))
+                    .put("reportTitleId", row.getUUID(1))
+                    .put("counterReportId", row.getUUID(2))
+                    .put("pubYear", row.getString(3))
+                    .put("usageYearMonth", row.getString(4))
+                    .put("uniqueAccessCount", row.getInteger(5))
+                    .put("totalAccessCount", row.getInteger(6))
+                    .put("openAccess", row.getBoolean(7));
+                ctx.response().write(obj.encode());
+              });
+              stream.endHandler(end -> {
+                ctx.response().write("] }");
+                ctx.response().end();
+                tx.commit();
+              });
+              return Future.succeededFuture();
+            })
+        )
+        .eventually(x -> sqlConnection.close()));
   }
 
   Future<Void> postFromCounter(Vertx vertx, RoutingContext ctx) {

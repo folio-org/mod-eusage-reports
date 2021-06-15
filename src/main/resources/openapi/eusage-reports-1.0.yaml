@@ -8,6 +8,12 @@ paths:
       - $ref: headers/okapi-tenant.yaml
       - $ref: headers/okapi-token.yaml
       - $ref: headers/okapi-url.yaml
+      - in: query
+        name: counterReportId
+        required: false
+        description: limit titles associated with counter report (UUID)
+        schema:
+          type: string
     get:
       description: Get titles with links to KB
       operationId: getReportTitles

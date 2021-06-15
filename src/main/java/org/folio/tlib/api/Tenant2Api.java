@@ -124,7 +124,7 @@ public class Tenant2Api implements RouterCreator {
 
   private Future<JsonObject> getJob(Vertx vertx, String tenant, UUID jobId, int wait) {
     TenantPgPoolImpl tenantPgPool = TenantPgPoolImpl.tenantPgPool(vertx, tenant);
-    return tenantPgPool.preparedQuery("SELECT jsonb FROM {schema}.job WHERE ID= $1")
+    return tenantPgPool.preparedQuery("SELECT jsonb FROM {schema}.job WHERE ID = $1")
         .execute(Tuple.of(jobId))
         .compose(res -> {
           if (!res.iterator().hasNext()) {
@@ -144,7 +144,7 @@ public class Tenant2Api implements RouterCreator {
 
   private static Future<Boolean> deleteJob(Vertx vertx, String tenant, UUID jobId) {
     TenantPgPoolImpl tenantPgPool = TenantPgPoolImpl.tenantPgPool(vertx, tenant);
-    return tenantPgPool.preparedQuery("DELETE FROM {schema}.job WHERE ID= $1")
+    return tenantPgPool.preparedQuery("DELETE FROM {schema}.job WHERE ID = $1")
         .execute(Tuple.of(jobId))
         .map(res -> (res.rowCount() > 0));
   }
