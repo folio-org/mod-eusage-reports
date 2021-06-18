@@ -544,7 +544,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
         });
   }
 
-  Future<JsonObject> lookupOrderLines(UUID poLineId, RoutingContext ctx) {
+  Future<JsonObject> lookupOrderLine(UUID poLineId, RoutingContext ctx) {
     String uri = "/orders/order-lines/" + poLineId;
     return createRequest(webClient, HttpMethod.GET, ctx, uri)
         .send()
@@ -556,28 +556,49 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
         });
   }
 
-  Future<JsonObject> lookupOrderLines(JsonArray poLinesAr, RoutingContext ctx) {
+  Future<JsonArray> lookupInvoiceLine(UUID poLineId, RoutingContext ctx) {
+    String uri = "/invoice-storage/invoice-lines?query=poLineId%3D%3D" + poLineId;
+    return createRequest(webClient, HttpMethod.GET, ctx, uri)
+        .send()
+        .compose(res -> {
+          if (res.statusCode() != 200) {
+            return Future.failedFuture("GET " + uri + " returned status code " + res.statusCode());
+          }
+          return Future.succeededFuture(res.bodyAsJsonArray());
+        });
+  }
+
+  Future<JsonObject> lookupPoLine(JsonArray poLinesAr, RoutingContext ctx) {
     List<Future<Void>> futures = new LinkedList<>();
 
     JsonObject totalCost = new JsonObject();
-    totalCost.put("total", 0.0);
+    totalCost.put("encumberedCost", 0.0);
+    totalCost.put("invoicedCost", 0.0);
     for (int i = 0; i < poLinesAr.size(); i++) {
-      futures.add(lookupOrderLines(
-          UUID.fromString(poLinesAr.getJsonObject(i).getString("poLineId")), ctx
-      )
-          .compose(poLine -> {
-            JsonObject cost = poLine.getJsonObject("cost");
-            String currency = totalCost.getString("currency");
-            String newCurrency = cost.getString("currency");
-            if (currency != null && !currency.equals(newCurrency)) {
-              return Future.failedFuture("Mixed currencies (" + currency + ", " + newCurrency
-                  + ") in order lines " + poLinesAr.encode());
-            }
-            totalCost.put("currency", newCurrency);
-            totalCost.put("total",
-                totalCost.getDouble("total") + cost.getDouble("listUnitPriceElectronic"));
-            return Future.succeededFuture();
-          }));
+      UUID poLineId = UUID.fromString(poLinesAr.getJsonObject(i).getString("poLineId"));
+      futures.add(lookupOrderLine(poLineId, ctx).compose(poLine -> {
+        JsonObject cost = poLine.getJsonObject("cost");
+        String currency = totalCost.getString("currency");
+        String newCurrency = cost.getString("currency");
+        if (currency != null && !currency.equals(newCurrency)) {
+          return Future.failedFuture("Mixed currencies (" + currency + ", " + newCurrency
+              + ") in order lines " + poLinesAr.encode());
+        }
+        totalCost.put("currency", newCurrency);
+        totalCost.put("encumberedCost",
+            totalCost.getDouble("encumberedCost") + cost.getDouble("listUnitPriceElectronic"));
+        return Future.succeededFuture();
+      }));
+      futures.add(lookupInvoiceLine(poLineId, ctx).compose(invoices -> {
+        for (int j = 0; j < invoices.size(); j++) {
+          JsonObject invoiceLine = invoices.getJsonObject(j);
+          Double thisTotal = invoiceLine.getDouble("total");
+          if (thisTotal != null) {
+            totalCost.put("invoicedCost", thisTotal + totalCost.getDouble("invoicedCost"));
+          }
+        }
+        return Future.succeededFuture();
+      }));
     }
     return GenericCompositeFuture.all(futures).map(totalCost);
   }
@@ -603,15 +624,15 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     UUID agreementLineId = UUID.fromString(agreementLine.getString("id"));
     UUID kbTitleId = UUID.fromString(titleInstance.getString("id"));
     String type = titleInstance.getJsonObject("publicationType").getString("value");
-    return lookupOrderLines(agreementLine.getJsonArray("poLines"), ctx)
+    return lookupPoLine(agreementLine.getJsonArray("poLines"), ctx)
         .compose(cost ->
             lookupTitleFromKbTitle(pool, kbTitleId)
                 .compose(tuple -> {
                   UUID id = UUID.randomUUID();
                   UUID titleDataId = tuple != null ? tuple.getUUID(0) : null;
                   String counterReportTitle = tuple != null ? tuple.getString(1) : null;
-                  Number encumberedCost = cost.getDouble("total");
-                  Number invoicedCost = null;
+                  Number encumberedCost = cost.getDouble("encumberedCost");
+                  Number invoicedCost = cost.getDouble("invoicedCost");
                   return pool.preparedQuery("INSERT INTO " + reportDataTable(pool)
                       + "(id, titleDataId, type, counterReportTitle, agreementLineId,"
                       + " encumberedCost, invoicedCost)"
