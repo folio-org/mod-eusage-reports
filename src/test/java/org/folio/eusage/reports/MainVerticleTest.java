@@ -402,6 +402,9 @@ public class MainVerticleTest {
         );
       }
     }
+    ar.add(new JsonObject()
+        .put("poLineId", poLineId)
+    );
     ctx.response().setChunked(true);
     ctx.response().putHeader("Content-Type", "application/json");
     ctx.response().end(ar.encode());
