@@ -24,7 +24,7 @@
     },
     "usageYearMonth": {
       "type": "string",
-      "description": "Usage year month (YYYY-MM)"
+      "description": "Usage data range (Postgresql daterange). example: [2021-01-01,2021-02-01)"
     },
     "uniqueAccessCount": {
       "type": "integer",

@@ -198,7 +198,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
                     .put("counterReportId", row.getUUID(2))
                     .put("providerId", row.getUUID(3))
                     .put("pubYear", row.getString(4))
-                    .put("usageYearMonth", row.getString(5))
+                    .put("usageDateRange", row.getString(5))
                     .put("uniqueAccessCount", row.getInteger(6))
                     .put("totalAccessCount", row.getInteger(7))
                     .put("openAccess", row.getBoolean(8));
@@ -290,17 +290,17 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
   }
 
   static Future<Void> insertTdEntry(TenantPgPool pool, SqlConnection con, UUID reportTitleId,
-                                    UUID counterReportId, UUID providerId, String usageYearMonth,
+                                    UUID counterReportId, UUID providerId, String usageDateRange,
                                     int uniqueAccessCount, int totalAccessCount) {
     return con.preparedQuery("INSERT INTO " + titleDataTable(pool)
         + "(id, reportTitleId,"
         + " counterReportId, providerId,"
-        + " pubYear, usageYearMonth,"
+        + " pubYear, usageDateRange,"
         + " uniqueAccessCount, totalAccessCount, openAccess)"
         + " VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)")
         .execute(Tuple.of(UUID.randomUUID(), reportTitleId,
             counterReportId, providerId,
-            "", usageYearMonth,
+            "", usageDateRange,
             uniqueAccessCount, totalAccessCount, false))
         .mapEmpty();
   }
@@ -327,6 +327,20 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     }
     return count;
   }
+
+  static String getUsageDate(JsonObject reportItem) {
+    JsonArray itemPerformances = reportItem.getJsonArray(altKey(reportItem,
+        "itemPerformance", "Performance"));
+    for (int i = 0; i < itemPerformances.size(); i++) {
+      JsonObject itemPerformance = itemPerformances.getJsonObject(i);
+      if (itemPerformance != null) {
+        JsonObject period = itemPerformance.getJsonObject("Period");
+        return "[" + period.getString("Begin_Date") + "," + period.getString("End_Date") + "]";
+      }
+    }
+    return null;
+  }
+
 
   static JsonObject getIssnIdentifiers(JsonObject reportItem) {
     JsonArray itemIdentifiers = reportItem.getJsonArray(altKey(reportItem,
@@ -360,8 +374,8 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
   Future<Void> handleReport(TenantPgPool pool, RoutingContext ctx, JsonObject jsonObject) {
     final UUID counterReportId = UUID.fromString(jsonObject.getString("id"));
     final UUID providerId = UUID.fromString(jsonObject.getString("providerId"));
-    final String usageYearMonth = jsonObject.getString("yearMonth");
     final JsonObject reportItem = jsonObject.getJsonObject("reportItem");
+    final String usageDateRange = getUsageDate(reportItem);
     final JsonObject identifiers = getIssnIdentifiers(reportItem);
     final String onlineIssn = identifiers.getString("onlineISSN");
     final String printIssn = identifiers.getString("printISSN");
@@ -378,7 +392,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
       future = future.compose(x ->
           upsertTeEntry(pool, con, ctx, counterReportTitle, printIssn, onlineIssn)
               .compose(reportTitleId -> insertTdEntry(pool, con, reportTitleId, counterReportId,
-                  providerId, usageYearMonth, uniqueAccessCount, totalAccessCount))
+                  providerId, usageDateRange, uniqueAccessCount, totalAccessCount))
       );
       return future.compose(x -> tx.commit());
     }).eventually(x -> con.close()));
@@ -437,9 +451,6 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
             futures.add(clearTdEntry(pool, UUID.fromString(reportObj.getString("id"))));
           }
           if ("providerId".equals(f)) {
-            reportObj.put(f, event.stringValue());
-          }
-          if ("yearMonth".equals(f)) {
             reportObj.put(f, event.stringValue());
           }
         }
@@ -732,7 +743,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
             + "counterReportId UUID, "
             + "providerId UUID, "
             + "pubYear text, "
-            + "usageYearMonth text, "
+            + "usageDateRange daterange,"
             + "uniqueAccessCount integer, "
             + "totalAccessCount integer, "
             + "openAccess boolean"
