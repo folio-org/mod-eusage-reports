@@ -47,11 +47,12 @@ public class MainVerticleTest {
   static final UUID badStatusAgreementId2 = UUID.randomUUID();
   static final UUID usageProviderId = UUID.randomUUID();
   static final UUID agreementLineIds[] = {
-      UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID()
+      UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID()
   };
   static final UUID poLineIds[] = {
       UUID.randomUUID(), UUID.randomUUID()
   };
+  static final UUID goodPackageId = UUID.randomUUID();
 
   @ClassRule
   public static PostgreSQLContainer<?> postgresSQLContainer = TenantPgPoolContainer.create();
@@ -329,25 +330,44 @@ public class MainVerticleTest {
               .put("poLineId", poLineIds[j])
           );
         }
-        ar.add(new JsonObject()
-            .put("id", agreementLineIds[i])
-            .put("owner", new JsonObject()
-                .put("id", goodAgreementId)
-                .put("name", "Good agreement"))
-            .put("resource", new JsonObject()
-                .put("_object", new JsonObject()
-                    .put("pti", new JsonObject()
-                        .put("titleInstance", new JsonObject()
-                            .put("id", i < 2 ? goodKbTitleId : UUID.randomUUID())
-                            .put("publicationType", new JsonObject()
-                                .put("value", "serial")
-                            )
-                        )
-                    )
-                )
-            )
-            .put("poLines", poLinesAr)
-        );
+        if (i == 0) {
+          // fake package
+          ar.add(new JsonObject()
+              .put("id", agreementLineIds[i])
+              .put("owner", new JsonObject()
+                  .put("id", goodAgreementId)
+                  .put("name", "Good agreement"))
+              .put("resource", new JsonObject()
+                  .put("class", "org.olf.kb.Pkg")
+                  .put("id", goodPackageId)
+                  .put("_object", new JsonObject()
+                  ))
+              .put("poLines", poLinesAr)
+          );
+        } else {
+          // fake package content item
+          ar.add(new JsonObject()
+              .put("id", agreementLineIds[i])
+              .put("owner", new JsonObject()
+                  .put("id", goodAgreementId)
+                  .put("name", "Good agreement"))
+              .put("resource", new JsonObject()
+                  .put("class", "org.olf.kb.PackageContentItem")
+                  .put("id", UUID.randomUUID())
+                  .put("_object", new JsonObject()
+                      .put("pti", new JsonObject()
+                          .put("titleInstance", new JsonObject()
+                              .put("id", i < 2 ? goodKbTitleId : UUID.randomUUID())
+                              .put("publicationType", new JsonObject()
+                                  .put("value", "serial")
+                              )
+                          )
+                      )
+                  )
+              )
+              .put("poLines", poLinesAr)
+          );
+        }
       }
     }
     ctx.response().setChunked(true);
@@ -840,7 +860,7 @@ public class MainVerticleTest {
         .header("Content-Type", is("application/json"))
         .extract();
     resObject = new JsonObject(response.body().asString());
-    context.assertEquals(3, resObject.getInteger("reportLinesCreated"));
+    context.assertEquals(4, resObject.getInteger("reportLinesCreated"));
 
     response = RestAssured.given()
         .header(XOkapiHeaders.TENANT, tenant)

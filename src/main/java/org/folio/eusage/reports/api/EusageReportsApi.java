@@ -584,43 +584,42 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
 
   Future<Void> populateAgreementLine(JsonObject agreementLine, TenantPgPool pool, UUID agreementId,
                                      RoutingContext ctx) {
-    JsonObject resourceObject = agreementLine.getJsonObject("resource");
-    if (resourceObject == null) {
-      return Future.failedFuture("Missing property resource from agreement " + agreementId);
+    try {
+      JsonArray poLines = agreementLine.getJsonArray("poLines");
+      final Future<JsonObject> future = lookupOrderLines(poLines, ctx);
+      final UUID agreementLineId = UUID.fromString(agreementLine.getString("id"));
+      JsonObject resourceObject = agreementLine.getJsonObject("resource");
+      JsonObject underScoreObject = resourceObject.getJsonObject("_object");
+      final String resourceClass = resourceObject.getString("class");
+      if (resourceClass.equals("org.olf.kb.Pkg")) {
+        return Future.succeededFuture(); // TODO pkg handling
+      }
+      JsonObject pti = underScoreObject.getJsonObject("pti");
+      JsonObject titleInstance = pti.getJsonObject("titleInstance");
+      UUID kbTitleId = UUID.fromString(titleInstance.getString("id"));
+      String type = titleInstance.getJsonObject("publicationType").getString("value");
+      return future.compose(cost ->
+          lookupTitleFromKbTitle(pool, kbTitleId)
+              .compose(tuple -> {
+                UUID id = UUID.randomUUID();
+                UUID titleDataId = tuple != null ? tuple.getUUID(0) : null;
+                String counterReportTitle = tuple != null ? tuple.getString(1) : null;
+                Number encumberedCost = cost.getDouble("total");
+                Number invoicedCost = null;
+                return pool.preparedQuery("INSERT INTO " + reportDataTable(pool)
+                    + "(id, titleDataId, type, counterReportTitle, agreementLineId,"
+                    + " encumberedCost, invoicedCost)"
+                    + " VALUES ($1, $2, $3, $4, $5, $6, $7)")
+                    .execute(Tuple.of(id, titleDataId, type, counterReportTitle, agreementLineId,
+                        encumberedCost, invoicedCost))
+                    .mapEmpty();
+              })
+      );
+    } catch (Exception e) {
+      log.error("Failed to decode agreementLine: {}", e.getMessage(), e);
+      return Future.failedFuture("Failed to decode agreement line: " + e.getMessage());
     }
-    JsonObject underScoreObject = resourceObject.getJsonObject("_object");
-    if (underScoreObject == null) {
-      return Future.failedFuture("Missing property _object from agreement " + agreementId);
-    }
-    JsonObject pti = underScoreObject.getJsonObject("pti");
-    if (pti == null) {
-      return Future.failedFuture("Missing property pti from agreement " + agreementId);
-    }
-    JsonObject titleInstance = pti.getJsonObject("titleInstance");
-    if (titleInstance == null) {
-      return Future.failedFuture("Missing property titleInstance from agreement " + agreementId);
-    }
-    UUID agreementLineId = UUID.fromString(agreementLine.getString("id"));
-    UUID kbTitleId = UUID.fromString(titleInstance.getString("id"));
-    String type = titleInstance.getJsonObject("publicationType").getString("value");
-    return lookupOrderLines(agreementLine.getJsonArray("poLines"), ctx)
-        .compose(cost ->
-            lookupTitleFromKbTitle(pool, kbTitleId)
-                .compose(tuple -> {
-                  UUID id = UUID.randomUUID();
-                  UUID titleDataId = tuple != null ? tuple.getUUID(0) : null;
-                  String counterReportTitle = tuple != null ? tuple.getString(1) : null;
-                  Number encumberedCost = cost.getDouble("total");
-                  Number invoicedCost = null;
-                  return pool.preparedQuery("INSERT INTO " + reportDataTable(pool)
-                      + "(id, titleDataId, type, counterReportTitle, agreementLineId,"
-                      + " encumberedCost, invoicedCost)"
-                      + " VALUES ($1, $2, $3, $4, $5, $6, $7)")
-                      .execute(Tuple.of(id, titleDataId, type, counterReportTitle, agreementLineId,
-                          encumberedCost, invoicedCost))
-                      .mapEmpty();
-                })
-        );
+
   }
 
   Future<Integer> populateAgreement(Vertx vertx, RoutingContext ctx) {
