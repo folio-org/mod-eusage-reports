@@ -72,7 +72,9 @@
             "erm.resources.collection.get",
             "erm.resources.item.entitlement.get",
             "erm.resources.item.get",
-	    "orders.po-lines.item.get"
+	    "orders.po-lines.item.get",
+	    "invoice-storage.invoice-lines.collection.get",
+	    "invoice-storage.invoice-lines.item.get"
 	  ]
 	}
       ]
@@ -106,7 +108,12 @@
     {
       "id" : "order-lines",
       "version" : "2.0"
+    },
+    {
+      "id" : "invoice-storage.invoice-lines",
+      "version" : "4.0"
     }
+
   ],
   "permissionSets" : [
     {
@@ -131,8 +138,8 @@
     },
     {
       "permissionName": "eusage-reports-report-data-from-agreement.post",
-      "displayName" : "report data get",
-      "description" : "Get report data"
+      "displayName" : "Agreement lines parse",
+      "description" : "Parse agreement lines and populate report data"
     }
   ],
   "launchDescriptor": {

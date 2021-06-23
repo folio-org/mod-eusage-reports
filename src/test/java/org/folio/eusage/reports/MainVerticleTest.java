@@ -393,6 +393,35 @@ public class MainVerticleTest {
     ctx.response().end("Order line not found");
   }
 
+  static void getInvoiceLines(RoutingContext ctx) {
+    String query = ctx.request().getParam("query");
+    if (query == null || !query.startsWith("poLineId==")) {
+      ctx.response().putHeader("Content-Type", "text/plain");
+      ctx.response().setStatusCode(400);
+      ctx.response().end("query missing");
+      return;
+    }
+    UUID poLineId = UUID.fromString(query.substring(10));
+
+    JsonArray ar = new JsonArray();
+    for (int i = 0; i < poLineIds.length; i++) {
+      if (poLineId.equals(poLineIds[i])) {
+        ar.add(new JsonObject()
+            .put("poLineId", poLineId)
+            .put("quantity", 1 + i)
+            .put("subTotal", 10.0 + i * 5)
+            .put("total", 12.0 + i * 6)
+        );
+      }
+    }
+    ar.add(new JsonObject()
+        .put("poLineId", poLineId)
+    );
+    ctx.response().setChunked(true);
+    ctx.response().putHeader("Content-Type", "application/json");
+    ctx.response().end(ar.encode());
+  }
+
   @BeforeClass
   public static void beforeClass(TestContext context) {
     vertx = Vertx.vertx();
@@ -407,6 +436,7 @@ public class MainVerticleTest {
     router.getWithRegex("/erm/sas/[-0-9a-z]*").handler(MainVerticleTest::getAgreement);
     router.getWithRegex("/erm/entitlements").handler(MainVerticleTest::getEntitlements);
     router.getWithRegex("/orders/order-lines/[-0-9a-z]*").handler(MainVerticleTest::getOrderLines);
+    router.getWithRegex("/invoice-storage/invoice-lines").handler(MainVerticleTest::getInvoiceLines);
     vertx.createHttpServer()
         .requestHandler(router)
         .listen(MOCK_PORT)
@@ -863,6 +893,7 @@ public class MainVerticleTest {
         .extract();
     resObject = new JsonObject(response.body().asString());
     context.assertEquals(3, resObject.getJsonArray("data").size());
+    log.info("AD: {}", resObject.encodePrettily());
 
     orderLinesCurrencies.clear();
     orderLinesCurrencies.add("DKK");
