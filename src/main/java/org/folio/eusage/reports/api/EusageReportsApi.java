@@ -569,7 +569,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
 
   Future<JsonArray> lookupInvoiceLine(UUID poLineId, RoutingContext ctx) {
     String uri = "/invoice-storage/invoice-lines?query=poLineId%3D%3D" + poLineId;
-    return createRequest(webClient, HttpMethod.GET, ctx, uri)
+    return getRequest(webClient, ctx, uri)
         .send()
         .compose(res -> {
           if (res.statusCode() != 200) {
