@@ -139,7 +139,7 @@
     {
       "permissionName": "eusage-reports-report-data-from-agreement.post",
       "displayName" : "Agreement lines parse",
-      "description" : "Parser agreement lines and populate report data"
+      "description" : "Parse agreement lines and populate report data"
     }
   ],
   "launchDescriptor": {
