@@ -754,7 +754,7 @@ public class MainVerticleTest {
     for (int i = 0; i < items.size(); i++) {
       JsonObject item = items.getJsonObject(i);
       context.assertEquals(usageProviderId.toString(), item.getString("providerId"));
-      String pubDate = item.getString("pubDate");
+      String pubDate = item.getString("publicationDate");
       if (pubDate != null) {
         context.assertEquals(pubDateSample, pubDate);
         noWithPubDate++;

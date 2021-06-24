@@ -18,9 +18,9 @@
       "type": "string",
       "description": "usage data provider identifier"
     },
-    "pubDate": {
+    "publicationDate": {
       "type": "string",
-      "description": "Publication date (Postgresql date). example 1988-05-17"
+      "description": "Publication date in ISO format YYYY-MM-DD. example 1988-05-17"
     },
     "usageYearMonth": {
       "type": "string",
