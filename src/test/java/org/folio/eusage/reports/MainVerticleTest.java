@@ -47,10 +47,10 @@ public class MainVerticleTest {
   static final UUID badStatusAgreementId = UUID.randomUUID();
   static final UUID badStatusAgreementId2 = UUID.randomUUID();
   static final UUID usageProviderId = UUID.randomUUID();
-  static final UUID agreementLineIds[] = {
+  static final UUID[] agreementLineIds = {
       UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID()
   };
-  static final UUID poLineIds[] = {
+  static final UUID[] poLineIds = {
       UUID.randomUUID(), UUID.randomUUID()
   };
   static final UUID goodPackageId = UUID.randomUUID();
@@ -573,7 +573,7 @@ public class MainVerticleTest {
   }
 
   @Test
-  public void testFromCounterMissingOkapiUrl(TestContext context) {
+  public void testFromCounterMissingOkapiUrl() {
     String tenant = "testlib";
 
     RestAssured.given()
@@ -589,7 +589,7 @@ public class MainVerticleTest {
   }
 
   @Test
-  public void testFromAgreementNoId(TestContext context) {
+  public void testFromAgreementNoId() {
     String tenant = "testlib";
     RestAssured.given()
         .header(XOkapiHeaders.TENANT, tenant)
@@ -779,7 +779,7 @@ public class MainVerticleTest {
     response = RestAssured.given()
         .header(XOkapiHeaders.TENANT, tenant)
         .header(XOkapiHeaders.URL, "http://localhost:" + MOCK_PORT)
-        .get("/eusage-reports/report-titles?counterReportId=" + goodCounterReportId.toString())
+        .get("/eusage-reports/report-titles?counterReportId=" + goodCounterReportId)
         .then().statusCode(200)
         .header("Content-Type", is("application/json"))
         .extract();
