@@ -198,12 +198,13 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
                     .put("id", row.getUUID(0))
                     .put("titleEntryId", row.getUUID(1))
                     .put("counterReportId", row.getUUID(2))
-                    .put("providerId", row.getUUID(3))
-                    .put("usageDateRange", row.getString(5))
-                    .put("uniqueAccessCount", row.getInteger(6))
-                    .put("totalAccessCount", row.getInteger(7))
-                    .put("openAccess", row.getBoolean(8));
-                LocalDate publicationDate = row.getLocalDate(4);
+                    .put("counterReportTitle", row.getString(3))
+                    .put("providerId", row.getUUID(4))
+                    .put("usageDateRange", row.getString(6))
+                    .put("uniqueAccessCount", row.getInteger(7))
+                    .put("totalAccessCount", row.getInteger(8))
+                    .put("openAccess", row.getBoolean(9));
+                LocalDate publicationDate = row.getLocalDate(5);
                 if (publicationDate != null) {
                   obj.put("publicationDate",
                       publicationDate.format(DateTimeFormatter.ISO_LOCAL_DATE));
@@ -296,18 +297,19 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
   }
 
   static Future<Void> insertTdEntry(TenantPgPool pool, SqlConnection con, UUID titleEntryId,
-                                    UUID counterReportId, UUID providerId, String publicationDate,
+                                    UUID counterReportId, String counterReportTitle,
+                                    UUID providerId, String publicationDate,
                                     String usageDateRange,
                                     int uniqueAccessCount, int totalAccessCount) {
     LocalDate localDate = publicationDate != null ? LocalDate.parse(publicationDate) : null;
     return con.preparedQuery("INSERT INTO " + titleDataTable(pool)
         + "(id, titleEntryId,"
-        + " counterReportId, providerId,"
+        + " counterReportId, counterReportTitle, providerId,"
         + " publicationDate, usageDateRange,"
         + " uniqueAccessCount, totalAccessCount, openAccess)"
-        + " VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)")
+        + " VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)")
         .execute(Tuple.of(UUID.randomUUID(), titleEntryId,
-            counterReportId, providerId,
+            counterReportId, counterReportTitle, providerId,
             localDate, usageDateRange,
             uniqueAccessCount, totalAccessCount, false))
         .mapEmpty();
@@ -404,7 +406,8 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
       future = future.compose(x ->
           upsertTeEntry(pool, con, ctx, counterReportTitle, printIssn, onlineIssn)
               .compose(titleEntryId -> insertTdEntry(pool, con, titleEntryId, counterReportId,
-                  providerId, publicationDate, usageDateRange, uniqueAccessCount, totalAccessCount))
+                  counterReportTitle,  providerId, publicationDate, usageDateRange,
+                  uniqueAccessCount, totalAccessCount))
       );
       return future.compose(x -> tx.commit());
     }).eventually(x -> con.close()));
@@ -772,6 +775,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
             + "id UUID PRIMARY KEY, "
             + "titleEntryId UUID, "
             + "counterReportId UUID, "
+            + "counterReportTitle text, "
             + "providerId UUID, "
             + "publicationDate date, "
             + "usageDateRange daterange,"

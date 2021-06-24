@@ -1,18 +1,22 @@
 {
-  "description": "title data entry",
+  "description": "title data entry from counter reports",
   "type": "object",
   "properties": {
     "id": {
       "type": "string",
       "description": "title data identifier"
     },
-    "reportTitleId": {
+    "titleEntryId": {
       "type": "string",
-      "description": "title identifier"
+      "description": "key to title entries"
     },
     "counterReportId": {
       "type": "string",
       "description": "counter report identifier"
+    },
+    "counterReportTitle": {
+      "type": "string",
+      "description": "counter report title"
     },
     "providerId": {
       "type": "string",
@@ -41,6 +45,6 @@
   },
   "additionalProperties": false,
   "required": [
-    "id", "titleDataId"
+    "id", "titleEntryId", "counterReportId", "counterReportTitle"
   ]
 }
