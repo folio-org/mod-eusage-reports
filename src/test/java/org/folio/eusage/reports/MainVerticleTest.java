@@ -271,10 +271,44 @@ public class MainVerticleTest {
       ar.add(new JsonObject()
           .put("id", kbTitleId)
           .put("name", "fake kb title instance name")
+          .put("identifiers", new JsonArray()
+              .add(new JsonObject()
+                  .put("identifier", new JsonObject()
+                      .put("value", term)
+                  )
+              ))
       );
     }
     ctx.response().end(ar.encode());
   }
+
+  static void getErmResourceId(RoutingContext ctx) {
+    String path = ctx.request().path();
+    int offset = path.lastIndexOf('/');
+    UUID id = UUID.fromString(path.substring(offset + 1));
+
+    if (goodKbTitleId.equals(id)) {
+      log.info("AD: getErmResourceId good");
+      JsonObject res = new JsonObject();
+      res.put("name", "fake kb title instance name");
+      res.put("id", id);
+      res.put("identifiers", new JsonArray()
+          .add(new JsonObject()
+              .put("identifier", new JsonObject()
+                  .put("value", "1000-1002")
+              )
+          ));
+      ctx.response().setChunked(true);
+      ctx.response().putHeader("Content-Type", "application/json");
+      ctx.response().end(res.encode());
+      return;
+    }
+    log.info("AD: getErmResourceId not found");
+    ctx.response().putHeader("Content-Type", "text/plain");
+    ctx.response().setStatusCode(404);
+    ctx.response().end("not found");
+  }
+
 
   static void getErmResourceEntitlement(RoutingContext ctx) {
     ctx.response().setChunked(true);
@@ -456,6 +490,7 @@ public class MainVerticleTest {
     router.getWithRegex("/counter-reports").handler(MainVerticleTest::getCounterReports);
     router.getWithRegex("/counter-reports/[-0-9a-z]*").handler(MainVerticleTest::getCounterReport);
     router.getWithRegex("/erm/resource").handler(MainVerticleTest::getErmResource);
+    router.getWithRegex("/erm/resource/[-0-9a-z]*").handler(MainVerticleTest::getErmResourceId);
     router.getWithRegex("/erm/resource/[-0-9a-z]*/entitlementOptions").handler(MainVerticleTest::getErmResourceEntitlement);
     router.getWithRegex("/erm/sas/[-0-9a-z]*").handler(MainVerticleTest::getAgreement);
     router.getWithRegex("/erm/entitlements").handler(MainVerticleTest::getEntitlements);
