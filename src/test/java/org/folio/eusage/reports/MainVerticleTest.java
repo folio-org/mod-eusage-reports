@@ -11,7 +11,6 @@ import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
-
 import java.util.LinkedList;
 import java.util.List;
 import java.util.UUID;
@@ -927,7 +926,22 @@ public class MainVerticleTest {
         .header("Content-Type", is("application/json"))
         .extract();
     resObject = new JsonObject(response.body().asString());
-    context.assertEquals(3, resObject.getJsonArray("data").size());
+    items = resObject.getJsonArray("data");
+    context.assertEquals(4, items.size());
+    int noPackages = 0;
+    for (int i = 0; i < items.size(); i++) {
+      String type =  items.getJsonObject(i).getString("type");
+      if ("package".equals(type)) {
+        context.assertEquals(goodPackageId.toString(), items.getJsonObject(i).getString("kbPackageId"));
+        context.assertFalse(items.getJsonObject(i).containsKey("kbTitleId"));
+        noPackages++;
+      } else {
+        context.assertEquals("serial", type);
+        context.assertFalse(items.getJsonObject(i).containsKey("kbPackageId"));
+        context.assertTrue(items.getJsonObject(i).containsKey("kbTitleId"));
+      }
+    }
+    context.assertEquals(1, noPackages);
 
     orderLinesCurrencies.clear();
     orderLinesCurrencies.add("DKK");

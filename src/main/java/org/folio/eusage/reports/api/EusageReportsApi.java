@@ -85,6 +85,17 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     });
   }
 
+  private static JsonObject jsonObjectRemoveNull(JsonObject obj) {
+    JsonObject n = new JsonObject();
+    for (String f : obj.fieldNames()) {
+      Object v = obj.getValue(f);
+      if (v != null) {
+        n.put(f, v);
+      }
+    }
+    return n;
+  }
+
   Future<Void> getReportTitles(Vertx vertx, RoutingContext ctx) {
     RequestParameters params = ctx.get(ValidationHandler.REQUEST_CONTEXT_KEY);
     String tenant = stringOrNull(params.headerParameter(XOkapiHeaders.TENANT));
@@ -119,17 +130,11 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
                       }
                       JsonObject response = new JsonObject()
                           .put("id", row.getUUID(0))
-                          .put("counterReportTitle", row.getString(1));
-                      String titleName = row.getString(3);
-                      if (titleName != null) {
-                        response.put("kbTitleName", titleName)
-                            .put("kbTitleId", row.getUUID(4));
-                      }
-                      Boolean kbManualMatch = row.getBoolean(5);
-                      if (kbManualMatch != null) {
-                        response.put("kbManualMatch", kbManualMatch);
-                      }
-                      ctx.response().write(response.encode());
+                          .put("counterReportTitle", row.getString(1))
+                          .put("kbTitleName", row.getString(3))
+                          .put("kbTitleId", row.getUUID(4))
+                          .put("kbManualMatch", row.getBoolean(5));
+                      ctx.response().write(jsonObjectRemoveNull(response).encode());
                     });
                     endStream(stream, ctx, sqlConnection, tx);
                     return Future.succeededFuture();
@@ -209,7 +214,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
                   obj.put("publicationDate",
                       publicationDate.format(DateTimeFormatter.ISO_LOCAL_DATE));
                 }
-                ctx.response().write(obj.encode());
+                ctx.response().write(jsonObjectRemoveNull(obj).encode());
               });
               endStream(stream, ctx, sqlConnection, tx);
               return Future.succeededFuture();
@@ -520,12 +525,13 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
                         JsonObject obj = new JsonObject()
                             .put("id", row.getUUID(0))
                             .put("kbTitleId", row.getUUID(1))
-                            .put("type", row.getString(2))
-                            .put("agreementId", row.getUUID(3))
-                            .put("agreementLineId", row.getUUID(4))
-                            .put("encumberedCost", row.getNumeric(5))
-                            .put("invoicedCost", row.getNumeric(6));
-                        ctx.response().write(obj.encode());
+                            .put("kbPackageId", row.getUUID(2))
+                            .put("type", row.getString(3))
+                            .put("agreementId", row.getUUID(4))
+                            .put("agreementLineId", row.getUUID(5))
+                            .put("encumberedCost", row.getNumeric(6))
+                            .put("invoicedCost", row.getNumeric(7));
+                        ctx.response().write(jsonObjectRemoveNull(obj).encode());
                       });
                       endStream(stream, ctx, sqlConnection, tx);
                       return Future.succeededFuture();
@@ -632,25 +638,31 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
       JsonObject resourceObject = agreementLine.getJsonObject("resource");
       JsonObject underScoreObject = resourceObject.getJsonObject("_object");
       final String resourceClass = resourceObject.getString("class");
+      JsonObject titleInstance = null;
       if (resourceClass.equals("org.olf.kb.Pkg")) {
-        return Future.succeededFuture(); // TODO pkg handling
+        log.info("AD: package");
+      } else {
+        JsonObject pti = underScoreObject.getJsonObject("pti");
+        titleInstance = pti.getJsonObject("titleInstance");
       }
-      JsonObject pti = underScoreObject.getJsonObject("pti");
-      JsonObject titleInstance = pti.getJsonObject("titleInstance");
-      UUID kbTitleId = UUID.fromString(titleInstance.getString("id"));
-      String type = titleInstance.getJsonObject("publicationType").getString("value");
+      String type = titleInstance != null
+          ? titleInstance.getJsonObject("publicationType").getString("value") : "package";
+      UUID kbTitleId = titleInstance != null
+          ? UUID.fromString(titleInstance.getString("id")) : null;
+      UUID kbPackageId = titleInstance == null
+          ? UUID.fromString(resourceObject.getString("id")) : null;
       return future.compose(cost ->
           lookupTitleFromKbTitle(pool, kbTitleId)
               .compose(tuple -> {
                 UUID id = UUID.randomUUID();
-                Number encumberedCost = cost.getDouble("total");
-                Number invoicedCost = null;
+                Number encumberedCost = cost.getDouble("encumberedCost");
+                Number invoicedCost = cost.getDouble("invoicedCost");
                 return pool.preparedQuery("INSERT INTO " + reportDataTable(pool)
-                    + "(id, kbTitleId, type, agreementId, agreementLineId,"
-                    + " encumberedCost, invoicedCost)"
-                    + " VALUES ($1, $2, $3, $4, $5, $6, $7)")
-                    .execute(Tuple.of(id, kbTitleId, type, agreementId, agreementLineId,
-                        encumberedCost, invoicedCost))
+                    + "(id, kbTitleId, kbPackageId, type,"
+                    + " agreementId, agreementLineId, encumberedCost, invoicedCost)"
+                    + " VALUES ($1, $2, $3, $4, $5, $6, $7, $8)")
+                    .execute(Tuple.of(id, kbTitleId, kbPackageId, type,
+                        agreementId, agreementLineId, encumberedCost, invoicedCost))
                     .mapEmpty();
               })
       );
@@ -780,6 +792,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
         .query("CREATE TABLE IF NOT EXISTS " + reportDataTable(pool) + " ( "
             + "id UUID PRIMARY KEY, "
             + "kbTitleId UUID, "
+            + "kbPackageId UUID, "
             + "type text, "
             + "agreementId UUID, "
             + "agreementLineId UUID, "
