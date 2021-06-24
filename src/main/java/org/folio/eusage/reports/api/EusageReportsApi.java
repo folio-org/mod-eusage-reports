@@ -197,7 +197,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
                     .put("reportTitleId", row.getUUID(1))
                     .put("counterReportId", row.getUUID(2))
                     .put("providerId", row.getUUID(3))
-                    .put("pubYear", row.getString(4))
+                    .put("pubDateRange", row.getString(4))
                     .put("usageDateRange", row.getString(5))
                     .put("uniqueAccessCount", row.getInteger(6))
                     .put("totalAccessCount", row.getInteger(7))
@@ -295,12 +295,12 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     return con.preparedQuery("INSERT INTO " + titleDataTable(pool)
         + "(id, reportTitleId,"
         + " counterReportId, providerId,"
-        + " pubYear, usageDateRange,"
+        + " pubDateRange, usageDateRange,"
         + " uniqueAccessCount, totalAccessCount, openAccess)"
         + " VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)")
         .execute(Tuple.of(UUID.randomUUID(), reportTitleId,
             counterReportId, providerId,
-            "", usageDateRange,
+            null, usageDateRange,
             uniqueAccessCount, totalAccessCount, false))
         .mapEmpty();
   }
@@ -761,7 +761,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
             + "reportTitleId UUID, "
             + "counterReportId UUID, "
             + "providerId UUID, "
-            + "pubYear text, "
+            + "pubDateRange daterange, "
             + "usageDateRange daterange,"
             + "uniqueAccessCount integer, "
             + "totalAccessCount integer, "
