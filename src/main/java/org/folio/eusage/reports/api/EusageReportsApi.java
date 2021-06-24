@@ -333,7 +333,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
             return Future.succeededFuture();
           }
           return ermLookup(ctx, kbTitleId).compose(erm -> {
-            String kbTitleName = erm != null ? erm.getString(1) : null;
+            String kbTitleName = erm.getString(1);
             String match = "online:" + erm.getString(2);
             return pool.preparedQuery("INSERT INTO " + titleEntriesTable(pool)
                 + "(id, matchCriteria, kbTitleName, kbTitleId,"
