@@ -14,13 +14,13 @@
       "type": "string",
       "description": "one of journal, pacakge, ebook"
     },
-    "counterreporttitle": {
+    "agreementId": {
       "type": "string",
-      "description": "counter report title"
+      "description": "agreement identifier (UUID)"
     },
     "agreementLineId": {
       "type": "string",
-      "description": "agreement identifier"
+      "description": "agreement line identifier (UUID)"
     },
     "encumberedCost": {
       "type": "number",

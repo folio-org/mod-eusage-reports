@@ -521,13 +521,10 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
                             .put("id", row.getUUID(0))
                             .put("kbTitleId", row.getUUID(1))
                             .put("type", row.getString(2))
+                            .put("agreementId", row.getUUID(3))
                             .put("agreementLineId", row.getUUID(4))
                             .put("encumberedCost", row.getNumeric(5))
                             .put("invoicedCost", row.getNumeric(6));
-                        String counterReportTitle = row.getString(3);
-                        if (counterReportTitle != null) {
-                          obj.put("counterReportTitle", counterReportTitle);
-                        }
                         ctx.response().write(obj.encode());
                       });
                       endStream(stream, ctx, sqlConnection, tx);
@@ -646,14 +643,13 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
           lookupTitleFromKbTitle(pool, kbTitleId)
               .compose(tuple -> {
                 UUID id = UUID.randomUUID();
-                String counterReportTitle = tuple != null ? tuple.getString(1) : null;
                 Number encumberedCost = cost.getDouble("total");
                 Number invoicedCost = null;
                 return pool.preparedQuery("INSERT INTO " + reportDataTable(pool)
-                    + "(id, kbTitleId, type, counterReportTitle, agreementLineId,"
+                    + "(id, kbTitleId, type, agreementId, agreementLineId,"
                     + " encumberedCost, invoicedCost)"
                     + " VALUES ($1, $2, $3, $4, $5, $6, $7)")
-                    .execute(Tuple.of(id, kbTitleId, type, counterReportTitle, agreementLineId,
+                    .execute(Tuple.of(id, kbTitleId, type, agreementId, agreementLineId,
                         encumberedCost, invoicedCost))
                     .mapEmpty();
               })
@@ -785,7 +781,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
             + "id UUID PRIMARY KEY, "
             + "kbTitleId UUID, "
             + "type text, "
-            + "counterReportTitle text, "
+            + "agreementId UUID, "
             + "agreementLineId UUID, "
             + "encumberedCost numeric(20, 8), "
             + "invoicedCost numeric(20, 8)"
