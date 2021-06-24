@@ -24,6 +24,8 @@ import io.vertx.sqlclient.RowStream;
 import io.vertx.sqlclient.SqlConnection;
 import io.vertx.sqlclient.Transaction;
 import io.vertx.sqlclient.Tuple;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.UUID;
@@ -96,11 +98,11 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
               + titleEntriesTable(pool);
           if (counterReportId != null) {
             qry = qry + " INNER JOIN " + titleDataTable(pool)
-                + " ON reportTitleId = " + titleEntriesTable(pool) + ".id"
+                + " ON titleEntryId = " + titleEntriesTable(pool) + ".id"
                 + " WHERE counterReportId = '" + UUID.fromString(counterReportId) + "'";
           } else if (providerId != null) {
             qry = qry + " INNER JOIN " + titleDataTable(pool)
-                + " ON reportTitleId = " + titleEntriesTable(pool) + ".id"
+                + " ON titleEntryId = " + titleEntriesTable(pool) + ".id"
                 + " WHERE providerId = '" + UUID.fromString(providerId) + "'";
           }
           return sqlConnection.prepare(qry)
@@ -194,14 +196,17 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
                 }
                 JsonObject obj = new JsonObject()
                     .put("id", row.getUUID(0))
-                    .put("reportTitleId", row.getUUID(1))
+                    .put("titleEntryId", row.getUUID(1))
                     .put("counterReportId", row.getUUID(2))
                     .put("providerId", row.getUUID(3))
-                    .put("pubDateRange", row.getString(4))
                     .put("usageDateRange", row.getString(5))
                     .put("uniqueAccessCount", row.getInteger(6))
                     .put("totalAccessCount", row.getInteger(7))
                     .put("openAccess", row.getBoolean(8));
+                LocalDate pubDate = row.getLocalDate(4);
+                if (pubDate != null) {
+                  obj.put("pubDate", pubDate.format(DateTimeFormatter.ISO_LOCAL_DATE));
+                }
                 ctx.response().write(obj.encode());
               });
               endStream(stream, ctx, sqlConnection, tx);
@@ -289,18 +294,20 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
             .eventually(x -> con.close()));
   }
 
-  static Future<Void> insertTdEntry(TenantPgPool pool, SqlConnection con, UUID reportTitleId,
-                                    UUID counterReportId, UUID providerId, String usageDateRange,
+  static Future<Void> insertTdEntry(TenantPgPool pool, SqlConnection con, UUID titleEntryId,
+                                    UUID counterReportId, UUID providerId, String publicationDate,
+                                    String usageDateRange,
                                     int uniqueAccessCount, int totalAccessCount) {
+    LocalDate localDate = publicationDate != null ? LocalDate.parse(publicationDate) : null;
     return con.preparedQuery("INSERT INTO " + titleDataTable(pool)
-        + "(id, reportTitleId,"
+        + "(id, titleEntryId,"
         + " counterReportId, providerId,"
-        + " pubDateRange, usageDateRange,"
+        + " pubDate, usageDateRange,"
         + " uniqueAccessCount, totalAccessCount, openAccess)"
         + " VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)")
-        .execute(Tuple.of(UUID.randomUUID(), reportTitleId,
+        .execute(Tuple.of(UUID.randomUUID(), titleEntryId,
             counterReportId, providerId,
-            null, usageDateRange,
+            localDate, usageDateRange,
             uniqueAccessCount, totalAccessCount, false))
         .mapEmpty();
   }
@@ -357,6 +364,9 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
         if ("PRINT_ISBN".equals(type) || "Print_ISBN".equals(type)) {
           ret.put("printISSN", value);
         }
+        if ("Publication_Date".equals(type)) {
+          ret.put(type, value);
+        }
       }
     }
     return ret;
@@ -379,6 +389,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     final JsonObject identifiers = getIssnIdentifiers(reportItem);
     final String onlineIssn = identifiers.getString("onlineISSN");
     final String printIssn = identifiers.getString("printISSN");
+    final String publicationDate = identifiers.getString("Publication_Date");
     final String counterReportTitle = reportItem.getString(altKey(reportItem,
         "itemName", "Title"));
     log.debug("handleReport title={} match={}", counterReportTitle, onlineIssn);
@@ -391,8 +402,8 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
       final int uniqueAccessCount = getTotalCount(reportItem, "Unique_Item_Requests");
       future = future.compose(x ->
           upsertTeEntry(pool, con, ctx, counterReportTitle, printIssn, onlineIssn)
-              .compose(reportTitleId -> insertTdEntry(pool, con, reportTitleId, counterReportId,
-                  providerId, usageDateRange, uniqueAccessCount, totalAccessCount))
+              .compose(titleEntryId -> insertTdEntry(pool, con, titleEntryId, counterReportId,
+                  providerId, publicationDate, usageDateRange, uniqueAccessCount, totalAccessCount))
       );
       return future.compose(x -> tx.commit());
     }).eventually(x -> con.close()));
@@ -758,10 +769,10 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     future = future.compose(x -> pool
         .query("CREATE TABLE IF NOT EXISTS " + titleDataTable(pool) + " ( "
             + "id UUID PRIMARY KEY, "
-            + "reportTitleId UUID, "
+            + "titleEntryId UUID, "
             + "counterReportId UUID, "
             + "providerId UUID, "
-            + "pubDateRange daterange, "
+            + "pubDate date, "
             + "usageDateRange daterange,"
             + "uniqueAccessCount integer, "
             + "totalAccessCount integer, "

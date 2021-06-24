@@ -37,6 +37,7 @@ public class MainVerticleTest {
   static Vertx vertx;
   static final int MODULE_PORT = 9230;
   static final int MOCK_PORT = 9231;
+  static final String pubDateSample = "1998-05-19";
   static final UUID goodKbTitleId = UUID.randomUUID();
   static final UUID goodCounterReportId = UUID.randomUUID();
   static final UUID badJsonCounterReportId = UUID.randomUUID();
@@ -91,6 +92,10 @@ public class MainVerticleTest {
                         .add(new JsonObject()
                             .put("type", "ONLINE_ISSN")
                             .put("value", "1000-1002")
+                        )
+                        .add(new JsonObject()
+                            .put("type", "Publication_Date")
+                            .put("value", pubDateSample)
                         )
                     )
                     .put("itemPerformance", new JsonArray()
@@ -743,9 +748,19 @@ public class MainVerticleTest {
         .header("Content-Type", is("application/json"))
         .extract();
     resObject = new JsonObject(response.body().asString());
-    context.assertEquals(15, resObject.getJsonArray("data").size());
-    resObject = resObject.getJsonArray("data").getJsonObject(0);
-    context.assertEquals(usageProviderId.toString(), resObject.getString("providerId"));
+    JsonArray items = resObject.getJsonArray("data");
+    context.assertEquals(15, items.size());
+    int noWithPubDate = 0;
+    for (int i = 0; i < items.size(); i++) {
+      JsonObject item = items.getJsonObject(i);
+      context.assertEquals(usageProviderId.toString(), item.getString("providerId"));
+      String pubDate = item.getString("pubDate");
+      if (pubDate != null) {
+        context.assertEquals(pubDateSample, pubDate);
+        noWithPubDate++;
+      }
+    }
+    context.assertEquals(5, noWithPubDate);
 
     response = RestAssured.given()
         .header(XOkapiHeaders.TENANT, tenant)
@@ -782,7 +797,7 @@ public class MainVerticleTest {
     response = RestAssured.given()
         .header(XOkapiHeaders.TENANT, tenant)
         .header(XOkapiHeaders.URL, "http://localhost:" + MOCK_PORT)
-        .get("/eusage-reports/report-titles?providerId=" + usageProviderId.toString())
+        .get("/eusage-reports/report-titles?providerId=" + usageProviderId)
         .then().statusCode(200)
         .header("Content-Type", is("application/json"))
         .extract();
@@ -793,7 +808,7 @@ public class MainVerticleTest {
     response = RestAssured.given()
         .header(XOkapiHeaders.TENANT, tenant)
         .header(XOkapiHeaders.URL, "http://localhost:" + MOCK_PORT)
-        .get("/eusage-reports/report-titles?providerId=" + UUID.randomUUID().toString())
+        .get("/eusage-reports/report-titles?providerId=" + UUID.randomUUID())
         .then().statusCode(200)
         .header("Content-Type", is("application/json"))
         .extract();
@@ -913,7 +928,6 @@ public class MainVerticleTest {
         .extract();
     resObject = new JsonObject(response.body().asString());
     context.assertEquals(3, resObject.getJsonArray("data").size());
-    log.info("AD: {}", resObject.encodePrettily());
 
     orderLinesCurrencies.clear();
     orderLinesCurrencies.add("DKK");

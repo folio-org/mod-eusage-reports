@@ -18,9 +18,9 @@
       "type": "string",
       "description": "usage data provider identifier"
     },
-    "pubDateRange": {
+    "pubDate": {
       "type": "string",
-      "description": "Publication date range (Postgresql daterange). example [1968-01-01,1970-01-01)"
+      "description": "Publication date (Postgresql date). example 1988-05-17"
     },
     "usageYearMonth": {
       "type": "string",
