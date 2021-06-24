@@ -48,6 +48,10 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     return pool.getSchema() + ".te_table";
   }
 
+  static String packageEntriesTable(TenantPgPool pool) {
+    return pool.getSchema() + ".pe_table";
+  }
+
   static String titleDataTable(TenantPgPool pool) {
     return pool.getSchema() + ".td_table";
   }
@@ -820,6 +824,13 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
             + "onlineISSN text"
             + ")")
         .execute().mapEmpty();
+    future = future.compose(x -> pool
+        .query("CREATE TABLE IF NOT EXISTS " + packageEntriesTable(pool) + " ( "
+            + "kbPackageId UUID UNIQUE, "
+            + "kbPackageName text, "
+            + "kbTitleId UUID "
+            + ")")
+        .execute().mapEmpty());
     future = future.compose(x -> pool
         .query("CREATE TABLE IF NOT EXISTS " + titleDataTable(pool) + " ( "
             + "id UUID PRIMARY KEY, "
