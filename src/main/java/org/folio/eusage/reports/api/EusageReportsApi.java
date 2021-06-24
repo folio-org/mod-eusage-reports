@@ -519,14 +519,11 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
                         }
                         JsonObject obj = new JsonObject()
                             .put("id", row.getUUID(0))
+                            .put("kbTitleId", row.getUUID(1))
                             .put("type", row.getString(2))
                             .put("agreementLineId", row.getUUID(4))
                             .put("encumberedCost", row.getNumeric(5))
                             .put("invoicedCost", row.getNumeric(6));
-                        UUID titleDataId = row.getUUID(1);
-                        if (titleDataId != null) {
-                          obj.put("titleDataId", titleDataId);
-                        }
                         String counterReportTitle = row.getString(3);
                         if (counterReportTitle != null) {
                           obj.put("counterReportTitle", counterReportTitle);
@@ -649,15 +646,14 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
           lookupTitleFromKbTitle(pool, kbTitleId)
               .compose(tuple -> {
                 UUID id = UUID.randomUUID();
-                UUID titleDataId = tuple != null ? tuple.getUUID(0) : null;
                 String counterReportTitle = tuple != null ? tuple.getString(1) : null;
                 Number encumberedCost = cost.getDouble("total");
                 Number invoicedCost = null;
                 return pool.preparedQuery("INSERT INTO " + reportDataTable(pool)
-                    + "(id, titleDataId, type, counterReportTitle, agreementLineId,"
+                    + "(id, kbTitleId, type, counterReportTitle, agreementLineId,"
                     + " encumberedCost, invoicedCost)"
                     + " VALUES ($1, $2, $3, $4, $5, $6, $7)")
-                    .execute(Tuple.of(id, titleDataId, type, counterReportTitle, agreementLineId,
+                    .execute(Tuple.of(id, kbTitleId, type, counterReportTitle, agreementLineId,
                         encumberedCost, invoicedCost))
                     .mapEmpty();
               })
@@ -787,7 +783,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     future = future.compose(x -> pool
         .query("CREATE TABLE IF NOT EXISTS " + reportDataTable(pool) + " ( "
             + "id UUID PRIMARY KEY, "
-            + "titleDataId UUID, "
+            + "kbTitleId UUID, "
             + "type text, "
             + "counterReportTitle text, "
             + "agreementLineId UUID, "

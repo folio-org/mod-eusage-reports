@@ -6,17 +6,17 @@
       "type": "string",
       "description": "report data identifier"
     },
-    "titleDataId": {
+    "kbTitleId": {
       "type": "string",
-      "description": "title data identifier"
+      "description": "kb title identifier (if the agreement is a title)"
     },
     "type": {
       "type": "string",
       "description": "one of journal, pacakge, ebook"
     },
-    "counterReportTitle": {
+    "counterreporttitle": {
       "type": "string",
-      "description": "Counter report title"
+      "description": "counter report title"
     },
     "agreementLineId": {
       "type": "string",
@@ -33,6 +33,6 @@
   },
   "additionalProperties": false,
   "required": [
-    "id", "titleDataId"
+    "id", "agreementLineId"
   ]
 }
