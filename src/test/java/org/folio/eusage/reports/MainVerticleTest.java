@@ -563,7 +563,17 @@ public class MainVerticleTest {
   }
 
   @Test
-  public void testGetTitlesNoOkapiUrl() {
+  public void testGetTitlesNoTenant() {
+    RestAssured.given()
+        .header(XOkapiHeaders.URL, "http://localhost:" + MOCK_PORT)
+        .get("/eusage-reports/report-titles")
+        .then().statusCode(400)
+        .header("Content-Type", is("text/plain"))
+        .body(containsString("Tenant must not be null"));
+  }
+
+  @Test
+  public void testPostTitlesNoOkapiUrl() {
     String tenant = "testlib";
     RestAssured.given()
         .header(XOkapiHeaders.TENANT, tenant)
@@ -602,6 +612,26 @@ public class MainVerticleTest {
         .post("/eusage-reports/report-titles")
         .then().statusCode(400)
         .body(containsString("testlib_mod_eusage_reports.te_table"));
+  }
+
+  @Test
+  public void testGetTitleDataNoTenant() {
+    RestAssured.given()
+        .header(XOkapiHeaders.URL, "http://localhost:" + MOCK_PORT)
+        .get("/eusage-reports/title-data")
+        .then().statusCode(400)
+        .header("Content-Type", is("text/plain"))
+        .body(containsString("Tenant must not be null"));
+  }
+
+  @Test
+  public void testGetReportDataNoTenant() {
+    RestAssured.given()
+        .header(XOkapiHeaders.URL, "http://localhost:" + MOCK_PORT)
+        .get("/eusage-reports/report-data")
+        .then().statusCode(400)
+        .header("Content-Type", is("text/plain"))
+        .body(containsString("Tenant must not be null"));
   }
 
   void tenantOp(TestContext context, String tenant, JsonObject tenantAttributes, String expectedError) {

@@ -31,6 +31,7 @@ import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Function;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.folio.okapi.common.GenericCompositeFuture;
@@ -40,7 +41,7 @@ import org.folio.tlib.TenantInitHooks;
 import org.folio.tlib.postgres.TenantPgPool;
 
 public class EusageReportsApi implements RouterCreator, TenantInitHooks {
-  private final Logger log = LogManager.getLogger(EusageReportsApi.class);
+  private static final Logger log = LogManager.getLogger(EusageReportsApi.class);
 
   private WebClient webClient;
 
@@ -74,21 +75,6 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     return requestParameter == null ? null : requestParameter.getString();
   }
 
-  private static void endHandler(RoutingContext ctx, SqlConnection sqlConnection, Transaction tx) {
-    ctx.response().write("] }");
-    ctx.response().end();
-    tx.commit().compose(x -> sqlConnection.close());
-  }
-
-  private void endStream(RowStream<Row> stream, RoutingContext ctx,
-                         SqlConnection sqlConnection, Transaction tx) {
-    stream.endHandler(end -> endHandler(ctx, sqlConnection, tx));
-    stream.exceptionHandler(e -> {
-      log.error("stream error {}", e.getMessage(), e);
-      endHandler(ctx, sqlConnection, tx);
-    });
-  }
-
   private static JsonObject jsonObjectRemoveNull(JsonObject obj) {
     JsonObject n = new JsonObject();
     for (String f : obj.fieldNames()) {
@@ -100,51 +86,77 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     return n;
   }
 
-  Future<Void> getReportTitles(Vertx vertx, RoutingContext ctx) {
-    RequestParameters params = ctx.get(ValidationHandler.REQUEST_CONTEXT_KEY);
-    String tenant = stringOrNull(params.headerParameter(XOkapiHeaders.TENANT));
-    String counterReportId = stringOrNull(params.queryParameter("counterReportId"));
-    String providerId = stringOrNull(params.queryParameter("providerId"));
+  private static void endHandler(RoutingContext ctx, SqlConnection sqlConnection, Transaction tx) {
+    ctx.response().write("] }");
+    ctx.response().end();
+    tx.commit().compose(x -> sqlConnection.close());
+  }
 
-    TenantPgPool pool = TenantPgPool.pool(vertx, tenant);
-    return pool.getConnection()
-        .compose(sqlConnection -> {
-          String qry = "SELECT DISTINCT ON (" + titleEntriesTable(pool) + ".id) * FROM "
-              + titleEntriesTable(pool);
-          if (counterReportId != null) {
-            qry = qry + " INNER JOIN " + titleDataTable(pool)
-                + " ON titleEntryId = " + titleEntriesTable(pool) + ".id"
-                + " WHERE counterReportId = '" + UUID.fromString(counterReportId) + "'";
-          } else if (providerId != null) {
-            qry = qry + " INNER JOIN " + titleDataTable(pool)
-                + " ON titleEntryId = " + titleEntriesTable(pool) + ".id"
-                + " WHERE providerId = '" + UUID.fromString(providerId) + "'";
-          }
-          return sqlConnection.prepare(qry)
-              .<Void>compose(pq ->
-                  sqlConnection.begin().compose(tx -> {
-                    ctx.response().setChunked(true);
-                    ctx.response().putHeader("Content-Type", "application/json");
-                    ctx.response().write("{ \"titles\" : [");
-                    AtomicInteger offset = new AtomicInteger();
-                    RowStream<Row> stream = pq.createStream(50);
-                    stream.handler(row -> {
-                      if (offset.incrementAndGet() > 1) {
-                        ctx.response().write(",");
-                      }
-                      JsonObject response = new JsonObject()
-                          .put("id", row.getUUID(0))
-                          .put("counterReportTitle", row.getString(1))
-                          .put("kbTitleName", row.getString(3))
-                          .put("kbTitleId", row.getUUID(4))
-                          .put("kbManualMatch", row.getBoolean(5));
-                      ctx.response().write(jsonObjectRemoveNull(response).encode());
-                    });
-                    endStream(stream, ctx, sqlConnection, tx);
-                    return Future.succeededFuture();
-                  })
-              ).onFailure(x -> sqlConnection.close());
-        });
+  private static void endStream(RowStream<Row> stream, RoutingContext ctx,
+                         SqlConnection sqlConnection, Transaction tx) {
+    stream.endHandler(end -> endHandler(ctx, sqlConnection, tx));
+    stream.exceptionHandler(e -> {
+      log.error("stream error {}", e.getMessage(), e);
+      endHandler(ctx, sqlConnection, tx);
+    });
+  }
+
+  static Future<Void> streamResult(RoutingContext ctx, TenantPgPool pool, String qry,
+                                   String property, Function<Row, JsonObject> handler) {
+    return pool.getConnection().compose(sqlConnection ->
+        sqlConnection.prepare(qry)
+            .<Void>compose(pq ->
+                sqlConnection.begin().compose(tx -> {
+                  ctx.response().setChunked(true);
+                  ctx.response().putHeader("Content-Type", "application/json");
+                  ctx.response().write("{ \"" + property + "\" : [");
+                  AtomicInteger offset = new AtomicInteger();
+                  RowStream<Row> stream = pq.createStream(50);
+                  stream.handler(row -> {
+                    if (offset.incrementAndGet() > 1) {
+                      ctx.response().write(",");
+                    }
+                    JsonObject response = handler.apply(row);
+                    ctx.response().write(jsonObjectRemoveNull(response).encode());
+                  });
+                  endStream(stream, ctx, sqlConnection, tx);
+                  return Future.succeededFuture();
+                })
+            ).onFailure(x -> sqlConnection.close())
+    );
+  }
+
+  Future<Void> getReportTitles(Vertx vertx, RoutingContext ctx) {
+    try {
+      RequestParameters params = ctx.get(ValidationHandler.REQUEST_CONTEXT_KEY);
+      String tenant = stringOrNull(params.headerParameter(XOkapiHeaders.TENANT));
+      String counterReportId = stringOrNull(params.queryParameter("counterReportId"));
+      String providerId = stringOrNull(params.queryParameter("providerId"));
+
+      TenantPgPool pool = TenantPgPool.pool(vertx, tenant);
+      String qry = "SELECT DISTINCT ON (" + titleEntriesTable(pool) + ".id) * FROM "
+          + titleEntriesTable(pool);
+      if (counterReportId != null) {
+        qry = qry + " INNER JOIN " + titleDataTable(pool)
+            + " ON titleEntryId = " + titleEntriesTable(pool) + ".id"
+            + " WHERE counterReportId = '" + UUID.fromString(counterReportId) + "'";
+      } else if (providerId != null) {
+        qry = qry + " INNER JOIN " + titleDataTable(pool)
+            + " ON titleEntryId = " + titleEntriesTable(pool) + ".id"
+            + " WHERE providerId = '" + UUID.fromString(providerId) + "'";
+      }
+      return streamResult(ctx, pool, qry, "titles", row ->
+          new JsonObject()
+              .put("id", row.getUUID(0))
+              .put("counterReportTitle", row.getString(1))
+              .put("kbTitleName", row.getString(3))
+              .put("kbTitleId", row.getUUID(4))
+              .put("kbManualMatch", row.getBoolean(5))
+      );
+    } catch (Exception e) {
+      log.error(e.getMessage(), e);
+      return Future.failedFuture(e);
+    }
   }
 
   Future<Void> postReportTitles(Vertx vertx, RoutingContext ctx) {
@@ -186,45 +198,34 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
   }
 
   Future<Void> getTitleData(Vertx vertx, RoutingContext ctx) {
-    RequestParameters params = ctx.get(ValidationHandler.REQUEST_CONTEXT_KEY);
-    String tenant = stringOrNull(params.headerParameter(XOkapiHeaders.TENANT));
-
-    TenantPgPool pool = TenantPgPool.pool(vertx, tenant);
-    return pool.getConnection().compose(sqlConnection -> sqlConnection
-        .prepare("SELECT * FROM " + titleDataTable(pool))
-        .<Void>compose(pq ->
-            sqlConnection.begin().compose(tx -> {
-              ctx.response().setChunked(true);
-              ctx.response().putHeader("Content-Type", "application/json");
-              ctx.response().write("{ \"data\" : [");
-              AtomicInteger offset = new AtomicInteger();
-              RowStream<Row> stream = pq.createStream(50);
-              stream.handler(row -> {
-                if (offset.incrementAndGet() > 1) {
-                  ctx.response().write(",");
-                }
-                JsonObject obj = new JsonObject()
-                    .put("id", row.getUUID(0))
-                    .put("titleEntryId", row.getUUID(1))
-                    .put("counterReportId", row.getUUID(2))
-                    .put("counterReportTitle", row.getString(3))
-                    .put("providerId", row.getUUID(4))
-                    .put("usageDateRange", row.getString(6))
-                    .put("uniqueAccessCount", row.getInteger(7))
-                    .put("totalAccessCount", row.getInteger(8))
-                    .put("openAccess", row.getBoolean(9));
-                LocalDate publicationDate = row.getLocalDate(5);
-                if (publicationDate != null) {
-                  obj.put("publicationDate",
-                      publicationDate.format(DateTimeFormatter.ISO_LOCAL_DATE));
-                }
-                ctx.response().write(jsonObjectRemoveNull(obj).encode());
-              });
-              endStream(stream, ctx, sqlConnection, tx);
-              return Future.succeededFuture();
-            })
-        )
-        .onFailure(x -> sqlConnection.close()));
+    try {
+      RequestParameters params = ctx.get(ValidationHandler.REQUEST_CONTEXT_KEY);
+      String tenant = stringOrNull(params.headerParameter(XOkapiHeaders.TENANT));
+      TenantPgPool pool = TenantPgPool.pool(vertx, tenant);
+      String qry = "SELECT * FROM " + titleDataTable(pool);
+      return streamResult(ctx, pool, qry, "data", row -> {
+            JsonObject obj = new JsonObject()
+                .put("id", row.getUUID(0))
+                .put("titleEntryId", row.getUUID(1))
+                .put("counterReportId", row.getUUID(2))
+                .put("counterReportTitle", row.getString(3))
+                .put("providerId", row.getUUID(4))
+                .put("usageDateRange", row.getString(6))
+                .put("uniqueAccessCount", row.getInteger(7))
+                .put("totalAccessCount", row.getInteger(8))
+                .put("openAccess", row.getBoolean(9));
+            LocalDate publicationDate = row.getLocalDate(5);
+            if (publicationDate != null) {
+              obj.put("publicationDate",
+                  publicationDate.format(DateTimeFormatter.ISO_LOCAL_DATE));
+            }
+            return obj;
+          }
+      );
+    } catch (Exception e) {
+      log.error(e.getMessage(), e);
+      return Future.failedFuture(e);
+    }
   }
 
   Future<Void> postFromCounter(Vertx vertx, RoutingContext ctx) {
@@ -614,42 +615,28 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
   }
 
   Future<Void> getReportData(Vertx vertx, RoutingContext ctx) {
-    RequestParameters params = ctx.get(ValidationHandler.REQUEST_CONTEXT_KEY);
-    String tenant = stringOrNull(params.headerParameter(XOkapiHeaders.TENANT));
+    try {
+      RequestParameters params = ctx.get(ValidationHandler.REQUEST_CONTEXT_KEY);
+      String tenant = stringOrNull(params.headerParameter(XOkapiHeaders.TENANT));
 
-    TenantPgPool pool = TenantPgPool.pool(vertx, tenant);
-    return pool.getConnection()
-        .compose(sqlConnection ->
-            sqlConnection.prepare("SELECT * FROM " + reportDataTable(pool))
-                .<Void>compose(pq ->
-                    sqlConnection.begin().compose(tx -> {
-                      ctx.response().setChunked(true);
-                      ctx.response().putHeader("Content-Type", "application/json");
-                      ctx.response().write("{ \"data\" : [");
-                      AtomicInteger offset = new AtomicInteger();
-                      RowStream<Row> stream = pq.createStream(50);
-                      stream.handler(row -> {
-                        if (offset.incrementAndGet() > 1) {
-                          ctx.response().write(",");
-                        }
-                        JsonObject obj = new JsonObject()
-                            .put("id", row.getUUID(0))
-                            .put("kbTitleId", row.getUUID(1))
-                            .put("kbPackageId", row.getUUID(2))
-                            .put("type", row.getString(3))
-                            .put("agreementId", row.getUUID(4))
-                            .put("agreementLineId", row.getUUID(5))
-                            .put("poLineId", row.getUUID(6))
-                            .put("encumberedCost", row.getNumeric(7))
-                            .put("invoicedCost", row.getNumeric(8));
-                        ctx.response().write(jsonObjectRemoveNull(obj).encode());
-                      });
-                      endStream(stream, ctx, sqlConnection, tx);
-                      return Future.succeededFuture();
-                    })
-                )
-                .onFailure(x -> sqlConnection.close())
-        );
+      TenantPgPool pool = TenantPgPool.pool(vertx, tenant);
+      String qry = "SELECT * FROM " + reportDataTable(pool);
+      return streamResult(ctx, pool, qry, "data", row ->
+          new JsonObject()
+              .put("id", row.getUUID(0))
+              .put("kbTitleId", row.getUUID(1))
+              .put("kbPackageId", row.getUUID(2))
+              .put("type", row.getString(3))
+              .put("agreementId", row.getUUID(4))
+              .put("agreementLineId", row.getUUID(5))
+              .put("poLineId", row.getUUID(6))
+              .put("encumberedCost", row.getNumeric(7))
+              .put("invoicedCost", row.getNumeric(8))
+      );
+    } catch (Exception e) {
+      log.error(e.getMessage(), e);
+      return Future.failedFuture(e);
+    }
   }
 
   Future<Boolean> agreementExists(RoutingContext ctx, UUID agreementId) {

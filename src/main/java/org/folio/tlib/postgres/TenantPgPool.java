@@ -5,11 +5,21 @@ import io.vertx.core.Vertx;
 import io.vertx.pgclient.PgConnectOptions;
 import io.vertx.pgclient.PgPool;
 import java.util.List;
+import javax.validation.constraints.NotNull;
 import org.folio.tlib.postgres.impl.TenantPgPoolImpl;
 
 public interface TenantPgPool extends PgPool {
 
-  static TenantPgPool pool(Vertx vertx, String tenant) {
+  /**
+   * create tenant pool for tenant.
+   * @param vertx vert.x instance
+   * @param tenant tenant name.
+   * @return pool.
+   */
+  static TenantPgPool pool(Vertx vertx, @NotNull String tenant) {
+    if (tenant == null) {
+      throw new IllegalArgumentException("Tenant must not be null");
+    }
     return TenantPgPoolImpl.tenantPgPool(vertx, tenant);
   }
 
