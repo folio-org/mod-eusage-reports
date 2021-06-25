@@ -115,7 +115,7 @@ public class Tenant2ApiTest {
     PgConnectOptions bad = new PgConnectOptions();
     PgConnectOptions pgConnectOptions = TenantPgPool.getDefaultConnectOptions();
     bad.setHost(pgConnectOptions.getHost());
-    bad.setPort(pgConnectOptions.getPort() + 1);
+    bad.setPort(pgConnectOptions.getPort() + 2);
     bad.setUser(pgConnectOptions.getUser());
     bad.setPassword(pgConnectOptions.getPassword());
     bad.setDatabase(pgConnectOptions.getDatabase());
