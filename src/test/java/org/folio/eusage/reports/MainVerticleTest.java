@@ -492,12 +492,12 @@ public class MainVerticleTest {
       return;
     }
     JsonArray ar = new JsonArray();
-    for (int i = 0; i < packageTitles.length; i++) {
+    for (UUID packageTitle : packageTitles) {
       JsonObject item = new JsonObject()
           .put("id", UUID.randomUUID())
           .put("pti", new JsonObject()
               .put("titleInstance", new JsonObject()
-                  .put("id", packageTitles[i])
+                  .put("id", packageTitle)
               )
           );
       ar.add(item);

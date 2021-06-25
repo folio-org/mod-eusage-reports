@@ -238,7 +238,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
         });
   }
 
-  static Tuple parseErm(JsonObject resource) {
+  static Tuple parseErmTitle(JsonObject resource) {
     String identifierValue = null;
     JsonArray identifiers = resource.getJsonArray("identifiers");
     for (int i = 0; i < identifiers.size(); i++) {
@@ -249,8 +249,10 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     return Tuple.of(titleId, resource.getString("name"), identifierValue);
   }
 
-  Future<Tuple> ermLookup(RoutingContext ctx, String identifier) {
+  Future<Tuple> ermTitleLookup(RoutingContext ctx, String identifier) {
     // assuming identifier only has unreserved characters
+    // TODO .. this will match any type of identifier.
+    // what if there's more than one hit?
     String uri = "/erm/resource?match=identifiers.identifier.value&term=" + identifier;
     return getRequest(ctx, uri)
         .send()
@@ -260,12 +262,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
           }
           return Future.succeededFuture(res.bodyAsJsonArray());
         })
-        .map(ar -> {
-          if (ar.isEmpty()) {
-            return null;
-          }
-          return parseErm(ar.getJsonObject(0));
-        });
+        .map(ar -> ar.isEmpty() ? null : parseErmTitle(ar.getJsonObject(0)));
   }
 
   Future<Tuple> ermTitleLookup(RoutingContext ctx, UUID id) {
@@ -278,7 +275,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
           }
           return Future.succeededFuture(res.bodyAsJsonObject());
         })
-        .map(x -> parseErm(x));
+        .map(EusageReportsApi::parseErmTitle);
   }
 
   Future<List<UUID>> ermPackageContentLookup(RoutingContext ctx, UUID id) {
@@ -324,7 +321,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
                 .execute(Tuple.of(id, counterReportTitle, printIssn, onlineIssn))
                 .map(id);
           }
-          return ermLookup(ctx, onlineIssn).compose(erm -> {
+          return ermTitleLookup(ctx, onlineIssn).compose(erm -> {
             UUID kbTitleId = erm != null ? erm.getUUID(0) : null;
             String kbTitleName = erm != null ? erm.getString(1) : null;
             return con.preparedQuery("INSERT INTO " + titleEntriesTable(pool)
