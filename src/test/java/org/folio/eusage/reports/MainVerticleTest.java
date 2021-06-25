@@ -53,6 +53,9 @@ public class MainVerticleTest {
       UUID.randomUUID(), UUID.randomUUID()
   };
   static final UUID goodPackageId = UUID.randomUUID();
+  static final UUID[] packageTitles = {
+      UUID.randomUUID(), UUID.randomUUID()
+  };
 
   @ClassRule
   public static PostgreSQLContainer<?> postgresSQLContainer = TenantPgPoolContainer.create();
@@ -288,7 +291,6 @@ public class MainVerticleTest {
     UUID id = UUID.fromString(path.substring(offset + 1));
 
     if (goodKbTitleId.equals(id)) {
-      log.info("AD: getErmResourceId good");
       JsonObject res = new JsonObject();
       res.put("name", "fake kb title instance name");
       res.put("id", id);
@@ -303,7 +305,6 @@ public class MainVerticleTest {
       ctx.response().end(res.encode());
       return;
     }
-    log.info("AD: getErmResourceId not found");
     ctx.response().putHeader("Content-Type", "text/plain");
     ctx.response().setStatusCode(404);
     ctx.response().end("not found");
@@ -389,6 +390,7 @@ public class MainVerticleTest {
                   .put("name", "Good agreement"))
               .put("resource", new JsonObject()
                   .put("class", "org.olf.kb.Pkg")
+                  .put("name", "good package name")
                   .put("id", goodPackageId)
                   .put("_object", new JsonObject()
                   ))
@@ -480,6 +482,31 @@ public class MainVerticleTest {
     ctx.response().end(ar.encode());
   }
 
+  static void getPackageContent(RoutingContext ctx) {
+    String path = ctx.request().path();
+    UUID id = UUID.fromString(path.substring(14, 50));
+    if (!id.equals(goodPackageId)) {
+      ctx.response().putHeader("Content-Type", "text/plain");
+      ctx.response().setStatusCode(404);
+      ctx.response().end("Package not found");
+      return;
+    }
+    JsonArray ar = new JsonArray();
+    for (int i = 0; i < packageTitles.length; i++) {
+      JsonObject item = new JsonObject()
+          .put("id", UUID.randomUUID())
+          .put("pti", new JsonObject()
+              .put("titleInstance", new JsonObject()
+                  .put("id", packageTitles[i])
+              )
+          );
+      ar.add(item);
+    }
+    ctx.response().putHeader("Content-Type", "application/json");
+    ctx.response().setStatusCode(200);
+    ctx.response().end(ar.encode());
+  }
+
   @BeforeClass
   public static void beforeClass(TestContext context) {
     vertx = Vertx.vertx();
@@ -496,6 +523,7 @@ public class MainVerticleTest {
     router.getWithRegex("/erm/entitlements").handler(MainVerticleTest::getEntitlements);
     router.getWithRegex("/orders/order-lines/[-0-9a-z]*").handler(MainVerticleTest::getOrderLines);
     router.getWithRegex("/invoice-storage/invoice-lines").handler(MainVerticleTest::getInvoiceLines);
+    router.getWithRegex("/erm/packages/[-0-9a-z]*/content").handler(MainVerticleTest::getPackageContent);
     vertx.createHttpServer()
         .requestHandler(router)
         .listen(MOCK_PORT)

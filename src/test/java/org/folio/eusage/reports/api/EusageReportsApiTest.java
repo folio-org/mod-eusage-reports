@@ -34,7 +34,7 @@ public class EusageReportsApiTest {
     EusageReportsApi api = new EusageReportsApi();
     UUID agreementId = UUID.randomUUID();
 
-    api.populateAgreementLine(new JsonObject(), null, agreementId, null)
+    api.populateAgreementLine( null, null, new JsonObject(), agreementId, null)
         .onComplete(context.asyncAssertFailure(x ->
             context.assertTrue(x.getMessage().contains("Failed to decode agreement line:"), x.getMessage())));
   }
