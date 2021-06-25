@@ -573,7 +573,7 @@ public class MainVerticleTest {
   }
 
   @Test
-  public void testPostTitlesNoOkapiUrl() {
+  public void testPostTitlesFromCounterNoOkapiUrl() {
     String tenant = "testlib";
     RestAssured.given()
         .header(XOkapiHeaders.TENANT, tenant)
