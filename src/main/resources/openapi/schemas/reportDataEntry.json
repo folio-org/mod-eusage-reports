@@ -1,5 +1,5 @@
 {
-  "description": "report data entry",
+  "description": "report data entry (agreement line information)",
   "type": "object",
   "properties": {
     "id": {
@@ -8,7 +8,11 @@
     },
     "kbTitleId": {
       "type": "string",
-      "description": "kb title identifier (if the agreement is a title)"
+      "description": "kb title identifier (if the agreement line is a title)"
+    },
+    "kbPackageId": {
+      "type": "string",
+      "description": "kb package identifier (if the agreement line is a package)"
     },
     "type": {
       "type": "string",
@@ -21,6 +25,10 @@
     "agreementLineId": {
       "type": "string",
       "description": "agreement line identifier (UUID)"
+    },
+    "poLineId": {
+      "type": "string",
+      "description": "po line identifier (UUID)"
     },
     "encumberedCost": {
       "type": "number",

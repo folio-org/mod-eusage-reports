@@ -639,8 +639,9 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
                             .put("type", row.getString(3))
                             .put("agreementId", row.getUUID(4))
                             .put("agreementLineId", row.getUUID(5))
-                            .put("encumberedCost", row.getNumeric(6))
-                            .put("invoicedCost", row.getNumeric(7));
+                            .put("poLineId", row.getUUID(6))
+                            .put("encumberedCost", row.getNumeric(7))
+                            .put("invoicedCost", row.getNumeric(8));
                         ctx.response().write(jsonObjectRemoveNull(obj).encode());
                       });
                       endStream(stream, ctx, sqlConnection, tx);
@@ -730,6 +731,8 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
                                      RoutingContext ctx) {
     try {
       JsonArray poLines = agreementLine.getJsonArray("poLines");
+      UUID poLineId = poLines.isEmpty()
+          ? null : UUID.fromString(poLines.getJsonObject(0).getString("poLineId"));
       final Future<JsonObject> future = lookupPoLine(poLines, ctx);
       final UUID agreementLineId = UUID.fromString(agreementLine.getString("id"));
       JsonObject resourceObject = agreementLine.getJsonObject("resource");
@@ -756,10 +759,10 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
                 Number invoicedCost = cost.getDouble("invoicedCost");
                 return con.preparedQuery("INSERT INTO " + reportDataTable(pool)
                     + "(id, kbTitleId, kbPackageId, type,"
-                    + " agreementId, agreementLineId, encumberedCost, invoicedCost)"
-                    + " VALUES ($1, $2, $3, $4, $5, $6, $7, $8)")
+                    + " agreementId, agreementLineId, poLineId, encumberedCost, invoicedCost)"
+                    + " VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)")
                     .execute(Tuple.of(id, kbTitleId, kbPackageId, type,
-                        agreementId, agreementLineId, encumberedCost, invoicedCost))
+                        agreementId, agreementLineId, poLineId, encumberedCost, invoicedCost))
                     .mapEmpty();
               })
       );
@@ -902,6 +905,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
             + "type text, "
             + "agreementId UUID, "
             + "agreementLineId UUID, "
+            + "poLineId UUID, "
             + "encumberedCost numeric(20, 8), "
             + "invoicedCost numeric(20, 8)"
             + ")")
