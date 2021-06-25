@@ -30,6 +30,11 @@
           "permissionsRequired": [ "eusage-reports-report-titles.collection.get" ]
 	},
 	{
+          "methods": [ "POST" ],
+          "pathPattern": "/eusage-reports/report-titles",
+          "permissionsRequired": [ "eusage-reports-report-titles.collection.post" ]
+	},
+	{
 
           "methods": [ "POST" ],
           "pathPattern": "/eusage-reports/report-titles/from-counter",
@@ -120,6 +125,11 @@
       "permissionName": "eusage-reports-report-titles.collection.get",
       "displayName" : "report titles get",
       "description" : "Get Counter report titles"
+    },
+    {
+      "permissionName": "eusage-reports-report-titles.collection.post",
+      "displayName" : "report titles post",
+      "description" : "Post Counter report titles"
     },
     {
       "permissionName": "eusage-reports-report-titles-from-counter.post",
