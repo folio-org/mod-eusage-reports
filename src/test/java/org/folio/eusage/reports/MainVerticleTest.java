@@ -558,7 +558,7 @@ public class MainVerticleTest {
           .get("/eusage-reports/report-titles")
           .then().statusCode(400)
           .header("Content-Type", is("text/plain"))
-          .body(containsString("testlib_mod_eusage_reports.te_table"));
+          .body(containsString("testlib_mod_eusage_reports.title_entries"));
     }
   }
 
@@ -611,7 +611,7 @@ public class MainVerticleTest {
         ).encode())
         .post("/eusage-reports/report-titles")
         .then().statusCode(400)
-        .body(containsString("testlib_mod_eusage_reports.te_table"));
+        .body(containsString("testlib_mod_eusage_reports.title_entries"));
   }
 
   @Test

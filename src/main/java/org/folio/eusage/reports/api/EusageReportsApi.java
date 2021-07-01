@@ -46,19 +46,19 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
   private WebClient webClient;
 
   static String titleEntriesTable(TenantPgPool pool) {
-    return pool.getSchema() + ".te_table";
+    return pool.getSchema() + ".title_entries";
   }
 
   static String packageEntriesTable(TenantPgPool pool) {
-    return pool.getSchema() + ".pe_table";
+    return pool.getSchema() + ".package_entries";
   }
 
   static String titleDataTable(TenantPgPool pool) {
-    return pool.getSchema() + ".td_table";
+    return pool.getSchema() + ".title_data";
   }
 
-  static String reportDataTable(TenantPgPool pool) {
-    return pool.getSchema() + ".rd_table";
+  static String agreementEntriesTable(TenantPgPool pool) {
+    return pool.getSchema() + ".agreement_entries";
   }
 
   static void failHandler(int statusCode, RoutingContext ctx, Throwable e) {
@@ -75,16 +75,16 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     return requestParameter == null ? null : requestParameter.getString();
   }
 
-  private static JsonObject jsonObjectRemoveNull(JsonObject obj) {
+  private static JsonObject copyWithoutNulls(JsonObject obj) {
     JsonObject n = new JsonObject();
-    for (String f : obj.fieldNames()) {
-      Object v = obj.getValue(f);
-      if (v != null) {
-        n.put(f, v);
+    obj.getMap().forEach((key, value) -> {
+      if (value != null) {
+        n.put(key, value);
       }
-    }
+    });
     return n;
   }
+
 
   private static void endHandler(RoutingContext ctx, SqlConnection sqlConnection, Transaction tx) {
     ctx.response().write("] }");
@@ -110,14 +110,14 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
                   ctx.response().setChunked(true);
                   ctx.response().putHeader("Content-Type", "application/json");
                   ctx.response().write("{ \"" + property + "\" : [");
-                  AtomicInteger offset = new AtomicInteger();
+                  AtomicBoolean first = new AtomicBoolean(true);
                   RowStream<Row> stream = pq.createStream(50);
                   stream.handler(row -> {
-                    if (offset.incrementAndGet() > 1) {
+                    if (!first.getAndSet(false)) {
                       ctx.response().write(",");
                     }
                     JsonObject response = handler.apply(row);
-                    ctx.response().write(jsonObjectRemoveNull(response).encode());
+                    ctx.response().write(copyWithoutNulls(response).encode());
                   });
                   endStream(stream, ctx, sqlConnection, tx);
                   return Future.succeededFuture();
@@ -316,8 +316,8 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
             return con.preparedQuery("UPDATE " + titleEntriesTable(pool)
                 + " SET"
                 + " counterReportTitle = $2,"
-                + " printISSN = $4,"
-                + " onlineISSN = $5"
+                + " printISSN = $3,"
+                + " onlineISSN = $4"
                 + " WHERE id = $1")
                 .execute(Tuple.of(id, counterReportTitle, printIssn, onlineIssn))
                 .map(id);
@@ -620,7 +620,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
       String tenant = stringOrNull(params.headerParameter(XOkapiHeaders.TENANT));
 
       TenantPgPool pool = TenantPgPool.pool(vertx, tenant);
-      String qry = "SELECT * FROM " + reportDataTable(pool);
+      String qry = "SELECT * FROM " + agreementEntriesTable(pool);
       return streamResult(ctx, pool, qry, "data", row ->
           new JsonObject()
               .put("id", row.getUUID(0))
@@ -744,7 +744,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
                 UUID id = UUID.randomUUID();
                 Number encumberedCost = cost.getDouble("encumberedCost");
                 Number invoicedCost = cost.getDouble("invoicedCost");
-                return con.preparedQuery("INSERT INTO " + reportDataTable(pool)
+                return con.preparedQuery("INSERT INTO " + agreementEntriesTable(pool)
                     + "(id, kbTitleId, kbPackageId, type,"
                     + " agreementId, agreementLineId, poLineId, encumberedCost, invoicedCost)"
                     + " VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)")
@@ -885,7 +885,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
             + ")")
         .execute().mapEmpty());
     future = future.compose(x -> pool
-        .query("CREATE TABLE IF NOT EXISTS " + reportDataTable(pool) + " ( "
+        .query("CREATE TABLE IF NOT EXISTS " + agreementEntriesTable(pool) + " ( "
             + "id UUID PRIMARY KEY, "
             + "kbTitleId UUID, "
             + "kbPackageId UUID, "
