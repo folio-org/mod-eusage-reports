@@ -15,6 +15,7 @@ import io.vertx.ext.web.RoutingContext;
 import io.vertx.ext.web.client.HttpRequest;
 import io.vertx.ext.web.client.WebClient;
 import io.vertx.ext.web.codec.BodyCodec;
+import io.vertx.ext.web.handler.HttpException;
 import io.vertx.ext.web.openapi.RouterBuilder;
 import io.vertx.ext.web.validation.RequestParameter;
 import io.vertx.ext.web.validation.RequestParameters;
@@ -261,13 +262,13 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     String uri = "/erm/resource?match=identifiers.identifier.value&term=" + identifier;
     return getRequest(ctx, uri)
         .send()
-        .compose(res -> {
+        .map(res -> {
           if (res.statusCode() != 200) {
-            return Future.failedFuture(uri + " returned " + res.statusCode());
+            throw new HttpException(res.statusCode(), uri);
           }
-          return Future.succeededFuture(res.bodyAsJsonArray());
-        })
-        .map(ar -> ar.isEmpty() ? null : parseErmTitle(ar.getJsonObject(0)));
+          JsonArray ar = res.bodyAsJsonArray();
+          return ar.isEmpty() ? null : parseErmTitle(ar.getJsonObject(0));
+        });
   }
 
   Future<Tuple> ermTitleLookup(RoutingContext ctx, UUID id) {
