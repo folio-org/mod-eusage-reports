@@ -11,8 +11,9 @@ import io.vertx.core.json.JsonObject;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
 import io.vertx.pgclient.PgConnectOptions;
+import java.io.IOException;
+import java.net.ServerSocket;
 import java.util.UUID;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.folio.tlib.postgres.TenantPgPool;
@@ -33,6 +34,13 @@ public class Tenant2ApiTest {
 
   static Vertx vertx;
   static int port = 9230;
+
+  private static int getFreePort() throws IOException {
+    try (ServerSocket serverSocket = new ServerSocket(0)) {
+      serverSocket.setReuseAddress(true);
+      return serverSocket.getLocalPort();
+    }
+  }
 
   @ClassRule
   public static PostgreSQLContainer<?> postgresSQLContainer = TenantPgPoolContainer.create();
@@ -110,12 +118,12 @@ public class Tenant2ApiTest {
   }
 
   @Test
-  public void testPostTenantBadPort(TestContext context) {
+  public void testPostTenantBadPort(TestContext context) throws IOException {
     String tenant = "testlib";
     PgConnectOptions bad = new PgConnectOptions();
     PgConnectOptions pgConnectOptions = TenantPgPool.getDefaultConnectOptions();
     bad.setHost(pgConnectOptions.getHost());
-    bad.setPort(pgConnectOptions.getPort() + 2);
+    bad.setPort(getFreePort());
     bad.setUser(pgConnectOptions.getUser());
     bad.setPassword(pgConnectOptions.getPassword());
     bad.setDatabase(pgConnectOptions.getDatabase());
