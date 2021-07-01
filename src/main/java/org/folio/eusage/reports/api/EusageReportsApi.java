@@ -331,12 +331,12 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
                 + " kbTitleName, kbTitleId,"
                 + " kbManualMatch, printISSN, onlineISSN)"
                 + " VALUES ($1, $2, $3, $4, $5, $6, $7, $8)"
-                + " ON CONFLICT (matchCriteria) DO NOTHING"
+                + " ON CONFLICT (counterReportTitle) DO NOTHING"
                 + " RETURNING id)"
                 + " SELECT id FROM x"
                 + " UNION"
                 + " SELECT id FROM " + titleEntriesTable(pool)
-                + " WHERE matchCriteria = $3")
+                + " WHERE counterReportTitle = $2")
                 .execute(Tuple.of(UUID.randomUUID(), counterReportTitle, match,
                     kbTitleName, kbTitleId,
                     false, printIssn, onlineIssn))
@@ -359,13 +359,10 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
           }
           return ermTitleLookup(ctx, kbTitleId).compose(erm -> {
             String kbTitleName = erm.getString(1);
-            String match = "online:" + erm.getString(2);
             return con.preparedQuery("INSERT INTO " + titleEntriesTable(pool)
-                + "(id, matchCriteria, kbTitleName, kbTitleId,"
-                + " kbManualMatch)"
-                + " VALUES ($1, $2, $3, $4, $5)"
-                + " ON CONFLICT (matchCriteria) DO NOTHING")
-                .execute(Tuple.of(UUID.randomUUID(), match, kbTitleName, kbTitleId, false))
+                + "(id, kbTitleName, kbTitleId, kbManualMatch)"
+                + " VALUES ($1, $2, $3, $4)")
+                .execute(Tuple.of(UUID.randomUUID(), kbTitleName, kbTitleId, false))
                 .mapEmpty();
           });
         });
@@ -855,8 +852,8 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     Future<Void> future = pool
         .query("CREATE TABLE IF NOT EXISTS " + titleEntriesTable(pool) + " ( "
             + "id UUID PRIMARY KEY, "
-            + "counterReportTitle text, "
-            + "matchCriteria text UNIQUE, "
+            + "counterReportTitle text UNIQUE, "
+            + "matchCriteria text, "
             + "kbTitleName text, "
             + "kbTitleId UUID, "
             + "kbManualMatch boolean,"
