@@ -615,6 +615,42 @@ public class MainVerticleTest {
   }
 
   @Test
+  public void testPostTitlesBadUUID1() {
+    String tenant = "testlib";
+    RestAssured.given()
+        .header(XOkapiHeaders.TENANT, tenant)
+        .header("Content-Type", "application/json")
+        .body(new JsonObject().put("titles", new JsonArray()
+            .add(new JsonObject()
+                .put("id", "1234")
+                .put("kbTitleName", "kb title name")
+                .put("kbTitleId", UUID.randomUUID().toString())
+            )
+        ).encode())
+        .post("/eusage-reports/report-titles")
+        .then().statusCode(400)
+        .body(is("Invalid UUID string: 1234"));
+  }
+
+  @Test
+  public void testPostTitlesBadUUID2() {
+    String tenant = "testlib";
+    RestAssured.given()
+        .header(XOkapiHeaders.TENANT, tenant)
+        .header("Content-Type", "application/json")
+        .body(new JsonObject().put("titles", new JsonArray()
+            .add(new JsonObject()
+                .put("id", UUID.randomUUID())
+                .put("kbTitleName", "kb title name")
+                .put("kbTitleId", "1234")
+            )
+        ).encode())
+        .post("/eusage-reports/report-titles")
+        .then().statusCode(400)
+        .body(is("Invalid UUID string: 1234"));
+  }
+
+  @Test
   public void testGetTitleDataNoTenant() {
     RestAssured.given()
         .header(XOkapiHeaders.URL, "http://localhost:" + MOCK_PORT)
