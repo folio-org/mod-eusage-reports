@@ -325,21 +325,22 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
           return ermTitleLookup(ctx, onlineIssn).compose(erm -> {
             UUID kbTitleId = erm != null ? erm.getUUID(0) : null;
             String kbTitleName = erm != null ? erm.getString(1) : null;
-            return con.preparedQuery("INSERT INTO " + titleEntriesTable(pool)
+            return con.preparedQuery("WITH x as ("
+                + " INSERT INTO " + titleEntriesTable(pool)
                 + "(id, counterReportTitle, matchCriteria,"
                 + " kbTitleName, kbTitleId,"
                 + " kbManualMatch, printISSN, onlineISSN)"
                 + " VALUES ($1, $2, $3, $4, $5, $6, $7, $8)"
-                + " ON CONFLICT (matchCriteria) DO NOTHING")
+                + " ON CONFLICT (matchCriteria) DO NOTHING"
+                + " RETURNING id)"
+                + " SELECT id FROM x"
+                + " UNION"
+                + " SELECT id FROM " + titleEntriesTable(pool)
+                + " WHERE matchCriteria = $3")
                 .execute(Tuple.of(UUID.randomUUID(), counterReportTitle, match,
                     kbTitleName, kbTitleId,
                     false, printIssn, onlineIssn))
-                .compose(x ->
-                    con.preparedQuery("SELECT id FROM " + titleEntriesTable(pool)
-                        + " WHERE matchCriteria = $1")
-                        .execute(Tuple.of(match))
-                        .map(res2 -> res2.iterator().next().getUUID(0))
-                );
+                .map(res2 -> res2.iterator().next().getUUID(0));
           });
         });
   }
