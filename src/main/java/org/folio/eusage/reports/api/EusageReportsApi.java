@@ -303,8 +303,9 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
         });
   }
 
-  Future<UUID> updateExisting(TenantPgPool pool, SqlConnection con, UUID kbTitleId,
-                              String counterReportTitle, String printIssn, String onlineIssn) {
+  Future<UUID> updateTitleEntryByKbTitle(TenantPgPool pool, SqlConnection con, UUID kbTitleId,
+                                         String counterReportTitle, String printIssn,
+                                         String onlineIssn) {
     if (kbTitleId == null) {
       return Future.succeededFuture(null);
     }
@@ -327,8 +328,9 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
         });
   }
 
-  Future<UUID> upsertTeEntry(TenantPgPool pool, SqlConnection con, RoutingContext ctx,
-                             String counterReportTitle, String printIssn, String onlineIssn) {
+  Future<UUID> upsertTitleEntryCounterReport(TenantPgPool pool, SqlConnection con,
+                                             RoutingContext ctx, String counterReportTitle,
+                                             String printIssn, String onlineIssn) {
     return con.preparedQuery("SELECT id FROM " + titleEntriesTable(pool)
         + " WHERE counterReportTitle = $1")
         .execute(Tuple.of(counterReportTitle))
@@ -340,7 +342,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
           return ermTitleLookup(ctx, onlineIssn).compose(erm -> {
             UUID kbTitleId = erm != null ? erm.getUUID(0) : null;
             String kbTitleName = erm != null ? erm.getString(1) : null;
-            return updateExisting(pool, con, kbTitleId,
+            return updateTitleEntryByKbTitle(pool, con, kbTitleId,
                 counterReportTitle, printIssn, onlineIssn)
                 .compose(id -> {
                   if (id != null) {
@@ -367,7 +369,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
         });
   }
 
-  Future<Void> updateTitleFromAgreement(TenantPgPool pool, SqlConnection con,
+  Future<Void> createTitleFromAgreement(TenantPgPool pool, SqlConnection con,
                                         UUID kbTitleId, RoutingContext ctx) {
     if (kbTitleId == null) {
       return Future.succeededFuture();
@@ -390,7 +392,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
         });
   }
 
-  Future<Void> updatePackageFromAgreement(TenantPgPool pool, SqlConnection con, UUID kbPackageId,
+  Future<Void> createPackageFromAgreement(TenantPgPool pool, SqlConnection con, UUID kbPackageId,
                                           String kbPackageName, RoutingContext ctx) {
     if (kbPackageId == null) {
       return Future.succeededFuture();
@@ -406,7 +408,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
               .compose(list -> {
                 Future<Void> future = Future.succeededFuture();
                 for (UUID kbTitleId : list) {
-                  future = future.compose(x -> updateTitleFromAgreement(pool, con, kbTitleId, ctx));
+                  future = future.compose(x -> createTitleFromAgreement(pool, con, kbTitleId, ctx));
                   future = future.compose(x ->
                     con.preparedQuery("INSERT INTO " + packageEntriesTable(pool)
                         + "(kbPackageId, kbPackageName, kbTitleId)"
@@ -541,7 +543,8 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
       final int totalAccessCount = getTotalCount(reportItem, "Total_Item_Requests");
       final int uniqueAccessCount = getTotalCount(reportItem, "Unique_Item_Requests");
       future = future.compose(x ->
-          upsertTeEntry(pool, con, ctx, counterReportTitle, printIssn, onlineIssn)
+          upsertTitleEntryCounterReport(pool, con, ctx, counterReportTitle,
+              printIssn, onlineIssn)
               .compose(titleEntryId -> insertTdEntry(pool, con, titleEntryId, counterReportId,
                   counterReportTitle,  providerId, publicationDate, usageDateRange,
                   uniqueAccessCount, totalAccessCount))
@@ -758,8 +761,8 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
           ? UUID.fromString(resourceObject.getString("id")) : null;
       String kbPackageName = titleInstance == null
           ? resourceObject.getString("name") : null;
-      return future.compose(cost -> updateTitleFromAgreement(pool, con, kbTitleId, ctx)
-              .compose(x -> updatePackageFromAgreement(pool, con, kbPackageId, kbPackageName, ctx))
+      return future.compose(cost -> createTitleFromAgreement(pool, con, kbTitleId, ctx)
+              .compose(x -> createPackageFromAgreement(pool, con, kbPackageId, kbPackageName, ctx))
               .compose(x -> {
                 UUID id = UUID.randomUUID();
                 Number encumberedCost = cost.getDouble("encumberedCost");
