@@ -754,11 +754,10 @@ public class MainVerticleTest {
     context.assertEquals(6, noDefined);
     context.assertEquals(1, noUndefined);
 
-    unmatchedTitle.put("kbTitleName", "correct kb title name");
-    unmatchedTitle.put("kbTitleId", UUID.randomUUID().toString());
     JsonObject postTitleObject = new JsonObject();
     postTitleObject.put("titles", new JsonArray().add(unmatchedTitle));
 
+    // put without kbTitleId kbTitleName
     RestAssured.given()
         .header(XOkapiHeaders.TENANT, tenant)
         .header(XOkapiHeaders.URL, "http://localhost:" + MOCK_PORT)
@@ -778,6 +777,39 @@ public class MainVerticleTest {
     titlesAr = resObject.getJsonArray("titles");
     context.assertEquals(7, titlesAr.size());
     int noManual = 0;
+    for (int i = 0; i < titlesAr.size(); i++) {
+      if (titlesAr.getJsonObject(i).getBoolean("kbManualMatch")) {
+        context.assertFalse(titlesAr.getJsonObject(i).containsKey("kbTitleId"));
+        context.assertFalse(titlesAr.getJsonObject(i).containsKey("kbTitleName"));
+        noManual++;
+      } else {
+        context.assertTrue(titlesAr.getJsonObject(i).containsKey("kbTitleName"));
+      }
+    }
+    context.assertEquals(1, noManual);
+
+    // put with kbTitleId kbTitleName
+    unmatchedTitle.put("kbTitleName", "correct kb title name");
+    unmatchedTitle.put("kbTitleId", UUID.randomUUID().toString());
+    RestAssured.given()
+        .header(XOkapiHeaders.TENANT, tenant)
+        .header(XOkapiHeaders.URL, "http://localhost:" + MOCK_PORT)
+        .header("Content-Type", "application/json")
+        .body(postTitleObject.encode())
+        .post("/eusage-reports/report-titles")
+        .then().statusCode(204);
+
+    response = RestAssured.given()
+        .header(XOkapiHeaders.TENANT, tenant)
+        .header(XOkapiHeaders.URL, "http://localhost:" + MOCK_PORT)
+        .get("/eusage-reports/report-titles")
+        .then().statusCode(200)
+        .header("Content-Type", is("application/json"))
+        .extract();
+    resObject = new JsonObject(response.body().asString());
+    titlesAr = resObject.getJsonArray("titles");
+    context.assertEquals(7, titlesAr.size());
+    noManual = 0;
     for (int i = 0; i < titlesAr.size(); i++) {
       context.assertTrue(titlesAr.getJsonObject(i).containsKey("kbTitleName"));
       if (titlesAr.getJsonObject(i).getBoolean("kbManualMatch")) {
@@ -801,21 +833,6 @@ public class MainVerticleTest {
         .then().statusCode(400)
         .header("Content-Type", is("text/plain"))
         .body(is("title " + n.getString("id") + " matches nothing"));
-
-    // missing kbTitleId
-    n = new JsonObject();
-    n.put("id", UUID.randomUUID());
-    n.put("kbTitleName", "correct kb title name");
-    postTitleObject = new JsonObject();
-    postTitleObject.put("titles", new JsonArray().add(n));
-    RestAssured.given()
-        .header(XOkapiHeaders.TENANT, tenant)
-        .header(XOkapiHeaders.URL, "http://localhost:" + MOCK_PORT)
-        .header("Content-Type", "application/json")
-        .body(postTitleObject.encode())
-        .post("/eusage-reports/report-titles")
-        .then().statusCode(400)
-        .header("Content-Type", is("text/plain"));
 
     // missing id
     n = new JsonObject();

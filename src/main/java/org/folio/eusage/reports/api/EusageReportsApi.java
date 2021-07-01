@@ -149,9 +149,9 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
           new JsonObject()
               .put("id", row.getUUID(0))
               .put("counterReportTitle", row.getString(1))
-              .put("kbTitleName", row.getString(3))
-              .put("kbTitleId", row.getUUID(4))
-              .put("kbManualMatch", row.getBoolean(5))
+              .put("kbTitleName", row.getString(2))
+              .put("kbTitleId", row.getUUID(3))
+              .put("kbManualMatch", row.getBoolean(4))
       );
     } catch (Exception e) {
       log.error(e.getMessage(), e);
@@ -172,7 +172,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
             final JsonObject titleEntry = titles.getJsonObject(i);
             UUID id = UUID.fromString(titleEntry.getString("id"));
             String kbTitleName = titleEntry.getString("kbTitleName");
-            UUID kbTitleId = UUID.fromString(titleEntry.getString("kbTitleId"));
+            String kbTitleIdStr = titleEntry.getString("kbTitleId");
             future = future.compose(x ->
                 sqlConnection.preparedQuery("UPDATE " + titleEntriesTable(pool)
                     + " SET"
@@ -180,7 +180,8 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
                     + " kbTitleId = $3,"
                     + " kbManualMatch = TRUE"
                     + " WHERE id = $1")
-                    .execute(Tuple.of(id, kbTitleName, kbTitleId))
+                    .execute(Tuple.of(id, kbTitleName, kbTitleIdStr == null
+                        ? null : UUID.fromString(kbTitleIdStr)))
                     .compose(rowSet -> {
                       if (rowSet.rowCount() == 0) {
                         return Future.failedFuture("title " + id + " matches nothing");
@@ -188,7 +189,9 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
                       return Future.succeededFuture();
                     }));
           }
-          return future.eventually(x -> sqlConnection.close());
+          return future
+              .eventually(x -> sqlConnection.close())
+              .onFailure(x -> log.error(x.getMessage(), x));
         })
         .compose(x -> {
           ctx.response().setStatusCode(204);
@@ -230,6 +233,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
 
   Future<Void> postFromCounter(Vertx vertx, RoutingContext ctx) {
     return populateCounterReportTitles(vertx, ctx)
+        .onFailure(x -> log.error(x.getMessage(), x))
         .compose(x -> {
           if (Boolean.TRUE.equals(x)) {
             return getReportTitles(vertx, ctx);
@@ -325,7 +329,6 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
 
   Future<UUID> upsertTeEntry(TenantPgPool pool, SqlConnection con, RoutingContext ctx,
                              String counterReportTitle, String printIssn, String onlineIssn) {
-    final String match = onlineIssn != null ? "online:" + onlineIssn : "print:" + printIssn;
     return con.preparedQuery("SELECT id FROM " + titleEntriesTable(pool)
         + " WHERE counterReportTitle = $1")
         .execute(Tuple.of(counterReportTitle))
@@ -345,17 +348,17 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
                   }
                   return con.preparedQuery("WITH x as ("
                       + " INSERT INTO " + titleEntriesTable(pool)
-                      + "(id, counterReportTitle, matchCriteria,"
+                      + "(id, counterReportTitle,"
                       + " kbTitleName, kbTitleId,"
                       + " kbManualMatch, printISSN, onlineISSN)"
-                      + " VALUES ($1, $2, $3, $4, $5, $6, $7, $8)"
+                      + " VALUES ($1, $2, $3, $4, $5, $6, $7)"
                       + " ON CONFLICT (counterReportTitle) DO NOTHING"
                       + " RETURNING id)"
                       + " SELECT id FROM x"
                       + " UNION"
                       + " SELECT id FROM " + titleEntriesTable(pool)
                       + " WHERE counterReportTitle = $2")
-                      .execute(Tuple.of(UUID.randomUUID(), counterReportTitle, match,
+                      .execute(Tuple.of(UUID.randomUUID(), counterReportTitle,
                           kbTitleName, kbTitleId,
                           false, printIssn, onlineIssn))
                       .map(res3 -> res3.iterator().next().getUUID(0));
@@ -378,11 +381,10 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
           }
           return ermTitleLookup(ctx, kbTitleId).compose(erm -> {
             String kbTitleName = erm.getString(1);
-            String match = "online:" + erm.getString(2);
             return con.preparedQuery("INSERT INTO " + titleEntriesTable(pool)
-                + "(id, matchCriteria, kbTitleName, kbTitleId, kbManualMatch)"
-                + " VALUES ($1, $2, $3, $4, $5)")
-                .execute(Tuple.of(UUID.randomUUID(), match, kbTitleName, kbTitleId, false))
+                + "(id, kbTitleName, kbTitleId, kbManualMatch)"
+                + " VALUES ($1, $2, $3, $4)")
+                .execute(Tuple.of(UUID.randomUUID(), kbTitleName, kbTitleId, false))
                 .mapEmpty();
           });
         });
@@ -873,7 +875,6 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
         .query("CREATE TABLE IF NOT EXISTS " + titleEntriesTable(pool) + " ( "
             + "id UUID PRIMARY KEY, "
             + "counterReportTitle text UNIQUE, "
-            + "matchCriteria text, "
             + "kbTitleName text, "
             + "kbTitleId UUID, "
             + "kbManualMatch boolean,"
