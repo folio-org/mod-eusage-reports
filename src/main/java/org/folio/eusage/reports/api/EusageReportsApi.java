@@ -245,14 +245,8 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
   }
 
   static Tuple parseErmTitle(JsonObject resource) {
-    String identifierValue = null;
-    JsonArray identifiers = resource.getJsonArray("identifiers");
-    for (int i = 0; i < identifiers.size(); i++) {
-      JsonObject identifier = identifiers.getJsonObject(i).getJsonObject("identifier");
-      identifierValue = identifier.getString("value");
-    }
     UUID titleId = UUID.fromString(resource.getString("id"));
-    return Tuple.of(titleId, resource.getString("name"), identifierValue);
+    return Tuple.of(titleId, resource.getString("name"));
   }
 
   Future<Tuple> ermTitleLookup(RoutingContext ctx, String identifier) {
