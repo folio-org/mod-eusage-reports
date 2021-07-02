@@ -291,9 +291,9 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     }
     return con.preparedQuery("SELECT id FROM " + titleEntriesTable(pool)
         + " WHERE kbTitleId = $1")
-        .execute(Tuple.of(kbTitleId)).compose(res2 -> {
-          if (res2.iterator().hasNext()) {
-            Row row = res2.iterator().next();
+        .execute(Tuple.of(kbTitleId)).compose(res -> {
+          if (res.iterator().hasNext()) {
+            Row row = res.iterator().next();
             UUID id = row.getUUID(0);
             return con.preparedQuery("UPDATE " + titleEntriesTable(pool)
                 + " SET"
