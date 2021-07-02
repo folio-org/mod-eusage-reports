@@ -536,6 +536,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     final String okapiUrl = stringOrNull(params.headerParameter(XOkapiHeaders.URL));
     final String tenant = stringOrNull(params.headerParameter(XOkapiHeaders.TENANT));
     final String token = stringOrNull(params.headerParameter(XOkapiHeaders.TOKEN));
+    log.info("GET {} request", uri);
     return webClient.request(HttpMethod.GET, new RequestOptions().setAbsoluteURI(okapiUrl + uri))
         .putHeader(XOkapiHeaders.TOKEN, token)
         .putHeader(XOkapiHeaders.TENANT, tenant);
@@ -664,10 +665,10 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
         .map(res -> res.bodyAsJsonObject());
   }
 
-  Future<JsonArray> lookupInvoiceLine(UUID poLineId, RoutingContext ctx) {
+  Future<JsonObject> lookupInvoiceLine(UUID poLineId, RoutingContext ctx) {
     String uri = "/invoice-storage/invoice-lines?query=poLineId%3D%3D" + poLineId;
     return getRequestSend(ctx, uri)
-        .map(res -> res.bodyAsJsonArray());
+        .map(res -> res.bodyAsJsonObject());
   }
 
   Future<JsonObject> lookupPoLine(JsonArray poLinesAr, RoutingContext ctx) {
@@ -691,15 +692,22 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
             totalCost.getDouble("encumberedCost") + cost.getDouble("listUnitPriceElectronic"));
         return Future.succeededFuture();
       }));
-      futures.add(lookupInvoiceLine(poLineId, ctx).compose(invoices -> {
-        for (int j = 0; j < invoices.size(); j++) {
-          JsonObject invoiceLine = invoices.getJsonObject(j);
-          Double thisTotal = invoiceLine.getDouble("total");
-          if (thisTotal != null) {
-            totalCost.put("invoicedCost", thisTotal + totalCost.getDouble("invoicedCost"));
+      futures.add(lookupInvoiceLine(poLineId, ctx).compose(invoiceResponse -> {
+        try {
+          log.info("AD: invoices {}", invoiceResponse.encodePrettily());
+          JsonArray invoices = invoiceResponse.getJsonArray("invoiceLines");
+          for (int j = 0; j < invoices.size(); j++) {
+            JsonObject invoiceLine = invoices.getJsonObject(j);
+            Double thisTotal = invoiceLine.getDouble("total");
+            if (thisTotal != null) {
+              totalCost.put("invoicedCost", thisTotal + totalCost.getDouble("invoicedCost"));
+            }
           }
+          return Future.succeededFuture();
+        } catch (Exception e) {
+          log.error(e.getMessage(), e);
+          return Future.failedFuture(e);
         }
-        return Future.succeededFuture();
       }));
     }
     return GenericCompositeFuture.all(futures).map(totalCost);

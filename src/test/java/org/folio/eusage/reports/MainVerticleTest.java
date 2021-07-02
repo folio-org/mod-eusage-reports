@@ -509,7 +509,7 @@ public class MainVerticleTest {
     );
     ctx.response().setChunked(true);
     ctx.response().putHeader("Content-Type", "application/json");
-    ctx.response().end(ar.encode());
+    ctx.response().end(new JsonObject().put("invoiceLines", ar).encode());
   }
 
   static void getPackageContent(RoutingContext ctx) {
