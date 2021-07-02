@@ -13,9 +13,9 @@ import io.vertx.core.parsetools.JsonParser;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
 import io.vertx.ext.web.client.HttpRequest;
+import io.vertx.ext.web.client.HttpResponse;
 import io.vertx.ext.web.client.WebClient;
 import io.vertx.ext.web.codec.BodyCodec;
-import io.vertx.ext.web.handler.HttpException;
 import io.vertx.ext.web.openapi.RouterBuilder;
 import io.vertx.ext.web.validation.RequestParameter;
 import io.vertx.ext.web.validation.RequestParameters;
@@ -260,12 +260,8 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     // TODO .. this will match any type of identifier.
     // what if there's more than one hit?
     String uri = "/erm/resource?match=identifiers.identifier.value&term=" + identifier;
-    return getRequest(ctx, uri)
-        .send()
+    return getRequestSend(ctx, uri)
         .map(res -> {
-          if (res.statusCode() != 200) {
-            throw new HttpException(res.statusCode(), uri);
-          }
           JsonArray ar = res.bodyAsJsonArray();
           return ar.isEmpty() ? null : parseErmTitle(ar.getJsonObject(0));
         });
@@ -273,26 +269,15 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
 
   Future<Tuple> ermTitleLookup(RoutingContext ctx, UUID id) {
     String uri = "/erm/resource/" + id;
-    return getRequest(ctx, uri)
-        .send()
-        .compose(res -> {
-          if (res.statusCode() != 200) {
-            return Future.failedFuture(uri + " returned " + res.statusCode());
-          }
-          return Future.succeededFuture(res.bodyAsJsonObject());
-        })
-        .map(EusageReportsApi::parseErmTitle);
+    return getRequestSend(ctx, uri)
+        .map(res -> parseErmTitle(res.bodyAsJsonObject()));
   }
 
   Future<List<UUID>> ermPackageContentLookup(RoutingContext ctx, UUID id) {
     // example: /erm/packages/dfb61870-1252-4ece-8f75-db02faf4ab82/content
     String uri = "/erm/packages/" + id + "/content";
-    return getRequest(ctx, uri)
-        .send()
-        .compose(res -> {
-          if (res.statusCode() != 200) {
-            return Future.failedFuture(uri + " returned " + res.statusCode());
-          }
+    return getRequestSend(ctx, uri)
+        .map(res -> {
           JsonArray ar = res.bodyAsJsonArray();
           List<UUID> list = new ArrayList<>();
           for (int i = 0; i < ar.size(); i++) {
@@ -300,7 +285,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
                 .getJsonObject("titleInstance").getString("id"));
             list.add(kbTitleId);
           }
-          return Future.succeededFuture(list);
+          return list;
         });
   }
 
@@ -564,6 +549,19 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
         .putHeader(XOkapiHeaders.TENANT, tenant);
   }
 
+  Future<HttpResponse<Buffer>> getRequestSend(RoutingContext ctx, String uri, int other) {
+    return getRequest(ctx, uri).send().map(res -> {
+      if (res.statusCode() != 200 && res.statusCode() != other) {
+        throw new RuntimeException("GET " + uri + " returned status code " + res.statusCode());
+      }
+      return res;
+    });
+  }
+
+  Future<HttpResponse<Buffer>> getRequestSend(RoutingContext ctx, String uri) {
+    return getRequestSend(ctx, uri, -1);
+  }
+
   Future<Boolean> populateCounterReportTitles(Vertx vertx, RoutingContext ctx) {
     RequestParameters params = ctx.get(ValidationHandler.REQUEST_CONTEXT_KEY);
     final String tenant = stringOrNull(params.headerParameter(XOkapiHeaders.TENANT));
@@ -665,41 +663,20 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
 
   Future<Boolean> agreementExists(RoutingContext ctx, UUID agreementId) {
     final String uri = "/erm/sas/" + agreementId;
-    return getRequest(ctx, uri)
-        .send()
-        .compose(res -> {
-          if (res.statusCode() == 404) {
-            return Future.succeededFuture(false);
-          }
-          if (res.statusCode() != 200) {
-            return Future.failedFuture("GET " + uri + " returned status code " + res.statusCode());
-          }
-          return Future.succeededFuture(true);
-        });
+    return getRequestSend(ctx, uri, 404)
+        .map(res -> res.statusCode() != 404);
   }
 
   Future<JsonObject> lookupOrderLine(UUID poLineId, RoutingContext ctx) {
     String uri = "/orders/order-lines/" + poLineId;
-    return getRequest(ctx, uri)
-        .send()
-        .compose(res -> {
-          if (res.statusCode() != 200) {
-            return Future.failedFuture("GET " + uri + " returned status code " + res.statusCode());
-          }
-          return Future.succeededFuture(res.bodyAsJsonObject());
-        });
+    return getRequestSend(ctx, uri)
+        .map(res -> res.bodyAsJsonObject());
   }
 
   Future<JsonArray> lookupInvoiceLine(UUID poLineId, RoutingContext ctx) {
     String uri = "/invoice-storage/invoice-lines?query=poLineId%3D%3D" + poLineId;
-    return getRequest(ctx, uri)
-        .send()
-        .compose(res -> {
-          if (res.statusCode() != 200) {
-            return Future.failedFuture("GET " + uri + " returned status code " + res.statusCode());
-          }
-          return Future.succeededFuture(res.bodyAsJsonArray());
-        });
+    return getRequestSend(ctx, uri)
+        .map(res -> res.bodyAsJsonArray());
   }
 
   Future<JsonObject> lookupPoLine(JsonArray poLinesAr, RoutingContext ctx) {
@@ -802,13 +779,8 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
             // the call below returns 500 with a stacktrace if agreement ID is no good.
             // example: /erm/entitlements?filters=owner%3D3b6623de-de39-4b43-abbc-998bed892025
             String uri = "/erm/entitlements?filters=owner%3D" + agreementId;
-            return getRequest(ctx, uri)
-                .send()
+            return getRequestSend(ctx, uri)
                 .compose(res -> {
-                  if (res.statusCode() != 200) {
-                    return Future.failedFuture("GET " + uri + " returned status code "
-                        + res.statusCode());
-                  }
                   Future<Void> future = Future.succeededFuture();
                   JsonArray items = res.bodyAsJsonArray();
                   for (int i = 0; i < items.size(); i++) {
