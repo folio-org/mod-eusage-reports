@@ -38,7 +38,12 @@ public class MainVerticleTest {
   static final int MOCK_PORT = 9231;
   static final String pubDateSample = "1998-05-19";
   static final UUID goodKbTitleId = UUID.randomUUID();
+  static final String goodKbTitleISSN = "1000-1002";
+  static final UUID otherKbTitleId = UUID.randomUUID();
+  static final String otherKbTitleISSN = "1000-2000";
+  static final String noMatchKbTitleISSN = "1001-1002";
   static final UUID goodCounterReportId = UUID.randomUUID();
+  static final UUID otherCounterReportId = UUID.randomUUID();
   static final UUID badJsonCounterReportId = UUID.randomUUID();
   static final UUID badStatusCounterReportId = UUID.randomUUID();
   static final UUID goodAgreementId = UUID.randomUUID();
@@ -93,7 +98,7 @@ public class MainVerticleTest {
                         )
                         .add(new JsonObject()
                             .put("type", "ONLINE_ISSN")
-                            .put("value", "1000-1002")
+                            .put("value", goodKbTitleISSN)
                         )
                         .add(new JsonObject()
                             .put("type", "Publication_Date")
@@ -121,7 +126,7 @@ public class MainVerticleTest {
                     )
                 )
                 .add(new JsonObject()
-                    .put("Title", "The dogs journal")
+                    .put("Title", cnt == -1 ? "The other journal" : "The dogs journal")
                     .put("itemDataType", "JOURNAL")
                     .put("Item_ID", new JsonArray()
                         .add(new JsonObject()
@@ -135,7 +140,7 @@ public class MainVerticleTest {
                         )
                         .add(new JsonObject()
                             .put("type", "Online_ISSN")
-                            .put("value", "1001-1002")
+                            .put("value",  cnt == -1 ? otherKbTitleISSN : noMatchKbTitleISSN)
                         )
                     )
                     .put("Performance", new JsonArray()
@@ -247,6 +252,10 @@ public class MainVerticleTest {
       ctx.response().setChunked(true);
       ctx.response().putHeader("Content-Type", "application/json");
       ctx.response().end(getCounterReportMock(id, 0).encode());
+    } else if (id.equals(otherCounterReportId)) {
+        ctx.response().setChunked(true);
+        ctx.response().putHeader("Content-Type", "application/json");
+        ctx.response().end(getCounterReportMock(id, -1).encode());
     } else  if (id.equals(badStatusCounterReportId)) {
       ctx.response().putHeader("Content-Type", "text/plain");
       ctx.response().setStatusCode(403);
@@ -262,25 +271,51 @@ public class MainVerticleTest {
     }
   }
 
+  static JsonObject getKbTitle(UUID kbTitleId) {
+    JsonObject res = new JsonObject();
+    if (goodKbTitleId.equals(kbTitleId)) {
+      res.put("name", "good kb title instance name");
+      res.put("id", kbTitleId);
+      res.put("identifiers", new JsonArray()
+          .add(new JsonObject()
+              .put("identifier", new JsonObject()
+                  .put("value", goodKbTitleISSN)
+              )
+          ));
+    } else if (otherKbTitleId.equals(kbTitleId)) {
+      res.put("name", "other kb title instance name");
+      res.put("id", kbTitleId);
+      res.put("identifiers", new JsonArray()
+          .add(new JsonObject()
+              .put("identifier", new JsonObject()
+                  .put("value", otherKbTitleISSN)
+              )
+          ));
+    } else {
+      res.put("name", "fake kb title instance name");
+      res.put("id", kbTitleId);
+      res.put("identifiers", new JsonArray()
+          .add(new JsonObject()
+              .put("identifier", new JsonObject()
+                  .put("value", "1000-9999")
+              )
+          ));
+    }
+    return res;
+  }
   static void getErmResource(RoutingContext ctx) {
     ctx.response().setChunked(true);
     ctx.response().putHeader("Content-Type", "application/json");
     String term = ctx.request().getParam("term");
     JsonArray ar = new JsonArray();
-
-    // return a known kbTitleId for "The cats journal"
-    UUID kbTitleId = "1000-1002".equals(term) ? goodKbTitleId : UUID.randomUUID();
-    if (!"1001-1002".equals(term)) { // for "The dogs journal" , no kb match
-      ar.add(new JsonObject()
-          .put("id", kbTitleId)
-          .put("name", "fake kb title instance name")
-          .put("identifiers", new JsonArray()
-              .add(new JsonObject()
-                  .put("identifier", new JsonObject()
-                      .put("value", term)
-                  )
-              ))
-      );
+    UUID kbTitleId;
+    switch (term) {
+      case goodKbTitleISSN: kbTitleId = goodKbTitleId; break; // return a known kbTitleId for "The cats journal"
+      case otherKbTitleISSN: kbTitleId = otherKbTitleId; break;
+      default: kbTitleId = UUID.randomUUID();
+    }
+    if (!noMatchKbTitleISSN.equals(term)) { // for "The dogs journal" , no kb match
+      ar.add(getKbTitle(kbTitleId));
     }
     ctx.response().end(ar.encode());
   }
@@ -290,26 +325,16 @@ public class MainVerticleTest {
     int offset = path.lastIndexOf('/');
     UUID id = UUID.fromString(path.substring(offset + 1));
 
-    if (goodKbTitleId.equals(id)) {
-      JsonObject res = new JsonObject();
-      res.put("name", "fake kb title instance name");
-      res.put("id", id);
-      res.put("identifiers", new JsonArray()
-          .add(new JsonObject()
-              .put("identifier", new JsonObject()
-                  .put("value", "1000-1002")
-              )
-          ));
+    if (goodKbTitleId.equals(id) || otherKbTitleId.equals(id)) {
       ctx.response().setChunked(true);
       ctx.response().putHeader("Content-Type", "application/json");
-      ctx.response().end(res.encode());
+      ctx.response().end(getKbTitle(id).encode());
       return;
     }
     ctx.response().putHeader("Content-Type", "text/plain");
     ctx.response().setStatusCode(404);
     ctx.response().end("not found");
   }
-
 
   static void getErmResourceEntitlement(RoutingContext ctx) {
     ctx.response().setChunked(true);
@@ -398,6 +423,17 @@ public class MainVerticleTest {
           );
         } else {
           // fake package content item
+          UUID kbtitleId;
+          switch (i) {
+            case 1:
+              kbtitleId = goodKbTitleId;
+              break;
+            case 2:
+              kbtitleId = otherKbTitleId;
+              break;
+            default:
+              kbtitleId = UUID.randomUUID();
+          }
           ar.add(new JsonObject()
               .put("id", agreementLineIds[i])
               .put("owner", new JsonObject()
@@ -409,7 +445,7 @@ public class MainVerticleTest {
                   .put("_object", new JsonObject()
                       .put("pti", new JsonObject()
                           .put("titleInstance", new JsonObject()
-                              .put("id", i < 2 ? goodKbTitleId : UUID.randomUUID())
+                              .put("id", kbtitleId)
                               .put("publicationType", new JsonObject()
                                   .put("value", "serial")
                               )
@@ -776,17 +812,24 @@ public class MainVerticleTest {
     context.assertEquals(7, titlesAr.size());
     int noDefined = 0;
     int noUndefined = 0;
+    int noGood = 0;
     JsonObject unmatchedTitle = null;
     for (int i = 0; i < titlesAr.size(); i++) {
       if (titlesAr.getJsonObject(i).containsKey("kbTitleName")) {
         noDefined++;
-        context.assertEquals("fake kb title instance name", titlesAr.getJsonObject(i).getString("kbTitleName"));
+        String kbTitleName = titlesAr.getJsonObject(i).getString("kbTitleName");
+        if ("good kb title instance name".equals(kbTitleName)) {
+          noGood++;
+        } else {
+          context.assertEquals("fake kb title instance name", kbTitleName);
+        }
       } else {
         unmatchedTitle = titlesAr.getJsonObject(i);
         context.assertEquals("The dogs journal", unmatchedTitle.getString("counterReportTitle"));
         noUndefined++;
       }
     }
+    context.assertEquals(1, noGood);
     context.assertEquals(6, noDefined);
     context.assertEquals(1, noUndefined);
 
@@ -1063,6 +1106,20 @@ public class MainVerticleTest {
         .extract();
     resObject = new JsonObject(response.body().asString());
     context.assertEquals(4, resObject.getInteger("reportLinesCreated"));
+
+    response = RestAssured.given()
+        .header(XOkapiHeaders.TENANT, tenant)
+        .header(XOkapiHeaders.URL, "http://localhost:" + MOCK_PORT)
+        .header("Content-Type", "application/json")
+        .body(new JsonObject()
+            .put("counterReportId", otherCounterReportId)
+            .encode())
+        .post("/eusage-reports/report-titles/from-counter")
+        .then().statusCode(200)
+        .header("Content-Type", is("application/json"))
+        .extract();
+    resObject = new JsonObject(response.body().asString());
+    context.assertEquals(11, resObject.getJsonArray("titles").size());
 
     response = RestAssured.given()
         .header(XOkapiHeaders.TENANT, tenant)
