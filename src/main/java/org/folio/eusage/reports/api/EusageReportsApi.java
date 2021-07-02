@@ -693,21 +693,15 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
         return Future.succeededFuture();
       }));
       futures.add(lookupInvoiceLine(poLineId, ctx).compose(invoiceResponse -> {
-        try {
-          log.info("AD: invoices {}", invoiceResponse.encodePrettily());
-          JsonArray invoices = invoiceResponse.getJsonArray("invoiceLines");
-          for (int j = 0; j < invoices.size(); j++) {
-            JsonObject invoiceLine = invoices.getJsonObject(j);
-            Double thisTotal = invoiceLine.getDouble("total");
-            if (thisTotal != null) {
-              totalCost.put("invoicedCost", thisTotal + totalCost.getDouble("invoicedCost"));
-            }
+        JsonArray invoices = invoiceResponse.getJsonArray("invoiceLines");
+        for (int j = 0; j < invoices.size(); j++) {
+          JsonObject invoiceLine = invoices.getJsonObject(j);
+          Double thisTotal = invoiceLine.getDouble("total");
+          if (thisTotal != null) {
+            totalCost.put("invoicedCost", thisTotal + totalCost.getDouble("invoicedCost"));
           }
-          return Future.succeededFuture();
-        } catch (Exception e) {
-          log.error(e.getMessage(), e);
-          return Future.failedFuture(e);
         }
+        return Future.succeededFuture();
       }));
     }
     return GenericCompositeFuture.all(futures).map(totalCost);
