@@ -646,6 +646,9 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
               .put("poLineId", row.getUUID(6))
               .put("encumberedCost", row.getNumeric(7))
               .put("invoicedCost", row.getNumeric(8))
+              .put("fiscalYearRange", row.getString(9))
+              .put("subscriptionDateRange", row.getString(10))
+              .put("coverageDateRanges", row.getString(11))
       );
     } catch (Exception e) {
       log.error(e.getMessage(), e);
@@ -701,10 +704,28 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
             totalCost.put("invoicedCost", thisTotal + totalCost.getDouble("invoicedCost"));
           }
         }
+        totalCost.put("subscriptionDateRange", getRanges(invoices,
+            "subscriptionStart", "subscriptionEnd"));
         return Future.succeededFuture();
       }));
     }
     return GenericCompositeFuture.all(futures).map(totalCost);
+  }
+
+  static String getRanges(JsonArray ar, String startProp, String endProp) {
+    if (ar == null) {
+      return null;
+    }
+    for (int i = 0; i < ar.size(); i++) {
+      JsonObject o = ar.getJsonObject(i);
+      String start = o.getString(startProp);
+      String end = o.getString(endProp);
+      // only one range for now..
+      if (start != null) {
+        return "[" + start + "," + (end != null ? end : "today") + "]";
+      }
+    }
+    return null;
   }
 
   Future<Void> populateAgreementLine(TenantPgPool pool, SqlConnection con,
@@ -718,6 +739,8 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
       final UUID agreementLineId = UUID.fromString(agreementLine.getString("id"));
       JsonObject resourceObject = agreementLine.getJsonObject("resource");
       JsonObject underScoreObject = resourceObject.getJsonObject("_object");
+      JsonArray coverage = resourceObject.getJsonArray("coverage");
+      String coverageDateRanges = getRanges(coverage, "startDate", "endDate");
       final String resourceClass = resourceObject.getString("class");
       JsonObject titleInstance = null;
       if (!resourceClass.equals("org.olf.kb.Pkg")) {
@@ -738,12 +761,15 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
                 UUID id = UUID.randomUUID();
                 Number encumberedCost = cost.getDouble("encumberedCost");
                 Number invoicedCost = cost.getDouble("invoicedCost");
+                String subScriptionDateRange = cost.getString("subscriptionDateRange");
                 return con.preparedQuery("INSERT INTO " + agreementEntriesTable(pool)
                     + "(id, kbTitleId, kbPackageId, type,"
-                    + " agreementId, agreementLineId, poLineId, encumberedCost, invoicedCost)"
-                    + " VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)")
+                    + " agreementId, agreementLineId, poLineId, encumberedCost, invoicedCost,"
+                    + " subscriptionDateRange, coverageDateRanges)"
+                    + " VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)")
                     .execute(Tuple.of(id, kbTitleId, kbPackageId, type,
-                        agreementId, agreementLineId, poLineId, encumberedCost, invoicedCost))
+                        agreementId, agreementLineId, poLineId, encumberedCost, invoicedCost,
+                        subScriptionDateRange, coverageDateRanges))
                     .mapEmpty();
               })
       );
@@ -882,7 +908,10 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
             + "agreementLineId UUID, "
             + "poLineId UUID, "
             + "encumberedCost numeric(20, 8), "
-            + "invoicedCost numeric(20, 8)"
+            + "invoicedCost numeric(20, 8), "
+            + "fiscalYearRange daterange, "
+            + "subscriptionDateRange daterange, "
+            + "coverageDateRanges daterange"
             + ")")
         .execute().mapEmpty());
     return future;

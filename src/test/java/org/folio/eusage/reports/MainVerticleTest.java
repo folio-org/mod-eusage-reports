@@ -417,12 +417,20 @@ public class MainVerticleTest {
           );
         } else {
           // fake package content item
+          JsonArray coverage = new JsonArray();
           UUID kbtitleId;
           switch (i) {
             case 1:
+              coverage.add(new JsonObject()
+                  .put("startDate", "2020-03-09")
+                  .put("endDate", "2020-04-05")
+              );
               kbtitleId = goodKbTitleId;
               break;
             case 2:
+              coverage.add(new JsonObject()
+                  .put("startDate", "2021-03-09")
+              );
               kbtitleId = otherKbTitleId;
               break;
             default:
@@ -436,6 +444,7 @@ public class MainVerticleTest {
               .put("resource", new JsonObject()
                   .put("class", "org.olf.kb.PackageContentItem")
                   .put("id", UUID.randomUUID())
+                  .put("coverage", coverage)
                   .put("_object", new JsonObject()
                       .put("pti", new JsonObject()
                           .put("titleInstance", new JsonObject()
@@ -496,12 +505,20 @@ public class MainVerticleTest {
     JsonArray ar = new JsonArray();
     for (int i = 0; i < poLineIds.length; i++) {
       if (poLineId.equals(poLineIds[i])) {
-        ar.add(new JsonObject()
+        {
+          JsonObject invoice = new JsonObject()
             .put("poLineId", poLineId)
             .put("quantity", 1 + i)
             .put("subTotal", 10.0 + i * 5)
-            .put("total", 12.0 + i * 6)
-        );
+            .put("total", 12.0 + i * 6);
+          if (i == 0) {
+            invoice.put("subscriptionStart", "2020-01-01T00:00:00.000+00:00");
+            invoice.put("subscriptionEnd", "2020-12-31T00:00:00.000+00:00");
+          } else {
+            invoice.put("subscriptionStart", "2021-05-01T00:00:00.000+00:00");
+          }
+          ar.add(invoice);
+        }
       }
     }
     ar.add(new JsonObject()
