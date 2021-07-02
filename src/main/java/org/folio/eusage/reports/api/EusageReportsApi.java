@@ -328,22 +328,20 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
                   if (id != null) {
                     return Future.succeededFuture(id);
                   }
-                  return con.preparedQuery("WITH x as ("
-                      + " INSERT INTO " + titleEntriesTable(pool)
+                  return con.preparedQuery(" INSERT INTO " + titleEntriesTable(pool)
                       + "(id, counterReportTitle,"
                       + " kbTitleName, kbTitleId,"
                       + " kbManualMatch, printISSN, onlineISSN)"
                       + " VALUES ($1, $2, $3, $4, $5, $6, $7)"
-                      + " ON CONFLICT (counterReportTitle) DO NOTHING"
-                      + " RETURNING id)"
-                      + " SELECT id FROM x"
-                      + " UNION"
-                      + " SELECT id FROM " + titleEntriesTable(pool)
-                      + " WHERE counterReportTitle = $2")
+                      + " ON CONFLICT (counterReportTitle) DO NOTHING")
                       .execute(Tuple.of(UUID.randomUUID(), counterReportTitle,
                           kbTitleName, kbTitleId,
                           false, printIssn, onlineIssn))
-                      .map(res3 -> res3.iterator().next().getUUID(0));
+                      .compose(x ->
+                          con.preparedQuery("SELECT id FROM " + titleEntriesTable(pool)
+                              + " WHERE counterReportTitle = $1")
+                              .execute(Tuple.of(counterReportTitle))
+                              .map(res2 -> res2.iterator().next().getUUID(0)));
                 });
           });
         });
