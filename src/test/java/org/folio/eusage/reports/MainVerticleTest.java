@@ -514,8 +514,6 @@ public class MainVerticleTest {
           if (i == 0) {
             invoice.put("subscriptionStart", "2020-01-01T00:00:00.000+00:00");
             invoice.put("subscriptionEnd", "2020-12-31T00:00:00.000+00:00");
-          } else {
-            invoice.put("subscriptionStart", "2021-05-01T00:00:00.000+00:00");
           }
           ar.add(invoice);
         }
