@@ -358,7 +358,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
         + " WHERE kbTitleId = $1")
         .execute(Tuple.of(kbTitleId))
         .compose(res -> {
-          if (!res.iterator().hasNext()) {
+          if (res.iterator().hasNext()) {
             return Future.succeededFuture();
           }
           return ermTitleLookup(ctx, kbTitleId).compose(erm -> {
@@ -612,7 +612,6 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
       promise.tryFail("GET " + uri + " returned bad JSON: " + x.getMessage());
     });
     parser.endHandler(e -> {
-      log.error("parser.endHandler");
       GenericCompositeFuture.all(futures)
           .onComplete(x -> promise.handle(x.mapEmpty()));
     });

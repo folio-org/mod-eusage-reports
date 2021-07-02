@@ -325,15 +325,9 @@ public class MainVerticleTest {
     int offset = path.lastIndexOf('/');
     UUID id = UUID.fromString(path.substring(offset + 1));
 
-    if (goodKbTitleId.equals(id) || otherKbTitleId.equals(id)) {
-      ctx.response().setChunked(true);
-      ctx.response().putHeader("Content-Type", "application/json");
-      ctx.response().end(getKbTitle(id).encode());
-      return;
-    }
-    ctx.response().putHeader("Content-Type", "text/plain");
-    ctx.response().setStatusCode(404);
-    ctx.response().end("not found");
+    ctx.response().setChunked(true);
+    ctx.response().putHeader("Content-Type", "application/json");
+    ctx.response().end(getKbTitle(id).encode());
   }
 
   static void getErmResourceEntitlement(RoutingContext ctx) {
@@ -1119,7 +1113,7 @@ public class MainVerticleTest {
         .header("Content-Type", is("application/json"))
         .extract();
     resObject = new JsonObject(response.body().asString());
-    context.assertEquals(11, resObject.getJsonArray("titles").size());
+    context.assertEquals(13, resObject.getJsonArray("titles").size());
 
     response = RestAssured.given()
         .header(XOkapiHeaders.TENANT, tenant)
