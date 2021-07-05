@@ -662,14 +662,72 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
         .map(res -> res.statusCode() != 404);
   }
 
+  /**
+   * Fetch PO line by ID.
+   *
+   * <p>https://github.com/folio-org/acq-models/blob/master/mod-orders-storage/schemas/po_line.json
+   * @param poLineId PO line ID.
+   * @param ctx Routing context.
+   * @return PO line JSON object.
+   */
   Future<JsonObject> lookupOrderLine(UUID poLineId, RoutingContext ctx) {
     String uri = "/orders/order-lines/" + poLineId;
     return getRequestSend(ctx, uri)
         .map(res -> res.bodyAsJsonObject());
   }
 
-  Future<JsonObject> lookupInvoiceLine(UUID poLineId, RoutingContext ctx) {
+  /**
+   * Fetch invoice lines by PO line ID.
+   *
+   * <p>https://github.com/folio-org/acq-models/blob/master/mod-invoice-storage/schemas/invoice_line.json
+   * @param poLineId PO line ID.
+   * @param ctx Routing context.
+   * @return Invoice lines response.
+   */
+  Future<JsonObject> lookupInvoiceLines(UUID poLineId, RoutingContext ctx) {
     String uri = "/invoice-storage/invoice-lines?query=poLineId%3D%3D" + poLineId;
+    return getRequestSend(ctx, uri)
+        .map(res -> res.bodyAsJsonObject());
+  }
+
+  /**
+   * Fetch fund by ID.
+   *
+   * <p>https://github.com/folio-org/acq-models/blob/master/mod-finance/schemas/fund.json
+   * @param fundId fund UUID.
+   * @param ctx Routing Context.
+   * @return Fund object.
+   */
+  Future<JsonObject> lookupFund(UUID fundId, RoutingContext ctx) {
+    String uri = "/finance-storage/funds/" + fundId;
+    return getRequestSend(ctx, uri)
+        .map(res -> res.bodyAsJsonObject());
+  }
+
+  /**
+   * Fetch ledger by ID.
+   *
+   * <p>https://github.com/folio-org/acq-models/blob/master/mod-finance/schemas/ledger.json
+   * @param ledgerId ledger UUID.
+   * @param ctx Routing Context.
+   * @return Ledger object.
+   */
+  Future<JsonObject> lookupLedger(UUID ledgerId, RoutingContext ctx) {
+    String uri = "/finance-storage/ledgers/" + ledgerId;
+    return getRequestSend(ctx, uri)
+        .map(res -> res.bodyAsJsonObject());
+  }
+
+  /**
+   * Fetch fiscal year by ID.
+   *
+   * <p>https://github.com/folio-org/acq-models/blob/master/mod-finance/schemas/fiscal_year.json
+   * @param id fiscal year UUID.
+   * @param ctx Routing Context.
+   * @return Fiscal year object.
+   */
+  Future<JsonObject> lookupFiscalYear(UUID id, RoutingContext ctx) {
+    String uri = "/finance-storage/fiscal-years/" + id;
     return getRequestSend(ctx, uri)
         .map(res -> res.bodyAsJsonObject());
   }
@@ -695,7 +753,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
             totalCost.getDouble("encumberedCost") + cost.getDouble("listUnitPriceElectronic"));
         return Future.succeededFuture();
       }));
-      futures.add(lookupInvoiceLine(poLineId, ctx).compose(invoiceResponse -> {
+      futures.add(lookupInvoiceLines(poLineId, ctx).compose(invoiceResponse -> {
         JsonArray invoices = invoiceResponse.getJsonArray("invoiceLines");
         for (int j = 0; j < invoices.size(); j++) {
           JsonObject invoiceLine = invoices.getJsonObject(j);
@@ -708,6 +766,10 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
             "subscriptionStart", "subscriptionEnd"));
         return Future.succeededFuture();
       }));
+      // https://github.com/folio-org/acq-models/blob/master/mod-finance/schemas/fiscal_year.json
+      // https://github.com/folio-org/acq-models/blob/master/mod-finance/schemas/ledger.json
+      // https://github.com/folio-org/acq-models/blob/master/mod-finance/schemas/fund.json
+      // poline -> fund -> ledger -> fiscal_year
     }
     return GenericCompositeFuture.all(futures).map(totalCost);
   }
