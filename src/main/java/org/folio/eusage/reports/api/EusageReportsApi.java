@@ -664,8 +664,9 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
 
   /**
    * Fetch PO line by ID.
-   *
-   * <p>https://github.com/folio-org/acq-models/blob/master/mod-orders-storage/schemas/po_line.json
+   * @see <a
+   * href="https://github.com/folio-org/acq-models/blob/master/mod-orders-storage/schemas/po_line.json">
+   * po line schema</a>
    * @param poLineId PO line ID.
    * @param ctx Routing context.
    * @return PO line JSON object.
@@ -678,8 +679,12 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
 
   /**
    * Fetch invoice lines by PO line ID.
-   *
-   * <p>https://github.com/folio-org/acq-models/blob/master/mod-invoice-storage/schemas/invoice_line.json
+   * @see <a
+   * href="https://github.com/folio-org/acq-models/blob/master/mod-invoice-storage/schemas/invoice_line.json">
+   * invoice line schema</a>
+   * @see <a
+   * href="https://github.com/folio-org/acq-models/blob/master/mod-invoice-storage/schemas/invoice_line_collection.json">
+   * invoice lines response schema</a>
    * @param poLineId PO line ID.
    * @param ctx Routing context.
    * @return Invoice lines response.
@@ -692,8 +697,9 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
 
   /**
    * Fetch fund by ID.
-   *
-   * <p>https://github.com/folio-org/acq-models/blob/master/mod-finance/schemas/fund.json
+   * @see <a
+   * href="https://github.com/folio-org/acq-models/blob/master/mod-finance/schemas/fund.json">
+   * fund schema</a>
    * @param fundId fund UUID.
    * @param ctx Routing Context.
    * @return Fund object.
@@ -706,8 +712,9 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
 
   /**
    * Fetch ledger by ID.
-   *
-   * <p>https://github.com/folio-org/acq-models/blob/master/mod-finance/schemas/ledger.json
+   * @see <a
+   * href="https://github.com/folio-org/acq-models/blob/master/mod-finance/schemas/ledger.json">
+   * ledger schema</a>
    * @param ledgerId ledger UUID.
    * @param ctx Routing Context.
    * @return Ledger object.
@@ -720,8 +727,9 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
 
   /**
    * Fetch fiscal year by ID.
-   *
-   * <p>https://github.com/folio-org/acq-models/blob/master/mod-finance/schemas/fiscal_year.json
+   * @see <a
+   * href="https://github.com/folio-org/acq-models/blob/master/mod-finance/schemas/fiscal_year.json">
+   * fiscal year schema</a>
    * @param id fiscal year UUID.
    * @param ctx Routing Context.
    * @return Fiscal year object.
@@ -732,26 +740,54 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
         .map(res -> res.bodyAsJsonObject());
   }
 
-  Future<JsonObject> lookupPoLine(JsonArray poLinesAr, RoutingContext ctx) {
+  Future<Void> getFiscalYear(JsonObject poLine, RoutingContext ctx, JsonObject result) {
+    Future<Void> future = Future.succeededFuture();
+    JsonArray fundDistribution = poLine.getJsonArray("fundDistribution");
+    if (fundDistribution == null) {
+      return future;
+    }
+    for (int i = 0; i < fundDistribution.size(); i++) {
+      // fundId is a required property
+      UUID fundId = UUID.fromString(fundDistribution.getJsonObject(i).getString("fundId"));
+      future = future.compose(x -> lookupFund(fundId, ctx).compose(fund -> {
+        // fundStatus not checked. Should we ignore if Inactive?
+        // ledgerId is a required property
+        UUID ledgerId = UUID.fromString(fund.getString("ledgerId"));
+        return lookupLedger(ledgerId, ctx).compose(ledger -> {
+          // fiscalYearOneId is a required property
+          UUID fiscalYearId = UUID.fromString(ledger.getString("fiscalYearOneId"));
+          return lookupFiscalYear(fiscalYearId, ctx).compose(fiscalYear -> {
+            // TODO: determine what happens for multiple fiscalYear
+            // periodStart, periodEnd are required properties
+            result.put("fiscalYear", getRange(fiscalYear, "periodStart", "periodEnd"));
+            return Future.succeededFuture();
+          });
+        });
+      }));
+    }
+    return future;
+  }
+
+  Future<JsonObject> parsePoLines(JsonArray poLinesAr, RoutingContext ctx) {
     List<Future<Void>> futures = new ArrayList<>();
 
-    JsonObject totalCost = new JsonObject();
-    totalCost.put("encumberedCost", 0.0);
-    totalCost.put("invoicedCost", 0.0);
+    JsonObject result = new JsonObject();
+    result.put("encumberedCost", 0.0);
+    result.put("invoicedCost", 0.0);
     for (int i = 0; i < poLinesAr.size(); i++) {
       UUID poLineId = UUID.fromString(poLinesAr.getJsonObject(i).getString("poLineId"));
       futures.add(lookupOrderLine(poLineId, ctx).compose(poLine -> {
         JsonObject cost = poLine.getJsonObject("cost");
-        String currency = totalCost.getString("currency");
+        String currency = result.getString("currency");
         String newCurrency = cost.getString("currency");
         if (currency != null && !currency.equals(newCurrency)) {
           return Future.failedFuture("Mixed currencies (" + currency + ", " + newCurrency
               + ") in order lines " + poLinesAr.encode());
         }
-        totalCost.put("currency", newCurrency);
-        totalCost.put("encumberedCost",
-            totalCost.getDouble("encumberedCost") + cost.getDouble("listUnitPriceElectronic"));
-        return Future.succeededFuture();
+        result.put("currency", newCurrency);
+        result.put("encumberedCost",
+            result.getDouble("encumberedCost") + cost.getDouble("listUnitPriceElectronic"));
+        return getFiscalYear(poLine, ctx, result);
       }));
       futures.add(lookupInvoiceLines(poLineId, ctx).compose(invoiceResponse -> {
         JsonArray invoices = invoiceResponse.getJsonArray("invoiceLines");
@@ -759,10 +795,10 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
           JsonObject invoiceLine = invoices.getJsonObject(j);
           Double thisTotal = invoiceLine.getDouble("total");
           if (thisTotal != null) {
-            totalCost.put("invoicedCost", thisTotal + totalCost.getDouble("invoicedCost"));
+            result.put("invoicedCost", thisTotal + result.getDouble("invoicedCost"));
           }
         }
-        totalCost.put("subscriptionDateRange", getRanges(invoices,
+        result.put("subscriptionDateRange", getRanges(invoices,
             "subscriptionStart", "subscriptionEnd"));
         return Future.succeededFuture();
       }));
@@ -771,7 +807,17 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
       // https://github.com/folio-org/acq-models/blob/master/mod-finance/schemas/fund.json
       // poline -> fund -> ledger -> fiscal_year
     }
-    return GenericCompositeFuture.all(futures).map(totalCost);
+    return GenericCompositeFuture.all(futures).map(result);
+  }
+
+  static String getRange(JsonObject o, String startProp, String endProp) {
+    String start = o.getString(startProp);
+    String end = o.getString(endProp);
+    // only one range for now..
+    if (start != null) {
+      return "[" + start + "," + (end != null ? end : "today") + "]";
+    }
+    return null;
   }
 
   static String getRanges(JsonArray ar, String startProp, String endProp) {
@@ -779,12 +825,9 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
       return null;
     }
     for (int i = 0; i < ar.size(); i++) {
-      JsonObject o = ar.getJsonObject(i);
-      String start = o.getString(startProp);
-      String end = o.getString(endProp);
-      // only one range for now..
-      if (start != null) {
-        return "[" + start + "," + (end != null ? end : "today") + "]";
+      String range = getRange(ar.getJsonObject(i), startProp, endProp);
+      if (range != null) {
+        return range;
       }
     }
     return null;
@@ -797,7 +840,6 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
       JsonArray poLines = agreementLine.getJsonArray("poLines");
       UUID poLineId = poLines.isEmpty()
           ? null : UUID.fromString(poLines.getJsonObject(0).getString("poLineId"));
-      final Future<JsonObject> future = lookupPoLine(poLines, ctx);
       final UUID agreementLineId = UUID.fromString(agreementLine.getString("id"));
       JsonObject resourceObject = agreementLine.getJsonObject("resource");
       JsonObject underScoreObject = resourceObject.getJsonObject("_object");
@@ -817,24 +859,26 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
           ? UUID.fromString(resourceObject.getString("id")) : null;
       String kbPackageName = titleInstance == null
           ? resourceObject.getString("name") : null;
-      return future.compose(cost -> createTitleFromAgreement(pool, con, kbTitleId, ctx)
+      return parsePoLines(poLines, ctx)
+          .compose(poResult -> createTitleFromAgreement(pool, con, kbTitleId, ctx)
               .compose(x -> createPackageFromAgreement(pool, con, kbPackageId, kbPackageName, ctx))
               .compose(x -> {
                 UUID id = UUID.randomUUID();
-                Number encumberedCost = cost.getDouble("encumberedCost");
-                Number invoicedCost = cost.getDouble("invoicedCost");
-                String subScriptionDateRange = cost.getString("subscriptionDateRange");
+                Number encumberedCost = poResult.getDouble("encumberedCost");
+                Number invoicedCost = poResult.getDouble("invoicedCost");
+                String subScriptionDateRange = poResult.getString("subscriptionDateRange");
+                String fiscalYearRange = poResult.getString("fiscalYear");
                 return con.preparedQuery("INSERT INTO " + agreementEntriesTable(pool)
                     + "(id, kbTitleId, kbPackageId, type,"
                     + " agreementId, agreementLineId, poLineId, encumberedCost, invoicedCost,"
-                    + " subscriptionDateRange, coverageDateRanges)"
-                    + " VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)")
+                    + " fiscalYearRange, subscriptionDateRange, coverageDateRanges)"
+                    + " VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)")
                     .execute(Tuple.of(id, kbTitleId, kbPackageId, type,
                         agreementId, agreementLineId, poLineId, encumberedCost, invoicedCost,
-                        subScriptionDateRange, coverageDateRanges))
+                        fiscalYearRange, subScriptionDateRange, coverageDateRanges))
                     .mapEmpty();
               })
-      );
+          );
     } catch (Exception e) {
       log.error("Failed to decode agreementLine: {}", e.getMessage(), e);
       return Future.failedFuture("Failed to decode agreement line: " + e.getMessage());
