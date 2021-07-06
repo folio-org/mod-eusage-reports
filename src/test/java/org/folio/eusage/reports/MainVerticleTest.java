@@ -51,6 +51,9 @@ public class MainVerticleTest {
   static final UUID badStatusAgreementId = UUID.randomUUID();
   static final UUID badStatusAgreementId2 = UUID.randomUUID();
   static final UUID usageProviderId = UUID.randomUUID();
+  static final UUID goodFundId = UUID.randomUUID();
+  static final UUID goodLedgerId = UUID.randomUUID();
+  static final UUID goodFiscalYearId = UUID.randomUUID();
   static final UUID[] agreementLineIds = {
       UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID()
   };
@@ -482,7 +485,14 @@ public class MainVerticleTest {
         orderLine.put("cost", new JsonObject()
             .put("currency", currency)
             .put("listUnitPriceElectronic", 100.0 + (i * i))
-            );
+        );
+        if (i == 0) {
+          orderLine.put("fundDistribution", new JsonArray()
+              .add(new JsonObject()
+                  .put("fundId", goodFundId.toString())
+              )
+          );
+        }
         ctx.response().end(orderLine.encode());
         return;
       }
@@ -552,6 +562,58 @@ public class MainVerticleTest {
     ctx.response().end(ar.encode());
   }
 
+  static void getFund(RoutingContext ctx) {
+    String path = ctx.request().path();
+    int offset = path.lastIndexOf('/');
+    UUID id = UUID.fromString(path.substring(offset + 1));
+    if (id.equals(goodFundId)) {
+      ctx.response().setChunked(true);
+      ctx.response().putHeader("Content-Type", "application/json");
+      JsonObject fund = new JsonObject();
+      fund.put("ledgerId", goodLedgerId.toString());
+      ctx.response().end(fund.encode());
+    } else {
+      ctx.response().putHeader("Content-Type", "text/plain");
+      ctx.response().setStatusCode(404);
+      ctx.response().end("not found");
+    }
+  }
+
+  static void getLedger(RoutingContext ctx) {
+    String path = ctx.request().path();
+    int offset = path.lastIndexOf('/');
+    UUID id = UUID.fromString(path.substring(offset + 1));
+    if (id.equals(goodLedgerId)) {
+      ctx.response().setChunked(true);
+      ctx.response().putHeader("Content-Type", "application/json");
+      JsonObject ledger = new JsonObject();
+      ledger.put("fiscalYearOneId", goodFiscalYearId.toString());
+      ctx.response().end(ledger.encode());
+    } else {
+      ctx.response().putHeader("Content-Type", "text/plain");
+      ctx.response().setStatusCode(404);
+      ctx.response().end("not found");
+    }
+  }
+
+  static void getFiscalYear(RoutingContext ctx) {
+    String path = ctx.request().path();
+    int offset = path.lastIndexOf('/');
+    UUID id = UUID.fromString(path.substring(offset + 1));
+    if (id.equals(goodFiscalYearId)) {
+      ctx.response().setChunked(true);
+      ctx.response().putHeader("Content-Type", "application/json");
+      JsonObject fiscalYear = new JsonObject();
+      fiscalYear.put("periodStart", "2017-01-01T00:00:00Z");
+      fiscalYear.put("periodEnd", "2017-12-31T23:59:59Z");
+      ctx.response().end(fiscalYear.encode());
+    } else {
+      ctx.response().putHeader("Content-Type", "text/plain");
+      ctx.response().setStatusCode(404);
+      ctx.response().end("not found");
+    }
+  }
+
   @BeforeClass
   public static void beforeClass(TestContext context) {
     vertx = Vertx.vertx();
@@ -569,6 +631,9 @@ public class MainVerticleTest {
     router.getWithRegex("/orders/order-lines/[-0-9a-z]*").handler(MainVerticleTest::getOrderLines);
     router.getWithRegex("/invoice-storage/invoice-lines").handler(MainVerticleTest::getInvoiceLines);
     router.getWithRegex("/erm/packages/[-0-9a-z]*/content").handler(MainVerticleTest::getPackageContent);
+    router.getWithRegex("/finance-storage/funds/[-0-9a-z]*").handler(MainVerticleTest::getFund);
+    router.getWithRegex("/finance-storage/ledgers/[-0-9a-z]*").handler(MainVerticleTest::getLedger);
+    router.getWithRegex("/finance-storage/fiscal-years/[-0-9a-z]*").handler(MainVerticleTest::getFiscalYear);
     vertx.createHttpServer()
         .requestHandler(router)
         .listen(MOCK_PORT)
