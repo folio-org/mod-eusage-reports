@@ -64,7 +64,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
 
   static void failHandler(int statusCode, RoutingContext ctx, Throwable e) {
     log.error(e.getMessage(), e);
-    failHandler(statusCode, ctx, e != null ? e.getMessage() : null);
+    failHandler(statusCode, ctx, e.getMessage());
   }
 
   static void failHandler(int statusCode, RoutingContext ctx, String msg) {
