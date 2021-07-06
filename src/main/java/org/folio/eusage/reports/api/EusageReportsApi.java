@@ -611,10 +611,8 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
       log.error("GET {} returned bad JSON: {}", uri, x.getMessage(), x);
       promise.tryFail("GET " + uri + " returned bad JSON: " + x.getMessage());
     });
-    parser.endHandler(e -> {
-      GenericCompositeFuture.all(futures)
-          .onComplete(x -> promise.handle(x.mapEmpty()));
-    });
+    parser.endHandler(e -> GenericCompositeFuture.all(futures)
+        .onComplete(x -> promise.handle(x.mapEmpty())));
     return getRequest(ctx, uri)
         .as(BodyCodec.jsonStream(parser))
         .send()
@@ -675,7 +673,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
   Future<JsonObject> lookupOrderLine(UUID poLineId, RoutingContext ctx) {
     String uri = "/orders/order-lines/" + poLineId;
     return getRequestSend(ctx, uri)
-        .map(res -> res.bodyAsJsonObject());
+        .map(HttpResponse::bodyAsJsonObject);
   }
 
   /**
@@ -693,7 +691,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
   Future<JsonObject> lookupInvoiceLines(UUID poLineId, RoutingContext ctx) {
     String uri = "/invoice-storage/invoice-lines?query=poLineId%3D%3D" + poLineId;
     return getRequestSend(ctx, uri)
-        .map(res -> res.bodyAsJsonObject());
+        .map(HttpResponse::bodyAsJsonObject);
   }
 
   /**
@@ -708,7 +706,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
   Future<JsonObject> lookupFund(UUID fundId, RoutingContext ctx) {
     String uri = "/finance-storage/funds/" + fundId;
     return getRequestSend(ctx, uri)
-        .map(res -> res.bodyAsJsonObject());
+        .map(HttpResponse::bodyAsJsonObject);
   }
 
   /**
@@ -723,7 +721,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
   Future<JsonObject> lookupLedger(UUID ledgerId, RoutingContext ctx) {
     String uri = "/finance-storage/ledgers/" + ledgerId;
     return getRequestSend(ctx, uri)
-        .map(res -> res.bodyAsJsonObject());
+        .map(HttpResponse::bodyAsJsonObject);
   }
 
   /**
