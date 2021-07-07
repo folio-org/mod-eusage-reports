@@ -97,10 +97,6 @@ public class MainVerticleTest {
                         )
                         .add(new JsonObject()
                             .put("type", "PRINT_ISSN")
-                            .put("value", "1000-1001")
-                        )
-                        .add(new JsonObject()
-                            .put("type", "ONLINE_ISSN")
                             .put("value", goodKbTitleISSN)
                         )
                         .add(new JsonObject()
@@ -177,12 +173,8 @@ public class MainVerticleTest {
                             .put("value", "10.10ZZ")
                         )
                         .add(new JsonObject()
-                            .put("type", "PRINT_ISSN")
+                            .put("type", "ISBN")
                             .put("value", "1002-" + String.format("%04d", cnt))
-                        )
-                        .add(new JsonObject()
-                            .put("type", "ONLINE_ISSN")
-                            .put("value", "1003-" + String.format("%04d", cnt))
                         )
                     )
                     .put("itemPerformance", new JsonArray()
@@ -212,10 +204,6 @@ public class MainVerticleTest {
                         .add(new JsonObject()
                             .put("type", "DOI")
                             .put("value", "10.10ZZ")
-                        )
-                        .add(new JsonObject()
-                            .put("type", "PRINT_ISSN")
-                            .put("value", "1002-" + String.format("%04d", cnt))
                         )
                     )
                     .put("itemPerformance", new JsonArray())
@@ -883,7 +871,7 @@ public class MainVerticleTest {
         .extract();
     resObject = new JsonObject(response.body().asString());
     JsonArray titlesAr = resObject.getJsonArray("titles");
-    context.assertEquals(7, titlesAr.size());
+    context.assertEquals(8, titlesAr.size());
     int noDefined = 0;
     int noUndefined = 0;
     int noGood = 0;
@@ -898,14 +886,18 @@ public class MainVerticleTest {
           context.assertEquals("fake kb title instance name", kbTitleName);
         }
       } else {
-        unmatchedTitle = titlesAr.getJsonObject(i);
-        context.assertEquals("The dogs journal", unmatchedTitle.getString("counterReportTitle"));
+        String counterReportTitle = titlesAr.getJsonObject(i).getString("counterReportTitle");
+        if ("The dogs journal".equals(counterReportTitle)) {
+          unmatchedTitle = titlesAr.getJsonObject(i);
+        } else {
+          context.assertEquals("No match", counterReportTitle);
+        }
         noUndefined++;
       }
     }
     context.assertEquals(1, noGood);
     context.assertEquals(6, noDefined);
-    context.assertEquals(1, noUndefined);
+    context.assertEquals(2, noUndefined);
 
     JsonObject postTitleObject = new JsonObject();
     postTitleObject.put("titles", new JsonArray().add(unmatchedTitle));
@@ -928,18 +920,26 @@ public class MainVerticleTest {
         .extract();
     resObject = new JsonObject(response.body().asString());
     titlesAr = resObject.getJsonArray("titles");
-    context.assertEquals(7, titlesAr.size());
+    context.assertEquals(8, titlesAr.size());
     int noManual = 0;
+    noDefined = 0;
+    noUndefined = 0;
     for (int i = 0; i < titlesAr.size(); i++) {
       if (titlesAr.getJsonObject(i).getBoolean("kbManualMatch")) {
         context.assertFalse(titlesAr.getJsonObject(i).containsKey("kbTitleId"));
         context.assertFalse(titlesAr.getJsonObject(i).containsKey("kbTitleName"));
         noManual++;
       } else {
-        context.assertTrue(titlesAr.getJsonObject(i).containsKey("kbTitleName"));
+        if (titlesAr.getJsonObject(i).containsKey("kbTitleName")) {
+          noDefined++;
+        } else {
+          noUndefined++;
+        }
       }
     }
     context.assertEquals(1, noManual);
+    context.assertEquals(6, noDefined);
+    context.assertEquals(1, noUndefined);
 
     // put with kbTitleId kbTitleName
     unmatchedTitle.put("kbTitleName", "correct kb title name");
@@ -961,15 +961,23 @@ public class MainVerticleTest {
         .extract();
     resObject = new JsonObject(response.body().asString());
     titlesAr = resObject.getJsonArray("titles");
-    context.assertEquals(7, titlesAr.size());
+    context.assertEquals(8, titlesAr.size());
     noManual = 0;
+    noDefined = 0;
+    noUndefined = 0;
     for (int i = 0; i < titlesAr.size(); i++) {
-      context.assertTrue(titlesAr.getJsonObject(i).containsKey("kbTitleName"));
+      if (titlesAr.getJsonObject(i).containsKey("kbTitleName")) {
+        noDefined++;
+      } else {
+        noUndefined++;
+      }
       if (titlesAr.getJsonObject(i).getBoolean("kbManualMatch")) {
         noManual++;
       }
     }
     context.assertEquals(1, noManual);
+    context.assertEquals(7, noDefined);
+    context.assertEquals(1, noUndefined);
 
     JsonObject n = new JsonObject();
     n.put("id", UUID.randomUUID());
@@ -1011,7 +1019,7 @@ public class MainVerticleTest {
         .extract();
     resObject = new JsonObject(response.body().asString());
     JsonArray items = resObject.getJsonArray("data");
-    context.assertEquals(15, items.size());
+    context.assertEquals(20, items.size());
     int noWithPubDate = 0;
     for (int i = 0; i < items.size(); i++) {
       JsonObject item = items.getJsonObject(i);
@@ -1036,7 +1044,7 @@ public class MainVerticleTest {
         .header("Content-Type", is("application/json"))
         .extract();
     resObject = new JsonObject(response.body().asString());
-    context.assertEquals(8, resObject.getJsonArray("titles").size());
+    context.assertEquals(9, resObject.getJsonArray("titles").size());
 
     response = RestAssured.given()
         .header(XOkapiHeaders.TENANT, tenant)
@@ -1047,7 +1055,7 @@ public class MainVerticleTest {
         .extract();
     resObject = new JsonObject(response.body().asString());
     titlesAr = resObject.getJsonArray("titles");
-    context.assertEquals(3, titlesAr.size());
+    context.assertEquals(4, titlesAr.size());
 
     RestAssured.given()
         .header(XOkapiHeaders.TENANT, tenant)
@@ -1065,7 +1073,7 @@ public class MainVerticleTest {
         .extract();
     resObject = new JsonObject(response.body().asString());
     titlesAr = resObject.getJsonArray("titles");
-    context.assertEquals(8, titlesAr.size());
+    context.assertEquals(9, titlesAr.size());
 
     response = RestAssured.given()
         .header(XOkapiHeaders.TENANT, tenant)
@@ -1193,7 +1201,7 @@ public class MainVerticleTest {
         .header("Content-Type", is("application/json"))
         .extract();
     resObject = new JsonObject(response.body().asString());
-    context.assertEquals(13, resObject.getJsonArray("titles").size());
+    context.assertEquals(14, resObject.getJsonArray("titles").size());
 
     response = RestAssured.given()
         .header(XOkapiHeaders.TENANT, tenant)

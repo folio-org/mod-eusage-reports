@@ -250,11 +250,16 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     return Tuple.of(titleId, resource.getString("name"));
   }
 
-  Future<Tuple> ermTitleLookup(RoutingContext ctx, String identifier) {
+  Future<Tuple> ermTitleLookup(RoutingContext ctx, String identifier, String type) {
     // assuming identifier only has unreserved characters
     // TODO .. this will match any type of identifier.
     // what if there's more than one hit?
-    String uri = "/erm/resource?match=identifiers.identifier.value&term=" + identifier;
+    if (identifier == null) {
+      return Future.succeededFuture();
+    }
+    String uri = "/erm/resource?"
+        + "match=identifiers.identifier.value&term=" + identifier
+        + "&filters=identifiers.identifier.ns.value%3D" + type;
     return getRequestSend(ctx, uri)
         .map(res -> {
           JsonArray ar = res.bodyAsJsonArray();
@@ -311,7 +316,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
 
   Future<UUID> upsertTitleEntryCounterReport(TenantPgPool pool, SqlConnection con,
                                              RoutingContext ctx, String counterReportTitle,
-                                             String printIssn, String onlineIssn) {
+                                             String printIssn, String onlineIssn, String isbn) {
     return con.preparedQuery("SELECT id FROM " + titleEntriesTable(pool)
         + " WHERE counterReportTitle = $1")
         .execute(Tuple.of(counterReportTitle))
@@ -320,7 +325,20 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
             Row row = res1.iterator().next();
             return Future.succeededFuture(row.getUUID(0));
           }
-          return ermTitleLookup(ctx, onlineIssn).compose(erm -> {
+          String identifier = null;
+          String type = null;
+          if (onlineIssn != null) {
+            identifier = onlineIssn;
+            type = "issn";
+          } else if (printIssn != null) {
+            identifier = printIssn;
+            type = "issn";
+          } else if (isbn != null) {
+            // ERM seem to have ISBNs without hyphen
+            identifier = isbn.replace("-", "");
+            type = "isbn";
+          }
+          return ermTitleLookup(ctx, identifier, type).compose(erm -> {
             UUID kbTitleId = erm != null ? erm.getUUID(0) : null;
             String kbTitleName = erm != null ? erm.getString(1) : null;
             return updateTitleEntryByKbTitle(pool, con, kbTitleId,
@@ -482,8 +500,11 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
         if ("ONLINE_ISSN".equals(type) || "Online_ISSN".equals(type)) {
           ret.put("onlineISSN", value);
         }
-        if ("PRINT_ISBN".equals(type) || "Print_ISBN".equals(type)) {
+        if ("PRINT_ISSN".equals(type) || "Print_ISSN".equals(type)) {
           ret.put("printISSN", value);
+        }
+        if ("ISBN".equals(type)) {
+          ret.put("ISBN", value);
         }
         if ("Publication_Date".equals(type)) {
           ret.put(type, value);
@@ -510,20 +531,18 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     final JsonObject identifiers = getIssnIdentifiers(reportItem);
     final String onlineIssn = identifiers.getString("onlineISSN");
     final String printIssn = identifiers.getString("printISSN");
+    final String isbn = identifiers.getString("ISBN");
     final String publicationDate = identifiers.getString("Publication_Date");
     final String counterReportTitle = reportItem.getString(altKey(reportItem,
         "itemName", "Title"));
     log.debug("handleReport title={} match={}", counterReportTitle, onlineIssn);
-    if (onlineIssn == null) {
-      return Future.succeededFuture();
-    }
     return pool.getConnection().compose(con -> con.begin().compose(tx -> {
       Future<Void> future = Future.succeededFuture();
       final int totalAccessCount = getTotalCount(reportItem, "Total_Item_Requests");
       final int uniqueAccessCount = getTotalCount(reportItem, "Unique_Item_Requests");
       future = future.compose(x ->
           upsertTitleEntryCounterReport(pool, con, ctx, counterReportTitle,
-              printIssn, onlineIssn)
+              printIssn, onlineIssn, isbn)
               .compose(titleEntryId -> insertTdEntry(pool, con, titleEntryId, counterReportId,
                   counterReportTitle,  providerId, publicationDate, usageDateRange,
                   uniqueAccessCount, totalAccessCount))
