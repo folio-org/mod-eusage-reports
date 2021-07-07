@@ -39,6 +39,7 @@ public class MainVerticleTest {
   static final String pubDateSample = "1998-05-19";
   static final UUID goodKbTitleId = UUID.randomUUID();
   static final String goodKbTitleISSN = "1000-1002";
+  static final String goodDoiValue = "publisherA:Code123";
   static final UUID otherKbTitleId = UUID.randomUUID();
   static final String otherKbTitleISSN = "1000-2000";
   static final String noMatchKbTitleISSN = "1001-1002";
@@ -93,7 +94,7 @@ public class MainVerticleTest {
                     .put("itemIdentifier", new JsonArray()
                         .add(new JsonObject()
                             .put("type", "DOI")
-                            .put("value", "10.10XX")
+                            .put("value", goodDoiValue)
                         )
                         .add(new JsonObject()
                             .put("type", "PRINT_ISSN")
@@ -129,14 +130,10 @@ public class MainVerticleTest {
                     .put("itemDataType", "JOURNAL")
                     .put("Item_ID", new JsonArray()
                         .add(new JsonObject()
-                            .put("type", "DOI")
-                            .put("value", "10.10YY")
-                        )
-                        .add(null)
-                        .add(new JsonObject()
                             .put("type", "Print_ISSN")
                             .put("value", "1001-1001")
                         )
+                        .add(null)
                         .add(new JsonObject()
                             .put("type", "Online_ISSN")
                             .put("value",  cnt == -1 ? otherKbTitleISSN : noMatchKbTitleISSN)
@@ -169,12 +166,8 @@ public class MainVerticleTest {
                     .put("itemDataType", "JOURNAL")
                     .put("itemIdentifier", new JsonArray()
                         .add(new JsonObject()
-                            .put("type", "DOI")
-                            .put("value", "10.10ZZ")
-                        )
-                        .add(new JsonObject()
                             .put("type", "ISBN")
-                            .put("value", "1002-" + String.format("%04d", cnt))
+                            .put("value", "978-3-16-148410-" + String.format("%d", cnt))
                         )
                     )
                     .put("itemPerformance", new JsonArray()
@@ -202,7 +195,7 @@ public class MainVerticleTest {
                     .put("itemDataType", "JOURNAL")
                     .put("itemIdentifier", new JsonArray()
                         .add(new JsonObject()
-                            .put("type", "DOI")
+                            .put("type", "Proprietary_ID")
                             .put("value", "10.10ZZ")
                         )
                     )
@@ -877,18 +870,19 @@ public class MainVerticleTest {
     int noGood = 0;
     JsonObject unmatchedTitle = null;
     for (int i = 0; i < titlesAr.size(); i++) {
-      if (titlesAr.getJsonObject(i).containsKey("kbTitleName")) {
+      JsonObject title = titlesAr.getJsonObject(i);
+      if (title.containsKey("kbTitleName")) {
         noDefined++;
-        String kbTitleName = titlesAr.getJsonObject(i).getString("kbTitleName");
+        String kbTitleName = title.getString("kbTitleName");
         if ("good kb title instance name".equals(kbTitleName)) {
           noGood++;
         } else {
           context.assertEquals("fake kb title instance name", kbTitleName);
         }
       } else {
-        String counterReportTitle = titlesAr.getJsonObject(i).getString("counterReportTitle");
+        String counterReportTitle = title.getString("counterReportTitle");
         if ("The dogs journal".equals(counterReportTitle)) {
-          unmatchedTitle = titlesAr.getJsonObject(i);
+          unmatchedTitle = title;
         } else {
           context.assertEquals("No match", counterReportTitle);
         }
@@ -925,12 +919,19 @@ public class MainVerticleTest {
     noDefined = 0;
     noUndefined = 0;
     for (int i = 0; i < titlesAr.size(); i++) {
-      if (titlesAr.getJsonObject(i).getBoolean("kbManualMatch")) {
-        context.assertFalse(titlesAr.getJsonObject(i).containsKey("kbTitleId"));
-        context.assertFalse(titlesAr.getJsonObject(i).containsKey("kbTitleName"));
+      JsonObject title = titlesAr.getJsonObject(i);
+      String counterReportTitle = title.getString("counterReportTitle");
+      if ("The cats journal".equals(counterReportTitle)) {
+        context.assertEquals(goodDoiValue, title.getString("DOI"));
+      } else {
+        context.assertFalse(title.containsKey("DOI"), title.encodePrettily());
+      }
+      if (title.getBoolean("kbManualMatch")) {
+        context.assertFalse(title.containsKey("kbTitleId"));
+        context.assertFalse(title.containsKey("kbTitleName"));
         noManual++;
       } else {
-        if (titlesAr.getJsonObject(i).containsKey("kbTitleName")) {
+        if (title.containsKey("kbTitleName")) {
           noDefined++;
         } else {
           noUndefined++;
@@ -966,12 +967,13 @@ public class MainVerticleTest {
     noDefined = 0;
     noUndefined = 0;
     for (int i = 0; i < titlesAr.size(); i++) {
-      if (titlesAr.getJsonObject(i).containsKey("kbTitleName")) {
+      JsonObject title = titlesAr.getJsonObject(i);
+      if (title.containsKey("kbTitleName")) {
         noDefined++;
       } else {
         noUndefined++;
       }
-      if (titlesAr.getJsonObject(i).getBoolean("kbManualMatch")) {
+      if (title.getBoolean("kbManualMatch")) {
         noManual++;
       }
     }

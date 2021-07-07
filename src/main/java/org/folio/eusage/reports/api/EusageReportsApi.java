@@ -154,6 +154,10 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
               .put("kbTitleName", row.getString(2))
               .put("kbTitleId", row.getUUID(3))
               .put("kbManualMatch", row.getBoolean(4))
+              .put("printISSN", row.getString(5))
+              .put("onlineISSN", row.getString(6))
+              .put("ISBN", row.getString(7))
+              .put("DOI", row.getString(8))
       );
     } catch (Exception e) {
       log.error(e.getMessage(), e);
@@ -291,32 +295,35 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
 
   Future<UUID> updateTitleEntryByKbTitle(TenantPgPool pool, SqlConnection con, UUID kbTitleId,
                                          String counterReportTitle, String printIssn,
-                                         String onlineIssn) {
+                                         String onlineIssn, String isbn, String doi) {
     if (kbTitleId == null) {
       return Future.succeededFuture(null);
     }
     return con.preparedQuery("SELECT id FROM " + titleEntriesTable(pool)
         + " WHERE kbTitleId = $1")
         .execute(Tuple.of(kbTitleId)).compose(res -> {
-          if (res.iterator().hasNext()) {
-            Row row = res.iterator().next();
-            UUID id = row.getUUID(0);
-            return con.preparedQuery("UPDATE " + titleEntriesTable(pool)
-                + " SET"
-                + " counterReportTitle = $2,"
-                + " printISSN = $3,"
-                + " onlineISSN = $4"
-                + " WHERE id = $1")
-                .execute(Tuple.of(id, counterReportTitle, printIssn, onlineIssn))
-                .map(id);
+          if (!res.iterator().hasNext()) {
+            return Future.succeededFuture(null);
           }
-          return Future.succeededFuture(null);
+          Row row = res.iterator().next();
+          UUID id = row.getUUID(0);
+          return con.preparedQuery("UPDATE " + titleEntriesTable(pool)
+              + " SET"
+              + " counterReportTitle = $2,"
+              + " printISSN = $3,"
+              + " onlineISSN = $4,"
+              + " ISBN = $5,"
+              + " DOI = $6"
+              + " WHERE id = $1")
+              .execute(Tuple.of(id, counterReportTitle, printIssn, onlineIssn, isbn, doi))
+              .map(id);
         });
   }
 
   Future<UUID> upsertTitleEntryCounterReport(TenantPgPool pool, SqlConnection con,
                                              RoutingContext ctx, String counterReportTitle,
-                                             String printIssn, String onlineIssn, String isbn) {
+                                             String printIssn, String onlineIssn, String isbn,
+                                             String doi) {
     return con.preparedQuery("SELECT id FROM " + titleEntriesTable(pool)
         + " WHERE counterReportTitle = $1")
         .execute(Tuple.of(counterReportTitle))
@@ -342,7 +349,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
             UUID kbTitleId = erm != null ? erm.getUUID(0) : null;
             String kbTitleName = erm != null ? erm.getString(1) : null;
             return updateTitleEntryByKbTitle(pool, con, kbTitleId,
-                counterReportTitle, printIssn, onlineIssn)
+                counterReportTitle, printIssn, onlineIssn, isbn, doi)
                 .compose(id -> {
                   if (id != null) {
                     return Future.succeededFuture(id);
@@ -350,12 +357,12 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
                   return con.preparedQuery(" INSERT INTO " + titleEntriesTable(pool)
                       + "(id, counterReportTitle,"
                       + " kbTitleName, kbTitleId,"
-                      + " kbManualMatch, printISSN, onlineISSN)"
-                      + " VALUES ($1, $2, $3, $4, $5, $6, $7)"
+                      + " kbManualMatch, printISSN, onlineISSN, ISBN, DOI)"
+                      + " VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)"
                       + " ON CONFLICT (counterReportTitle) DO NOTHING")
                       .execute(Tuple.of(UUID.randomUUID(), counterReportTitle,
                           kbTitleName, kbTitleId,
-                          false, printIssn, onlineIssn))
+                          false, printIssn, onlineIssn, isbn, doi))
                       .compose(x ->
                           con.preparedQuery("SELECT id FROM " + titleEntriesTable(pool)
                               + " WHERE counterReportTitle = $1")
@@ -506,6 +513,9 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
         if ("ISBN".equals(type)) {
           ret.put("ISBN", value);
         }
+        if ("DOI".equals(type)) {
+          ret.put("DOI", value);
+        }
         if ("Publication_Date".equals(type)) {
           ret.put(type, value);
         }
@@ -532,6 +542,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     final String onlineIssn = identifiers.getString("onlineISSN");
     final String printIssn = identifiers.getString("printISSN");
     final String isbn = identifiers.getString("ISBN");
+    final String doi = identifiers.getString("DOI");
     final String publicationDate = identifiers.getString("Publication_Date");
     final String counterReportTitle = reportItem.getString(altKey(reportItem,
         "itemName", "Title"));
@@ -542,7 +553,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
       final int uniqueAccessCount = getTotalCount(reportItem, "Unique_Item_Requests");
       future = future.compose(x ->
           upsertTitleEntryCounterReport(pool, con, ctx, counterReportTitle,
-              printIssn, onlineIssn, isbn)
+              printIssn, onlineIssn, isbn, doi)
               .compose(titleEntryId -> insertTdEntry(pool, con, titleEntryId, counterReportId,
                   counterReportTitle,  providerId, publicationDate, usageDateRange,
                   uniqueAccessCount, totalAccessCount))
@@ -575,6 +586,15 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     return getRequestSend(ctx, uri, -1);
   }
 
+  /**
+   * Populate counter reports.
+   * @see <a
+   * href="https://www.projectcounter.org/code-of-practice-five-sections/3-0-technical-specifications/">
+   * Counter reports specification</a>
+   * @param vertx Vertx. context.
+   * @param ctx Routing Context
+   * @return Result with True if found; False if counter report not found.
+   */
   Future<Boolean> populateCounterReportTitles(Vertx vertx, RoutingContext ctx) {
     RequestParameters params = ctx.get(ValidationHandler.REQUEST_CONTEXT_KEY);
     final String tenant = stringOrNull(params.headerParameter(XOkapiHeaders.TENANT));
@@ -996,9 +1016,11 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
             + "counterReportTitle text UNIQUE, "
             + "kbTitleName text, "
             + "kbTitleId UUID, "
-            + "kbManualMatch boolean,"
-            + "printISSN text,"
-            + "onlineISSN text"
+            + "kbManualMatch boolean, "
+            + "printISSN text, "
+            + "onlineISSN text, "
+            + "ISBN text, "
+            + "DOI text"
             + ")")
         .execute().mapEmpty();
     future = future.compose(x -> pool

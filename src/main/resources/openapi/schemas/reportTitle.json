@@ -21,6 +21,22 @@
     "kbManualMatch": {
       "type": "boolean",
       "description": "whether the counter title to kb title is manual"
+    },
+    "printISSN": {
+      "type": "string",
+      "description": "ISSN for print instance"
+    },
+    "onlineISSN": {
+      "type": "string",
+      "description": "ISSN for online instance"
+    },
+    "ISBN": {
+      "type": "string",
+      "description": "ISBN-13 with hyphens"
+    },
+    "DOI": {
+      "type": "string",
+      "description": "Digital Object identifier"
     }
   },
   "additionalProperties": false,
