@@ -39,7 +39,7 @@
           "methods": [ "POST" ],
           "pathPattern": "/eusage-reports/report-titles/from-counter",
           "permissionsRequired": [ "eusage-reports-report-titles-from-counter.post" ],
-	  "modulePermissions": [
+          "modulePermissions": [
             "counterreports.collection.get",
             "counterreports.item.get",
             "erm.entitlements.collection.get",
@@ -66,7 +66,7 @@
           "methods": [ "POST" ],
           "pathPattern": "/eusage-reports/report-data/from-agreement",
           "permissionsRequired": [ "eusage-reports-report-data-from-agreement.post" ],
-	  "modulePermissions": [
+          "modulePermissions": [
             "erm.agreements.collection.get",
             "erm.agreements.item.resources.get",
             "erm.agreements.item.get",
@@ -77,11 +77,14 @@
             "erm.resources.collection.get",
             "erm.resources.item.entitlement.get",
             "erm.resources.item.get",
-	    "orders.po-lines.item.get",
-	    "invoice-storage.invoice-lines.collection.get",
-	    "invoice-storage.invoice-lines.item.get"
-	  ]
-	}
+            "orders.po-lines.item.get",
+            "invoice-storage.invoice-lines.collection.get",
+            "invoice-storage.invoice-lines.item.get",
+            "finance-storage.funds.item.get",
+            "finance-storage.ledgers.item.get",
+            "finance-storage.fiscal-years.item.get"
+          ]
+        }
       ]
     }
   ],
@@ -117,8 +120,19 @@
     {
       "id" : "invoice-storage.invoice-lines",
       "version" : "4.0"
+    },
+    {
+      "id" : "finance-storage.funds",
+      "version" : "3.0"
+    },
+    {
+      "id" : "finance-storage.ledgers",
+      "version" : "3.0"
+    },
+    {
+      "id" : "finance-storage.fiscal-years",
+      "version" : "2.1"
     }
-
   ],
   "permissionSets" : [
     {
