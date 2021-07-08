@@ -23,13 +23,13 @@ paths:
       - in: query
         name: offset
         required: false
-        description: Skip over number of elements (0 is first item)
+        description: Skip over number of elements (default is 0 and first element)
         schema:
           type: integer
       - in: query
         name: limit
         required: false
-        description: Limit the number of elements returned in the response
+        description: Limit the number of elements returned in the response (default 10)
         schema:
           type: integer
     get:
@@ -69,13 +69,13 @@ paths:
       - in: query
         name: offset
         required: false
-        description: Skip over number of elements (0 is first item)
+        description: Skip over number of elements (default is 0 and first element)
         schema:
           type: integer
       - in: query
         name: limit
         required: false
-        description: Limit the number of elements returned in the response
+        description: Limit the number of elements returned in the response (default 10)
         schema:
           type: integer
     post:
@@ -107,13 +107,13 @@ paths:
       - in: query
         name: offset
         required: false
-        description: Skip over number of elements (0 is first item)
+        description: Skip over number of elements (default is 0 and first element)
         schema:
           type: integer
       - in: query
         name: limit
         required: false
-        description: Limit the number of elements returned in the response
+        description: Limit the number of elements returned in the response (default 10)
         schema:
           type: integer
     get:
@@ -138,13 +138,13 @@ paths:
       - in: query
         name: offset
         required: false
-        description: Skip over number of elements (0 is first item)
+        description: Skip over number of elements (default is 0 and first element)
         schema:
           type: integer
       - in: query
         name: limit
         required: false
-        description: Limit the number of elements returned in the response
+        description: Limit the number of elements returned in the response (default 10)
         schema:
           type: integer
     get:
