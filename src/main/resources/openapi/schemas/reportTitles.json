@@ -1,5 +1,5 @@
 {
-  "description": "report titles",
+  "description": "report titles (for both request and response)",
   "type": "object",
   "properties": {
     "titles": {
@@ -18,6 +18,6 @@
   },
   "additionalProperties": false,
   "required": [
-    "titles", "resultInfo"
+    "titles"
   ]
 }
