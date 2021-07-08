@@ -89,7 +89,6 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
   }
 
   static void resultFooter(RoutingContext ctx, Integer count, String diagnostic) {
-    ctx.response().write("], \"totalRecords\":" + count + ",");
     JsonObject resultInfo = new JsonObject();
     resultInfo.put("totalRecords", count);
     JsonArray diagnostics = new JsonArray();
@@ -98,8 +97,8 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     }
     resultInfo.put("diagnostics", diagnostics);
     resultInfo.put("facets", new JsonArray());
-    ctx.response().write("\"resultInfo\": " + resultInfo.encode());
-    ctx.response().end("}");
+    ctx.response().write("], \"resultInfo\": " + resultInfo.encode() + "}");
+    ctx.response().end();
   }
 
   static Future<Void> streamResult(RoutingContext ctx, SqlConnection sqlConnection,
@@ -126,9 +125,9 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
                       Integer count = cntRes.iterator().next().getInteger(0);
                       resultFooter(ctx, count, null);
                     })
-                    .onFailure(e -> {
-                      log.error(e.getMessage(), e);
-                      resultFooter(ctx, 0, e.getMessage());
+                    .onFailure(f -> {
+                      log.error(f.getMessage(), f);
+                      resultFooter(ctx, 0, f.getMessage());
                     })
                     .eventually(x -> tx.commit());
               });

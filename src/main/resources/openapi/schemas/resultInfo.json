@@ -1,0 +1,24 @@
+{
+  "description": "Common result set information for streaming response",
+  "type": "object",
+  "properties": {
+    "totalRecords": {
+      "description": "Total number of entries in response",
+      "type": "integer"
+    },
+    "diagnostics": {
+      "description": "Diagnostics for response",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "description": "single diagnostic message",
+            "type": "string"
+          }
+        }
+      }
+    }
+  },
+  "additionalProperties": false
+}

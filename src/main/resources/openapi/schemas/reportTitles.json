@@ -9,10 +9,15 @@
         "type": "object",
         "$ref": "reportTitle.json"
       }
+    },
+    "resultInfo": {
+      "description": "Common result set information",
+      "type": "object",
+      "$ref" : "resultInfo.json"
     }
   },
   "additionalProperties": false,
   "required": [
-    "titles"
+    "titles", "resultInfo"
   ]
 }
