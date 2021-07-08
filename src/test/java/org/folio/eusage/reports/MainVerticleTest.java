@@ -838,6 +838,9 @@ public class MainVerticleTest {
         .extract();
     JsonObject resObject = new JsonObject(response.body().asString());
     context.assertEquals(0, resObject.getJsonArray("titles").size());
+    context.assertEquals(0, resObject.getInteger("totalRecords"));
+    context.assertEquals(0, resObject.getJsonObject("resultInfo").getInteger("totalRecords"));
+    context.assertEquals(0, resObject.getJsonObject("resultInfo").getJsonArray("diagnostics").size());
 
     tenantOp(context, tenant, new JsonObject()
         .put("module_from", "mod-eusage-reports-1.0.0")
@@ -863,6 +866,9 @@ public class MainVerticleTest {
         .header("Content-Type", is("application/json"))
         .extract();
     resObject = new JsonObject(response.body().asString());
+    context.assertEquals(8, resObject.getInteger("totalRecords"));
+    context.assertEquals(8, resObject.getJsonObject("resultInfo").getInteger("totalRecords"));
+    context.assertEquals(0, resObject.getJsonObject("resultInfo").getJsonArray("diagnostics").size());
     JsonArray titlesAr = resObject.getJsonArray("titles");
     context.assertEquals(8, titlesAr.size());
     int noDefined = 0;

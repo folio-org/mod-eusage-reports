@@ -88,52 +88,72 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     return n;
   }
 
-  private static void endHandler(RoutingContext ctx, SqlConnection sqlConnection, Transaction tx) {
-    ctx.response().write("] }");
-    ctx.response().end();
-    tx.commit().compose(x -> sqlConnection.close());
+  static void resultFooter(RoutingContext ctx, Integer count, String diagnostic) {
+    ctx.response().write("], \"totalRecords\":" + count + ",");
+    JsonObject resultInfo = new JsonObject();
+    resultInfo.put("totalRecords", count);
+    JsonArray diagnostics = new JsonArray();
+    if (diagnostic != null) {
+      diagnostics.add(new JsonObject().put("message", diagnostic));
+    }
+    resultInfo.put("diagnostics", diagnostics);
+    resultInfo.put("facets", new JsonArray());
+    ctx.response().write("\"resultInfo\": " + resultInfo.encode());
+    ctx.response().end("}");
   }
 
-  private static void endStream(RowStream<Row> stream, RoutingContext ctx,
-                         SqlConnection sqlConnection, Transaction tx) {
-    stream.endHandler(end -> endHandler(ctx, sqlConnection, tx));
-    stream.exceptionHandler(e -> {
-      log.error("stream error {}", e.getMessage(), e);
-      endHandler(ctx, sqlConnection, tx);
-    });
-  }
-
-  static Future<Void> streamResult(RoutingContext ctx, TenantPgPool pool, String distinct, String from,
+  static Future<Void> streamResult(RoutingContext ctx, SqlConnection sqlConnection,
+                                   String query, String cnt,
                                    String property, Function<Row, JsonObject> handler) {
-    String query = "SELECT " + (distinct != null ? "DISTINCT ON (" + distinct + ")" : "") + " * FROM " + from;
+    return sqlConnection.prepare(query)
+        .<Void>compose(pq ->
+            sqlConnection.begin().compose(tx -> {
+              ctx.response().setChunked(true);
+              ctx.response().putHeader("Content-Type", "application/json");
+              ctx.response().write("{ \"" + property + "\" : [");
+              AtomicBoolean first = new AtomicBoolean(true);
+              RowStream<Row> stream = pq.createStream(50);
+              stream.handler(row -> {
+                if (!first.getAndSet(false)) {
+                  ctx.response().write(",");
+                }
+                JsonObject response = handler.apply(row);
+                ctx.response().write(copyWithoutNulls(response).encode());
+              });
+              stream.endHandler(end -> {
+                sqlConnection.query(cnt).execute()
+                    .onSuccess(cntRes -> {
+                      Integer count = cntRes.iterator().next().getInteger(0);
+                      resultFooter(ctx, count, null);
+                    })
+                    .onFailure(e -> {
+                      log.error(e.getMessage(), e);
+                      resultFooter(ctx, 0, e.getMessage());
+                    })
+                    .eventually(x -> tx.commit());
+              });
+              stream.exceptionHandler(e -> {
+                log.error("stream error {}", e.getMessage(), e);
+                resultFooter(ctx, 0, e.getMessage());
+                tx.commit();
+              });
+              return Future.succeededFuture();
+            })
+        );
+  }
+
+  static Future<Void> streamResult(RoutingContext ctx, TenantPgPool pool,
+                                   String distinct, String from,
+                                   String property, Function<Row, JsonObject> handler) {
+    String query = "SELECT " + (distinct != null ? "DISTINCT ON (" + distinct + ")" : "")
+        + " * FROM " + from;
     log.info("query={}", query);
-    String cnt = "SELECT COUNT(" + (distinct != null ? "DISTINCT " + distinct : "*") + ") FROM " + from;
+    String cnt = "SELECT COUNT(" + (distinct != null ? "DISTINCT " + distinct : "*")
+        + ") FROM " + from;
     log.info("cnt={}", cnt);
-    return pool.getConnection().compose(sqlConnection ->
-      sqlConnection.query(cnt).execute().compose(cntRes -> {
-        Integer count = cntRes.iterator().next().getInteger(0);
-        log.info("AD: count={}", count);
-        return sqlConnection.prepare(query)
-            .<Void>compose(pq ->
-                sqlConnection.begin().compose(tx -> {
-                  ctx.response().setChunked(true);
-                  ctx.response().putHeader("Content-Type", "application/json");
-                  ctx.response().write("{ \"" + property + "\" : [");
-                  AtomicBoolean first = new AtomicBoolean(true);
-                  RowStream<Row> stream = pq.createStream(50);
-                  stream.handler(row -> {
-                    if (!first.getAndSet(false)) {
-                      ctx.response().write(",");
-                    }
-                    JsonObject response = handler.apply(row);
-                    ctx.response().write(copyWithoutNulls(response).encode());
-                  });
-                  endStream(stream, ctx, sqlConnection, tx);
-                  return Future.succeededFuture();
-                })
-            ).onFailure(x -> sqlConnection.close());
-      })
-    );
+    return pool.getConnection()
+        .compose(sqlConnection -> streamResult(ctx, sqlConnection, query, cnt, property, handler)
+            .eventually(x -> sqlConnection.close()));
   }
 
   Future<Void> getReportTitles(Vertx vertx, RoutingContext ctx) {
