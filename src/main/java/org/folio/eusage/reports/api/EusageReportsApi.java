@@ -78,10 +78,6 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     return requestParameter == null ? null : requestParameter.getString();
   }
 
-  static Integer requestParameterDefault(RequestParameter requestParameter, Integer defaultValue) {
-    return requestParameter == null ? defaultValue : requestParameter.getInteger();
-  }
-
   private static JsonObject copyWithoutNulls(JsonObject obj) {
     JsonObject n = new JsonObject();
     obj.getMap().forEach((key, value) -> {
@@ -150,8 +146,8 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
                                    String property,
                                    Function<Row, JsonObject> handler) {
     RequestParameters params = ctx.get(ValidationHandler.REQUEST_CONTEXT_KEY);
-    Integer offset = requestParameterDefault(params.queryParameter("offset"), 0);
-    Integer limit = requestParameterDefault(params.queryParameter("limit"), 10);
+    Integer offset = params.queryParameter("offset").getInteger();
+    Integer limit = params.queryParameter("limit").getInteger();
     String query = "SELECT " + (distinct != null ? "DISTINCT ON (" + distinct + ")" : "")
         + " * FROM " + from + " LIMIT " + limit + " OFFSET " + offset;
     log.info("query={}", query);

@@ -8,6 +8,8 @@ paths:
       - $ref: headers/okapi-tenant.yaml
       - $ref: headers/okapi-token.yaml
       - $ref: headers/okapi-url.yaml
+      - $ref: parameters/offset.yaml
+      - $ref: parameters/limit.yaml
       - in: query
         name: counterReportId
         required: false
@@ -20,18 +22,6 @@ paths:
         description: limit titles associated with usage provider (UUID)
         schema:
           type: string
-      - in: query
-        name: offset
-        required: false
-        description: Skip over number of elements (default is 0 and first element)
-        schema:
-          type: integer
-      - in: query
-        name: limit
-        required: false
-        description: Limit the number of elements returned in the response (default 10)
-        schema:
-          type: integer
     get:
       description: Get titles with links to KB
       operationId: getReportTitles
@@ -66,18 +56,8 @@ paths:
       - $ref: headers/okapi-tenant.yaml
       - $ref: headers/okapi-token.yaml
       - $ref: headers/okapi-url.yaml
-      - in: query
-        name: offset
-        required: false
-        description: Skip over number of elements (default is 0 and first element)
-        schema:
-          type: integer
-      - in: query
-        name: limit
-        required: false
-        description: Limit the number of elements returned in the response (default 10)
-        schema:
-          type: integer
+      - $ref: parameters/offset.yaml
+      - $ref: parameters/limit.yaml
     post:
       description: Parse counter reports
       operationId: postFromCounter
@@ -104,18 +84,8 @@ paths:
       - $ref: headers/okapi-tenant.yaml
       - $ref: headers/okapi-token.yaml
       - $ref: headers/okapi-url.yaml
-      - in: query
-        name: offset
-        required: false
-        description: Skip over number of elements (default is 0 and first element)
-        schema:
-          type: integer
-      - in: query
-        name: limit
-        required: false
-        description: Limit the number of elements returned in the response (default 10)
-        schema:
-          type: integer
+      - $ref: parameters/offset.yaml
+      - $ref: parameters/limit.yaml
     get:
       description: Get title data
       operationId: getTitleData
@@ -135,18 +105,8 @@ paths:
       - $ref: headers/okapi-tenant.yaml
       - $ref: headers/okapi-token.yaml
       - $ref: headers/okapi-url.yaml
-      - in: query
-        name: offset
-        required: false
-        description: Skip over number of elements (default is 0 and first element)
-        schema:
-          type: integer
-      - in: query
-        name: limit
-        required: false
-        description: Limit the number of elements returned in the response (default 10)
-        schema:
-          type: integer
+      - $ref: parameters/offset.yaml
+      - $ref: parameters/limit.yaml
     get:
       description: Return report data
       operationId: getReportData
