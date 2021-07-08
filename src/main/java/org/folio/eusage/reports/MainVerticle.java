@@ -5,11 +5,13 @@ import io.vertx.core.Future;
 import io.vertx.core.Promise;
 import io.vertx.core.http.HttpServerOptions;
 import io.vertx.ext.web.Router;
+import io.vertx.ext.web.client.WebClient;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.folio.eusage.reports.api.EusageReportsApi;
 import org.folio.okapi.common.Config;
 import org.folio.okapi.common.ModuleVersionReporter;
+import org.folio.tlib.RouterCreator;
 import org.folio.tlib.api.HealthApi;
 import org.folio.tlib.api.Tenant2Api;
 import org.folio.tlib.postgres.TenantPgPool;
@@ -26,17 +28,24 @@ public class MainVerticle extends AbstractVerticle {
     final int port = Integer.parseInt(
         Config.getSysConf("http.port", "port", "8081", config()));
 
+    WebClient webClient = WebClient.create(vertx);
+
     EusageReportsApi eusageReportsApi = new EusageReportsApi();
-    Tenant2Api tenant2Api = new Tenant2Api(eusageReportsApi);
+    RouterCreator [] routerCreators = {
+        eusageReportsApi,
+        new Tenant2Api(eusageReportsApi),
+        new HealthApi(),
+    };
 
     Router router = Router.router(vertx);
     Future<Void> future = Future.succeededFuture();
-    future = future.compose(x -> tenant2Api.createRouter(vertx))
-        .onSuccess(x -> router.mountSubRouter("/", x)).mapEmpty();
-    future = future.compose(x -> eusageReportsApi.createRouter(vertx))
-        .onSuccess(x -> router.mountSubRouter("/", x)).mapEmpty();
-    future = future.compose(x -> new HealthApi().createRouter(vertx))
-        .onSuccess(x -> router.mountSubRouter("/", x)).mapEmpty();
+    for (RouterCreator routerCreator : routerCreators) {
+      future = future.compose(x -> routerCreator.createRouter(vertx, webClient))
+          .map(subRouter -> {
+            router.mountSubRouter("/", subRouter);
+            return null;
+          });
+    }
 
     future = future.compose(x -> {
       HttpServerOptions so = new HttpServerOptions().setHandle100ContinueAutomatically(true);

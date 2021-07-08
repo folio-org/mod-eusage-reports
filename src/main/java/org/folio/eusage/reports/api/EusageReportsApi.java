@@ -999,8 +999,8 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
   }
 
   @Override
-  public Future<Router> createRouter(Vertx vertx) {
-    webClient = WebClient.create(vertx);
+  public Future<Router> createRouter(Vertx vertx, WebClient webClient) {
+    this.webClient = webClient;
     return RouterBuilder.create(vertx, "openapi/eusage-reports-1.0.yaml")
         .compose(routerBuilder -> {
           routerBuilder
@@ -1088,10 +1088,5 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
             + ")")
         .execute().mapEmpty());
     return future;
-  }
-
-  @Override
-  public Future<Void> preInit(Vertx vertx, String tenant, JsonObject tenantAttributes) {
-    return Future.succeededFuture();
   }
 }

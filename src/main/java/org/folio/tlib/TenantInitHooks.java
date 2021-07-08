@@ -5,8 +5,12 @@ import io.vertx.core.Vertx;
 import io.vertx.core.json.JsonObject;
 
 public interface TenantInitHooks {
-  Future<Void> postInit(Vertx vertx, String tenant, JsonObject tenantAttributes);
+  default Future<Void> postInit(Vertx vertx, String tenant, JsonObject tenantAttributes) {
+    return Future.succeededFuture();
+  }
 
-  Future<Void> preInit(Vertx vertx, String tenant, JsonObject tenantAttributes);
+  default Future<Void> preInit(Vertx vertx, String tenant, JsonObject tenantAttributes) {
+    return Future.succeededFuture();
+  }
 
 }
