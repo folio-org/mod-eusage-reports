@@ -1019,7 +1019,7 @@ public class MainVerticleTest {
     response = RestAssured.given()
         .header(XOkapiHeaders.TENANT, tenant)
         .header(XOkapiHeaders.URL, "http://localhost:" + MOCK_PORT)
-        .get("/eusage-reports/title-data")
+        .get("/eusage-reports/title-data?limit=30")
         .then().statusCode(200)
         .header("Content-Type", is("application/json"))
         .extract();
@@ -1202,12 +1202,14 @@ public class MainVerticleTest {
         .body(new JsonObject()
             .put("counterReportId", otherCounterReportId)
             .encode())
-        .post("/eusage-reports/report-titles/from-counter")
+        .post("/eusage-reports/report-titles/from-counter?offset=11")
         .then().statusCode(200)
         .header("Content-Type", is("application/json"))
         .extract();
     resObject = new JsonObject(response.body().asString());
-    context.assertEquals(14, resObject.getJsonArray("titles").size());
+    context.assertEquals(3, resObject.getJsonArray("titles").size());
+    context.assertEquals(14, resObject.getJsonObject("resultInfo").getInteger("totalRecords"));
+    context.assertEquals(0, resObject.getJsonObject("resultInfo").getJsonArray("diagnostics").size());
 
     response = RestAssured.given()
         .header(XOkapiHeaders.TENANT, tenant)

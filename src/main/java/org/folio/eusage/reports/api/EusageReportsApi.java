@@ -78,6 +78,10 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     return requestParameter == null ? null : requestParameter.getString();
   }
 
+  static Integer requestParameterDefault(RequestParameter requestParameter, Integer defaultValue) {
+    return requestParameter == null ? defaultValue : requestParameter.getInteger();
+  }
+
   private static JsonObject copyWithoutNulls(JsonObject obj) {
     JsonObject n = new JsonObject();
     obj.getMap().forEach((key, value) -> {
@@ -143,9 +147,13 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
 
   static Future<Void> streamResult(RoutingContext ctx, TenantPgPool pool,
                                    String distinct, String from,
-                                   String property, Function<Row, JsonObject> handler) {
+                                   String property,
+                                   Function<Row, JsonObject> handler) {
+    RequestParameters params = ctx.get(ValidationHandler.REQUEST_CONTEXT_KEY);
+    Integer offset = requestParameterDefault(params.queryParameter("offset"), 0);
+    Integer limit = requestParameterDefault(params.queryParameter("limit"), 10);
     String query = "SELECT " + (distinct != null ? "DISTINCT ON (" + distinct + ")" : "")
-        + " * FROM " + from;
+        + " * FROM " + from + " LIMIT " + limit + " OFFSET " + offset;
     log.info("query={}", query);
     String cnt = "SELECT COUNT(" + (distinct != null ? "DISTINCT " + distinct : "*")
         + ") FROM " + from;
@@ -161,7 +169,6 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
       String tenant = stringOrNull(params.headerParameter(XOkapiHeaders.TENANT));
       String counterReportId = stringOrNull(params.queryParameter("counterReportId"));
       String providerId = stringOrNull(params.queryParameter("providerId"));
-
       TenantPgPool pool = TenantPgPool.pool(vertx, tenant);
       String distinct = titleEntriesTable(pool) + ".id";
       String from = titleEntriesTable(pool);
@@ -174,8 +181,8 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
             + " ON titleEntryId = " + titleEntriesTable(pool) + ".id"
             + " WHERE providerId = '" + UUID.fromString(providerId) + "'";
       }
-      return streamResult(ctx, pool, distinct, from, "titles", row ->
-          new JsonObject()
+      return streamResult(ctx, pool, distinct, from, "titles",
+          row -> new JsonObject()
               .put("id", row.getUUID(0))
               .put("counterReportTitle", row.getString(1))
               .put("kbTitleName", row.getString(2))
@@ -239,7 +246,8 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
       String tenant = stringOrNull(params.headerParameter(XOkapiHeaders.TENANT));
       TenantPgPool pool = TenantPgPool.pool(vertx, tenant);
       String from = titleDataTable(pool);
-      return streamResult(ctx, pool, null, from, "data", row -> {
+      return streamResult(ctx, pool, null, from, "data",
+          row -> {
             JsonObject obj = new JsonObject()
                 .put("id", row.getUUID(0))
                 .put("titleEntryId", row.getUUID(1))
@@ -697,7 +705,6 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     try {
       RequestParameters params = ctx.get(ValidationHandler.REQUEST_CONTEXT_KEY);
       String tenant = stringOrNull(params.headerParameter(XOkapiHeaders.TENANT));
-
       TenantPgPool pool = TenantPgPool.pool(vertx, tenant);
       String from = agreementEntriesTable(pool);
       return streamResult(ctx, pool, null, from, "data", row ->
