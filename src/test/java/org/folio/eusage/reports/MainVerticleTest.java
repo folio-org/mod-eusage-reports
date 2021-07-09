@@ -222,10 +222,18 @@ public class MainVerticleTest {
   static void getCounterReports(RoutingContext ctx) {
     ctx.response().setChunked(true);
     ctx.response().putHeader("Content-Type", "application/json");
-
     ctx.response().write("{ \"counterReports\": [ ")
-        .onComplete(x ->
-            getCounterReportsChunk(ctx, new AtomicInteger(0), 5));
+        .onComplete(x -> {
+          int total = 5;
+          String query = ctx.request().getParam("query");
+          if (query != null) {
+            UUID matchProviderId = UUID.fromString(query.substring(query.lastIndexOf('=') + 1));
+            if (!matchProviderId.equals(usageProviderId)) {
+              total = 0;
+            }
+          }
+          getCounterReportsChunk(ctx, new AtomicInteger(0), total);
+        });
   }
 
   static void getCounterReport(RoutingContext ctx) {
@@ -1044,6 +1052,34 @@ public class MainVerticleTest {
         .header("Content-Type", "application/json")
         .body(new JsonObject()
             .put("counterReportId", goodCounterReportId)
+            .encode())
+        .post("/eusage-reports/report-titles/from-counter")
+        .then().statusCode(200)
+        .header("Content-Type", is("application/json"))
+        .extract();
+    resObject = new JsonObject(response.body().asString());
+    context.assertEquals(9, resObject.getJsonArray("titles").size());
+
+    response = RestAssured.given()
+        .header(XOkapiHeaders.TENANT, tenant)
+        .header(XOkapiHeaders.URL, "http://localhost:" + MOCK_PORT)
+        .header("Content-Type", "application/json")
+        .body(new JsonObject()
+            .put("usageDataProviderId", usageProviderId)
+            .encode())
+        .post("/eusage-reports/report-titles/from-counter")
+        .then().statusCode(200)
+        .header("Content-Type", is("application/json"))
+        .extract();
+    resObject = new JsonObject(response.body().asString());
+    context.assertEquals(9, resObject.getJsonArray("titles").size());
+
+    response = RestAssured.given()
+        .header(XOkapiHeaders.TENANT, tenant)
+        .header(XOkapiHeaders.URL, "http://localhost:" + MOCK_PORT)
+        .header("Content-Type", "application/json")
+        .body(new JsonObject()
+            .put("usageDataProviderId", UUID.randomUUID().toString())
             .encode())
         .post("/eusage-reports/report-titles/from-counter")
         .then().statusCode(200)

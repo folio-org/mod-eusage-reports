@@ -631,6 +631,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     final String tenant = stringOrNull(params.headerParameter(XOkapiHeaders.TENANT));
     final String okapiUrl = stringOrNull(params.headerParameter(XOkapiHeaders.URL));
     final String id = ctx.getBodyAsJson().getString("counterReportId");
+    final String usageDataProviderId = ctx.getBodyAsJson().getString("usageDataProviderId");
 
     if (okapiUrl == null) {
       return Future.failedFuture("Missing " + XOkapiHeaders.URL);
@@ -641,7 +642,11 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     TenantPgPool pool = TenantPgPool.pool(vertx, tenant);
     List<Future<Void>> futures = new ArrayList<>();
 
-    final String uri = "/counter-reports" + (id != null ? "/" + id : "");
+    String parms = "";
+    if (usageDataProviderId != null) {
+      parms = "?query=providerId%3D%3D" + usageDataProviderId;
+    }
+    final String uri = "/counter-reports" + (id != null ? "/" + id : "") + parms;
     AtomicInteger pathSize = new AtomicInteger(id != null ? 1 : 0);
     JsonObject reportObj = new JsonObject();
     parser.handler(event -> {
