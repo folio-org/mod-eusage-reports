@@ -6,7 +6,7 @@
       "description": "Counter report identifier",
       "type": "string"
     },
-    "usageDataProviderId": {
+    "providerId": {
       "description": "Counter reports with given usage data provider ID",
       "type": "string"
     }

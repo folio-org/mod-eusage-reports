@@ -631,7 +631,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     final String tenant = stringOrNull(params.headerParameter(XOkapiHeaders.TENANT));
     final String okapiUrl = stringOrNull(params.headerParameter(XOkapiHeaders.URL));
     final String id = ctx.getBodyAsJson().getString("counterReportId");
-    final String usageDataProviderId = ctx.getBodyAsJson().getString("usageDataProviderId");
+    final String providerId = ctx.getBodyAsJson().getString("providerId");
 
     if (okapiUrl == null) {
       return Future.failedFuture("Missing " + XOkapiHeaders.URL);
@@ -643,8 +643,8 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     List<Future<Void>> futures = new ArrayList<>();
 
     String parms = "";
-    if (usageDataProviderId != null) {
-      parms = "?query=providerId%3D%3D" + usageDataProviderId;
+    if (providerId != null) {
+      parms = "?query=providerId%3D%3D" + providerId;
     }
     final String uri = "/counter-reports" + (id != null ? "/" + id : "") + parms;
     AtomicInteger pathSize = new AtomicInteger(id != null ? 1 : 0);
