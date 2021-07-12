@@ -129,12 +129,12 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
                       log.error(f.getMessage(), f);
                       resultFooter(ctx, 0, f.getMessage());
                     })
-                    .eventually(x -> tx.commit());
+                    .eventually(x -> tx.commit().compose(y -> sqlConnection.close()));
               });
               stream.exceptionHandler(e -> {
                 log.error("stream error {}", e.getMessage(), e);
                 resultFooter(ctx, 0, e.getMessage());
-                tx.commit();
+                tx.commit().compose(y -> sqlConnection.close());
               });
               return Future.succeededFuture();
             })
@@ -156,7 +156,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     log.info("cnt={}", cnt);
     return pool.getConnection()
         .compose(sqlConnection -> streamResult(ctx, sqlConnection, query, cnt, property, handler)
-            .eventually(x -> sqlConnection.close()));
+            .onFailure(x -> sqlConnection.close()));
   }
 
   Future<Void> getReportTitles(Vertx vertx, RoutingContext ctx) {
