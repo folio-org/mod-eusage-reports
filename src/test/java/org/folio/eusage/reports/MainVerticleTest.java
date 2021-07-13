@@ -816,6 +816,22 @@ public class MainVerticleTest {
   }
 
   @Test
+  public void testFromCounterBadId() {
+    String tenant = "testlib";
+
+    RestAssured.given()
+        .header(XOkapiHeaders.TENANT, tenant)
+        .header(XOkapiHeaders.URL, "http://localhost:" + MOCK_PORT)
+        .header("Content-Type", "application/json")
+        .body(new JsonObject()
+            .put("counterReportId", "1234")
+            .encode())
+        .post("/eusage-reports/report-titles/from-counter")
+        .then().statusCode(400)
+        .body(is("Bad Request"));
+  }
+
+  @Test
   public void testFromAgreementNoId() {
     String tenant = "testlib";
     RestAssured.given()
@@ -827,6 +843,19 @@ public class MainVerticleTest {
         .then().statusCode(400)
         .header("Content-Type", is("text/plain"))
         .body(is("Missing agreementId property"));
+  }
+
+  @Test
+  public void testFromAgreementBadId() {
+    String tenant = "testlib";
+    RestAssured.given()
+        .header(XOkapiHeaders.TENANT, tenant)
+        .header(XOkapiHeaders.URL, "http://localhost:" + MOCK_PORT)
+        .header("Content-Type", "application/json")
+        .body(new JsonObject().put("agreementId", "1234").encode())
+        .post("/eusage-reports/report-data/from-agreement")
+        .then().statusCode(400)
+        .body(is("Bad Request"));
   }
 
   @Test

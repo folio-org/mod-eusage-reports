@@ -4,7 +4,8 @@
   "properties": {
     "counterReportId": {
       "description": "Counter report identifier",
-      "type": "string"
+      "type": "string",
+      "format": "uuid"
     },
     "providerId": {
       "description": "Counter reports with given usage data provider ID",
