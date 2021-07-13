@@ -160,7 +160,7 @@ paths:
       - $ref: parameters/format.yaml
       - $ref: parameters/include-oa.yaml
     get:
-      description: Return usage data over time, where usage data range falls within startDate, endDate
+      description: Return usage data over time, where usageDateRange falls within startDate, endDate
       operationId: getUseOverTime
       responses:
         "200":
@@ -187,7 +187,7 @@ paths:
       - $ref: parameters/end-date.yaml
       - $ref: parameters/include-oa.yaml
     get:
-      description: Return usage data for usage that falls within startDate and endDate
+      description: Return requests by date of use
       operationId: getReqsByDateOfUse
       responses:
         "200":
@@ -215,7 +215,8 @@ paths:
       - $ref: parameters/include-oa.yaml
       - $ref: parameters/period-of-use.yaml
     get:
-      description: Return usage data for usage where usageMonth/usageYear fails into startDate, endDate
+      description: Return requests by publication year where usageDateRange falls within startDate, endDate.
+        Grouping controlled by periodOfUse.
       operationId: getReqsByPubYear
       responses:
         "200":
@@ -242,7 +243,7 @@ paths:
       - $ref: parameters/end-date.yaml
       - $ref: parameters/include-oa.yaml
     get:
-      description: Return usage data for usage where usageMonth/usageYear fails into startDate, endDate
+      description: Return cost per where usageDateRange falls within startDate, endDate.
       operationId: getCostPerUse
       responses:
         "200":
