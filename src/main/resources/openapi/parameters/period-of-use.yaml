@@ -1,6 +1,6 @@
 in: query
 name: periodOfUse
-description: usage month or year
+description: a number of months or years for grouping
 required: true
 schema:
   type: string
