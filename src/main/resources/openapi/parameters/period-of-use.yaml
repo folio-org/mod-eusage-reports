@@ -1,0 +1,7 @@
+in: query
+name: periodOfUse
+description: usage month or year
+required: true
+schema:
+  type: string
+  pattern: ^\d+[YM]$
