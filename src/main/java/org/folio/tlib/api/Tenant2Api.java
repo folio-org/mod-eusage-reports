@@ -38,7 +38,7 @@ public class Tenant2Api implements RouterCreator {
   static void failHandlerText(RoutingContext ctx, int code, String msg) {
     ctx.response().setStatusCode(code);
     ctx.response().putHeader("Content-Type", "text/plain");
-    ctx.response().end(msg);
+    ctx.response().end(msg != null ? msg : "Failure");
   }
 
   static void failHandler400(RoutingContext ctx, String msg) {
@@ -171,87 +171,75 @@ public class Tenant2Api implements RouterCreator {
     routerBuilder
         .operation("postTenant")
         .handler(ctx -> {
-          try {
-            RequestParameters params = ctx.get(ValidationHandler.REQUEST_CONTEXT_KEY);
-            log.info("postTenant handler {}", params.toJson().encode());
-            JsonObject tenantAttributes = ctx.getBodyAsJson();
-            String tenant = params.headerParameter(XOkapiHeaders.TENANT).getString();
-            createJob(vertx, tenant, tenantAttributes)
-                .onSuccess(tenantJob -> {
-                  if (tenantJob == null) {
-                    ctx.response().setStatusCode(204);
-                    ctx.response().end();
-                    return;
-                  }
-                  ctx.response().setStatusCode(201);
-                  ctx.response().putHeader("Location", "/_/tenant/" + tenantJob.getString("id"));
-                  ctx.response().putHeader("Content-Type", "application/json");
-                  ctx.response().end(tenantJob.encode());
-                })
-                .onFailure(e -> {
-                  if (e.getClass().getName().contains("ConnectException")) {
-                    failHandler400(ctx, e.getMessage()
-                        + " DB_HOST=" + System.getenv("DB_HOST")
-                        + " DB_PORT=" + System.getenv("DB_PORT"));
-                    return;
-                  }
-                  failHandler500(ctx, e);
-                });
-          } catch (Exception e) {
-            failHandler400(ctx, e.getMessage());
-          }
+          RequestParameters params = ctx.get(ValidationHandler.REQUEST_CONTEXT_KEY);
+          log.info("postTenant handler {}", params.toJson().encode());
+          JsonObject tenantAttributes = ctx.getBodyAsJson();
+          String tenant = params.headerParameter(XOkapiHeaders.TENANT).getString();
+          createJob(vertx, tenant, tenantAttributes)
+              .onSuccess(tenantJob -> {
+                if (tenantJob == null) {
+                  ctx.response().setStatusCode(204);
+                  ctx.response().end();
+                  return;
+                }
+                ctx.response().setStatusCode(201);
+                ctx.response().putHeader("Location", "/_/tenant/" + tenantJob.getString("id"));
+                ctx.response().putHeader("Content-Type", "application/json");
+                ctx.response().end(tenantJob.encode());
+              })
+              .onFailure(e -> {
+                if (e.getClass().getName().contains("ConnectException")) {
+                  failHandler400(ctx, e.getMessage()
+                      + " DB_HOST=" + System.getenv("DB_HOST")
+                      + " DB_PORT=" + System.getenv("DB_PORT"));
+                  return;
+                }
+                failHandler500(ctx, e);
+              });
         })
-        .failureHandler(ctx -> Tenant2Api.failHandler400(ctx, "Failure"));
+        .failureHandler(ctx -> Tenant2Api.failHandlerText(ctx, 400, ctx.failure().getMessage()));
     routerBuilder
         .operation("getTenantJob")
         .handler(ctx -> {
-          try {
-            RequestParameters params = ctx.get(ValidationHandler.REQUEST_CONTEXT_KEY);
-            String id = params.pathParameter("id").getString();
-            String tenant = params.headerParameter(XOkapiHeaders.TENANT).getString();
-            RequestParameter waitParameter = params.queryParameter("wait");
-            int wait = waitParameter != null ? waitParameter.getInteger() : 0;
-            log.info("getTenantJob handler id={} wait={}", id,
-                waitParameter != null ? waitParameter.getInteger() : "null");
-            getJob(vertx, tenant, UUID.fromString(id), wait)
-                .onSuccess(res -> {
-                  if (res == null) {
-                    failHandler404(ctx, "Not found: " + id);
-                    return;
-                  }
-                  ctx.response().setStatusCode(200);
-                  ctx.response().putHeader("Content-Type", "application/json");
-                  ctx.response().end(res.encode());
-                })
-                .onFailure(e -> failHandler500(ctx, e));
-          } catch (Exception e) {
-            failHandler400(ctx, e.getMessage());
-          }
+          RequestParameters params = ctx.get(ValidationHandler.REQUEST_CONTEXT_KEY);
+          String id = params.pathParameter("id").getString();
+          String tenant = params.headerParameter(XOkapiHeaders.TENANT).getString();
+          RequestParameter waitParameter = params.queryParameter("wait");
+          int wait = waitParameter != null ? waitParameter.getInteger() : 0;
+          log.info("getTenantJob handler id={} wait={}", id,
+              waitParameter != null ? waitParameter.getInteger() : "null");
+          getJob(vertx, tenant, UUID.fromString(id), wait)
+              .onSuccess(res -> {
+                if (res == null) {
+                  failHandler404(ctx, "Not found: " + id);
+                  return;
+                }
+                ctx.response().setStatusCode(200);
+                ctx.response().putHeader("Content-Type", "application/json");
+                ctx.response().end(res.encode());
+              })
+              .onFailure(e -> failHandler500(ctx, e));
         })
-        .failureHandler(ctx -> Tenant2Api.failHandler400(ctx, "Failure"));
+        .failureHandler(ctx -> Tenant2Api.failHandlerText(ctx, 400, ctx.failure().getMessage()));
     routerBuilder
         .operation("deleteTenantJob")
         .handler(ctx -> {
-          try {
-            RequestParameters params = ctx.get(ValidationHandler.REQUEST_CONTEXT_KEY);
-            String id = params.pathParameter("id").getString();
-            String tenant = params.headerParameter(XOkapiHeaders.TENANT).getString();
-            log.info("deleteTenantJob handler id={}", id);
-            deleteJob(vertx, tenant, UUID.fromString(id))
-                .onSuccess(res -> {
-                  if (Boolean.FALSE.equals(res)) {
-                    failHandler404(ctx, "Not found: " + id);
-                    return;
-                  }
-                  ctx.response().setStatusCode(204);
-                  ctx.response().end();
-                })
-                .onFailure(e -> failHandler500(ctx, e));
-          } catch (Exception e) {
-            failHandler400(ctx, e.getMessage());
-          }
+          RequestParameters params = ctx.get(ValidationHandler.REQUEST_CONTEXT_KEY);
+          String id = params.pathParameter("id").getString();
+          String tenant = params.headerParameter(XOkapiHeaders.TENANT).getString();
+          log.info("deleteTenantJob handler id={}", id);
+          deleteJob(vertx, tenant, UUID.fromString(id))
+              .onSuccess(res -> {
+                if (Boolean.FALSE.equals(res)) {
+                  failHandler404(ctx, "Not found: " + id);
+                  return;
+                }
+                ctx.response().setStatusCode(204);
+                ctx.response().end();
+              })
+              .onFailure(e -> failHandler500(ctx, e));
         })
-        .failureHandler(ctx -> Tenant2Api.failHandler400(ctx, "Failure"));
+        .failureHandler(ctx -> Tenant2Api.failHandlerText(ctx, 400, ctx.failure().getMessage()));
     log.info("setting up tenant handlers ... done");
   }
 

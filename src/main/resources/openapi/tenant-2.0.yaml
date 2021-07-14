@@ -45,6 +45,7 @@ paths:
         description: job identifier
         schema:
           type: string
+          format: uuid
     get:
       description: Get tenant job
       operationId: getTenantJob

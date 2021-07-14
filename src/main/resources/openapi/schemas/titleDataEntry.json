@@ -4,15 +4,18 @@
   "properties": {
     "id": {
       "type": "string",
-      "description": "title data identifier"
+      "description": "title data identifier",
+      "format": "uuid"
     },
     "titleEntryId": {
       "type": "string",
-      "description": "key to title entries"
+      "description": "key to title entries",
+      "format": "uuid"
     },
     "counterReportId": {
       "type": "string",
-      "description": "counter report identifier"
+      "description": "counter report identifier",
+      "format": "uuid"
     },
     "counterReportTitle": {
       "type": "string",
@@ -20,7 +23,8 @@
     },
     "providerId": {
       "type": "string",
-      "description": "usage data provider identifier"
+      "description": "usage data provider identifier",
+      "format": "uuid"
     },
     "publicationDate": {
       "type": "string",

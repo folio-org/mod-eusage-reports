@@ -21,10 +21,8 @@ import io.vertx.ext.web.validation.RequestParameter;
 import io.vertx.ext.web.validation.RequestParameters;
 import io.vertx.ext.web.validation.ValidationHandler;
 import io.vertx.sqlclient.Row;
-import io.vertx.sqlclient.RowSet;
 import io.vertx.sqlclient.RowStream;
 import io.vertx.sqlclient.SqlConnection;
-import io.vertx.sqlclient.Transaction;
 import io.vertx.sqlclient.Tuple;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -61,6 +59,13 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
 
   static String agreementEntriesTable(TenantPgPool pool) {
     return pool.getSchema() + ".agreement_entries";
+  }
+
+  static void failHandler(RoutingContext ctx) {
+    Throwable t = ctx.failure();
+    // both semantic errors and syntax errors are from same pile.. Choosing 400 over 422.
+    int statusCode = t.getClass().getName().startsWith("io.vertx.ext.web.validation") ? 400 : 500;
+    failHandler(statusCode, ctx, t.getMessage());
   }
 
   static void failHandler(int statusCode, RoutingContext ctx, Throwable e) {
@@ -1014,27 +1019,33 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
           routerBuilder
               .operation("getReportTitles")
               .handler(ctx -> getReportTitles(vertx, ctx)
-                  .onFailure(cause -> failHandler(400, ctx, cause)));
+                  .onFailure(cause -> failHandler(400, ctx, cause)))
+              .failureHandler(EusageReportsApi::failHandler);
           routerBuilder
               .operation("postReportTitles")
               .handler(ctx -> postReportTitles(vertx, ctx)
-                  .onFailure(cause -> failHandler(400, ctx, cause)));
+                  .onFailure(cause -> failHandler(400, ctx, cause)))
+              .failureHandler(EusageReportsApi::failHandler);
           routerBuilder
               .operation("postFromCounter")
               .handler(ctx -> postFromCounter(vertx, ctx)
-                  .onFailure(cause -> failHandler(400, ctx, cause)));
+                  .onFailure(cause -> failHandler(400, ctx, cause)))
+              .failureHandler(EusageReportsApi::failHandler);
           routerBuilder
               .operation("getTitleData")
               .handler(ctx -> getTitleData(vertx, ctx)
-                  .onFailure(cause -> failHandler(400, ctx, cause)));
+                  .onFailure(cause -> failHandler(400, ctx, cause)))
+              .failureHandler(EusageReportsApi::failHandler);
           routerBuilder
               .operation("getReportData")
               .handler(ctx -> getReportData(vertx, ctx)
-                  .onFailure(cause -> failHandler(400, ctx, cause)));
+                  .onFailure(cause -> failHandler(400, ctx, cause)))
+              .failureHandler(EusageReportsApi::failHandler);
           routerBuilder
               .operation("postFromAgreement")
               .handler(ctx -> postFromAgreement(vertx, ctx)
-                  .onFailure(cause -> failHandler(400, ctx, cause)));
+                  .onFailure(cause -> failHandler(400, ctx, cause)))
+              .failureHandler(EusageReportsApi::failHandler);
           return Future.succeededFuture(routerBuilder.createRouter());
         });
   }

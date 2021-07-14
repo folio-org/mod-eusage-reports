@@ -394,7 +394,7 @@ public class Tenant2ApiTest {
         .get("/_/tenant/" + id)
         .then().statusCode(400)
         .header("Content-Type", is("text/plain"))
-        .body(containsString("Invalid UUID string"));
+        .body(containsString("Validation error for parameter id in location"));
   }
 
   @Test
@@ -414,7 +414,7 @@ public class Tenant2ApiTest {
         .delete("/_/tenant/" + id)
         .then().statusCode(400)
         .header("Content-Type", is("text/plain"))
-        .body(containsString("Invalid UUID string"));
+        .body(containsString("Validation error for parameter id in location"));
   }
 
   @Test
