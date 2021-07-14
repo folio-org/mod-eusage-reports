@@ -12,6 +12,7 @@ import org.apache.logging.log4j.Logger;
 import org.folio.tlib.RouterCreator;
 import org.folio.tlib.postgres.TenantPgPool;
 import org.folio.tlib.util.TenantUtil;
+import org.threeten.bp.LocalDate;
 
 public class UseOverTimeApi implements RouterCreator {
   private static final Logger log = LogManager.getLogger(UseOverTimeApi.class);
@@ -58,9 +59,29 @@ public class UseOverTimeApi implements RouterCreator {
   private Future<Void> getUseOverTime(Vertx vertx, RoutingContext ctx) {
     TenantPgPool pool = TenantPgPool.pool(vertx, TenantUtil.tenant(ctx));
     String agreementId = ctx.request().params().get("agreementId");
-    String startDate = ctx.request().params().get("startDate");
-    String endDate = ctx.request().params().get("endDate");
-    pool.preparedQuery(
+    String start = ctx.request().params().get("startDate");
+    String end = ctx.request().params().get("endDate");
+
+    LocalDate startDate = LocalDate.parse(start).withDayOfMonth(1);
+    LocalDate endDate = LocalDate.parse(end).withDayOfMonth(1);
+    if (startDate.compareTo(endDate) > 0) {
+      throw new IllegalArgumentException("startDate=" + start + " is after endDate=" + end);
+    }
+
+    endDate.plusMonths(1);  // PostgreSQL range end value is exclusive
+
+    LocalDate date = startDate;
+    do {
+      LocalDate datePlusOne = date.plusMonths(1);
+      journal(pool, agreementId, date, datePlusOne);
+      date = datePlusOne;
+    }
+    while (date.compareTo(endDate) < 0);
+    return Future.succeededFuture();
+  }
+
+  private Future<Void> journal(TenantPgPool pool, String agreementId, LocalDate date, LocalDate datePlusOne) {
+    return pool.preparedQuery(
         "SELECT sum(COALESCE(uniqueaccesscount, 0)), min(kbtitlename), min(kbtitleid::text)"
             + " FROM " + agreementEntriesTable(pool)
             + " LEFT JOIN " + packageEntriesTable(pool) + " USING (kbpackageid, kbtitleid)"
@@ -70,8 +91,12 @@ public class UseOverTimeApi implements RouterCreator {
             +     titleDataTable(pool) + ".titleentryid"
             + " WHERE agreementid=$1 AND daterange($2, $3) @> lower(usagedaterange)"
             + " GROUP BY kbtitleid"
-        ).execute(Tuple.of(agreementId, startDate, endDate));
-    return Future.succeededFuture();
+        ).execute(Tuple.of(agreementId, date, datePlusOne))
+    .map(rowSet -> {
+      rowSet.forEach(row -> {
+        row.getLong(0);
+      });
+      return null;
+    });
   }
-
 }

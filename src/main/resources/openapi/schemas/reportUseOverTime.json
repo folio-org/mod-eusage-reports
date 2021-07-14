@@ -17,6 +17,20 @@
       "type": "object",
       "description": "Journals report",
       "properties": {
+        "totalItemRequests": {
+          "type": "array",
+          "description": "access count per time slot, sum of all journals",
+          "items": {
+            "type": "integer"
+          }
+        },
+        "uniqueItemRequests": {
+          "type": "array",
+          "description": "access count per time slot, sum of all journals",
+          "items": {
+            "type": "integer"
+          }
+        },
         "journals": {
           "description": "List of journals",
           "type": "array",
@@ -24,7 +38,10 @@
             "type": "object",
             "$ref": "reportUseOverTimeJournal.json"
           }
-        }
+        },
+        "required": [
+          "totalItemRequests", "uniqueItemRequests", "journals"
+        ]
       }
     }
   },
