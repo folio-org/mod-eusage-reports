@@ -1,0 +1,7 @@
+in: query
+name: format
+description: item format type
+required: false
+schema:
+  type: string
+  pattern: ^(BOOK|JOURNAL|DATABASE)$
