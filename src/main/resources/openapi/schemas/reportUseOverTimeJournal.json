@@ -1,0 +1,45 @@
+{
+  "description": "use over time report for a journal",
+  "type": "object",
+  "properties": {
+    "kbTitleId": {
+      "type": "string",
+      "description": "kb title identifier"
+    },
+    "kbTitleName": {
+      "type": "string",
+      "description": "kb title name"
+    },
+    "printISSN": {
+      "type": "string",
+      "description": "ISSN for print instance"
+    },
+    "onlineISSN": {
+      "type": "string",
+      "description": "ISSN for online instance"
+    },
+    "accessType": {
+      "type": "string",
+      "description": "counter report access type like controlled or OA_Gold"
+    },
+    "metricType": {
+      "type": "string",
+      "description": "Total_Item_Requests or Unique_Item_Requests"
+    },
+    "accessCountSum": {
+      "type": "integer",
+      "description": "Sum of all access counts"
+    },
+    "accessCount": {
+      "type": "array",
+      "description": "access count per time slot",
+      "items": {
+        "type": "integer"
+      }
+    }
+  },
+  "additionalProperties": false,
+  "required": [
+    "kbTitleId", "kbTitleName", 
+  ]
+}
