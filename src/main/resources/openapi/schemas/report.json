@@ -22,7 +22,7 @@
     },
     "uniqueItemRequests": {
       "type": "array",
-      "description": "Access counts per period, total for all items",
+      "description": "Access count per period, total for all items",
       "items": {
         "type": "integer"
       }
