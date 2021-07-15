@@ -672,6 +672,16 @@ public class MainVerticleTest {
   }
 
   @Test
+  public void testGetTitlesBadLimit() {
+    RestAssured.given()
+        .header(XOkapiHeaders.URL, "http://localhost:" + MOCK_PORT)
+        .get("/eusage-reports/report-titles?limit=-2")
+        .then().statusCode(400)
+        .header("Content-Type", is("text/plain"))
+        .body(containsString("limit in location QUERY: value should be >= 0"));
+  }
+
+  @Test
   public void testPostTitlesFromCounterNoOkapiUrl() {
     String tenant = "testlib";
     RestAssured.given()
@@ -714,7 +724,20 @@ public class MainVerticleTest {
   }
 
   @Test
-  public void testPostTitlesBadUUID1() {
+  public void testPostTitlesBadJson() {
+    String tenant = "testlib";
+    RestAssured.given()
+        .header(XOkapiHeaders.TENANT, tenant)
+        .header("Content-Type", "application/json")
+        .body("{")
+        .post("/eusage-reports/report-titles")
+        .then().statusCode(400)
+        .header("Content-Type", is("text/plain"))
+        .body(containsString("Failed to decode"));
+  }
+
+  @Test
+  public void testPostTitlesBadId() {
     String tenant = "testlib";
     RestAssured.given()
         .header(XOkapiHeaders.TENANT, tenant)
@@ -728,11 +751,12 @@ public class MainVerticleTest {
         ).encode())
         .post("/eusage-reports/report-titles")
         .then().statusCode(400)
-        .body(is("Invalid UUID string: 1234"));
+        .header("Content-Type", is("text/plain"))
+        .body(containsString("Validation error for body application/json"));
   }
 
   @Test
-  public void testPostTitlesBadUUID2() {
+  public void testPostTitlesBadKbTitleId() {
     String tenant = "testlib";
     RestAssured.given()
         .header(XOkapiHeaders.TENANT, tenant)
@@ -746,7 +770,8 @@ public class MainVerticleTest {
         ).encode())
         .post("/eusage-reports/report-titles")
         .then().statusCode(400)
-        .body(is("Invalid UUID string: 1234"));
+        .header("Content-Type", is("text/plain"))
+        .body(containsString("Validation error for body application/json"));
   }
 
   @Test
@@ -816,6 +841,23 @@ public class MainVerticleTest {
   }
 
   @Test
+  public void testFromCounterBadId() {
+    String tenant = "testlib";
+
+    RestAssured.given()
+        .header(XOkapiHeaders.TENANT, tenant)
+        .header(XOkapiHeaders.URL, "http://localhost:" + MOCK_PORT)
+        .header("Content-Type", "application/json")
+        .body(new JsonObject()
+            .put("counterReportId", "1234")
+            .encode())
+        .post("/eusage-reports/report-titles/from-counter")
+        .then().statusCode(400)
+        .header("Content-Type", is("text/plain"))
+        .body(containsString("Validation error for body application/json"));
+  }
+
+  @Test
   public void testFromAgreementNoId() {
     String tenant = "testlib";
     RestAssured.given()
@@ -827,6 +869,20 @@ public class MainVerticleTest {
         .then().statusCode(400)
         .header("Content-Type", is("text/plain"))
         .body(is("Missing agreementId property"));
+  }
+
+  @Test
+  public void testFromAgreementBadId() {
+    String tenant = "testlib";
+    RestAssured.given()
+        .header(XOkapiHeaders.TENANT, tenant)
+        .header(XOkapiHeaders.URL, "http://localhost:" + MOCK_PORT)
+        .header("Content-Type", "application/json")
+        .body(new JsonObject().put("agreementId", "1234").encode())
+        .post("/eusage-reports/report-data/from-agreement")
+        .then().statusCode(400)
+        .header("Content-Type", is("text/plain"))
+        .body(containsString("Bad Request"));
   }
 
   @Test
@@ -1022,7 +1078,8 @@ public class MainVerticleTest {
         .body(postTitleObject.encode())
         .post("/eusage-reports/report-titles")
         .then().statusCode(400)
-        .body(is("Bad Request"));
+        .header("Content-Type", is("text/plain"))
+        .body(containsString("Validation error for body application/json"));
 
     response = RestAssured.given()
         .header(XOkapiHeaders.TENANT, tenant)

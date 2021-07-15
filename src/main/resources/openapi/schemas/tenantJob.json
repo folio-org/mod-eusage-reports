@@ -5,7 +5,8 @@
   "properties": {
     "id": {
       "description": "Job ID",
-      "type": "string"
+      "type": "string",
+      "format": "uuid"
     },
     "tenant": {
       "description": "Tenant ID",

@@ -4,15 +4,18 @@
   "properties": {
     "id": {
       "type": "string",
-      "description": "report data identifier"
+      "description": "report data identifier",
+      "format": "uuid"
     },
     "kbTitleId": {
       "type": "string",
-      "description": "kb title identifier (if the agreement line is a title)"
+      "description": "kb title identifier (if the agreement line is a title)",
+      "format": "uuid"
     },
     "kbPackageId": {
       "type": "string",
-      "description": "kb package identifier (if the agreement line is a package)"
+      "description": "kb package identifier (if the agreement line is a package)",
+      "format": "uuid"
     },
     "type": {
       "type": "string",
@@ -20,15 +23,18 @@
     },
     "agreementId": {
       "type": "string",
-      "description": "agreement identifier (UUID)"
+      "description": "agreement identifier",
+      "format": "uuid"
     },
     "agreementLineId": {
       "type": "string",
-      "description": "agreement line identifier (UUID)"
+      "description": "agreement line identifier",
+      "format": "uuid"
     },
     "poLineId": {
       "type": "string",
-      "description": "po line identifier (UUID)"
+      "description": "po line identifier (UUID)",
+      "format": "uuid"
     },
     "encumberedCost": {
       "type": "number",

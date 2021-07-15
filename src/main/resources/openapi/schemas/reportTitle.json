@@ -4,7 +4,8 @@
   "properties": {
     "id": {
       "type": "string",
-      "description" : "title identifier"
+      "description" : "title identifier",
+      "format": "uuid"
     },
     "counterReportTitle": {
       "type": "string",
@@ -16,7 +17,8 @@
     },
     "kbTitleId": {
       "type": "string",
-      "description": "KB title identifier"
+      "description": "KB title identifier",
+      "format": "uuid"
     },
     "kbManualMatch": {
       "type": "boolean",
