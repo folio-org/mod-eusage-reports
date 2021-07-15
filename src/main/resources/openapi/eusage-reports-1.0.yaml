@@ -195,7 +195,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: schemas/reportDataEntries.json
+                $ref: schemas/report.json
         "400":
           $ref: "#/components/responses/trait_400"
         "404":
@@ -251,7 +251,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: schemas/reportDataEntries.json
+                $ref: schemas/report.json
         "400":
           $ref: "#/components/responses/trait_400"
         "404":
