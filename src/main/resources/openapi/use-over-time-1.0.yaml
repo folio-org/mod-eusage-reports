@@ -8,40 +8,27 @@ paths:
       - $ref: headers/okapi-tenant.yaml
       - $ref: headers/okapi-token.yaml
       - $ref: headers/okapi-url.yaml
-      - in: query
-        name: agreementId
-        required: true
-        description: UUID of the agreement we generate the report for
-        schema:
-          type: string
-      - in: query
-        name: startDate
-        required: true
-        description: starting date of use in yyyy-mm-dd format, for example 2020-10-01
-        schema:
-          type: string
-          format: date
-          example: "2020-10-01"
-      - in: query
-        name: endDate
-        required: true
-        description: end date (exclusive) of use in yyyy-mm-dd format, for example endDate=2020-11-01 ends at 2020-10-31T23:59:59.999...
-        schema:
-          type: string
-          format: date
-          example: "2020-11-01"
+      - $ref: parameters/offset.yaml
+      - $ref: parameters/limit.yaml
+      - $ref: parameters/agreement-id.yaml
+      - $ref: parameters/start-date.yaml
+      - $ref: parameters/end-date.yaml
+      - $ref: parameters/format.yaml
+      - $ref: parameters/include-oa.yaml
     get:
-      description: Use over time report for one aggreement 
-      operationId: useOverTime
+      description: Return usage data over time, where usageDateRange falls within startDate, endDate
+      operationId: getUseOverTime
       responses:
         "200":
           description: OK
           content:
             application/json:
               schema:
-                $ref: schemas/reportUseOverTime.json
+                $ref: schemas/report.json
         "400":
           $ref: "#/components/responses/trait_400"
+        "404":
+          $ref: "#/components/responses/trait_404"
         "500":
           $ref: "#/components/responses/trait_500"
 components:
@@ -78,4 +65,4 @@ components:
   schemas:
     errors:
       $ref: schemas/errors.json
-      
+
