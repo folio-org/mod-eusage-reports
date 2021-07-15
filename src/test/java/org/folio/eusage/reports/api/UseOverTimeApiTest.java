@@ -27,6 +27,15 @@ public class UseOverTimeApiTest {
   private UUID a1 = UUID.randomUUID();
   private UUID a2 = UUID.randomUUID();
 
+  @BeforeClass
+  public static void setUp(TestContext context) {
+    RestAssured.baseURI = "http://localhost:8081";
+    vertx = Vertx.vertx();
+    vertx.deployVerticle(new MainVerticle(), context.asyncAssertSuccess(x -> {
+      postTenant(context.asyncAssertSuccess());
+    }));
+  }
+
   private static Future<Void> postTenant() {
     String location =
         given().
@@ -56,15 +65,6 @@ public class UseOverTimeApiTest {
   private static void postTenant(Handler<AsyncResult<Void>> resultHandler) {
     // run blocking RestAssured on worker pool thread in parallel to the MainVerticle thread
     vertx.executeBlocking(promise -> promise.handle(postTenant()), resultHandler);
-  }
-
-  @BeforeClass
-  public static void setUp(TestContext context) {
-    RestAssured.baseURI = "http://localhost:8081";
-    vertx = Vertx.vertx();
-    vertx.deployVerticle(new MainVerticle(), context.asyncAssertSuccess(x -> {
-      postTenant(context.asyncAssertSuccess());
-    }));
   }
 
   @Test
