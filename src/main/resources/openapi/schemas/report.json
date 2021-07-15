@@ -35,8 +35,5 @@
         "$ref": "reportRow.json"
       }
     }
-  },
-  "required": [
-    "agreementId", "accessCountTimeSlots"
-  ]
+  }
 }
