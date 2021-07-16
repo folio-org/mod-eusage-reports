@@ -361,7 +361,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
                                              RoutingContext ctx, String counterReportTitle,
                                              String printIssn, String onlineIssn, String isbn,
                                              String doi) {
-    return con.preparedQuery("SELECT id FROM " + titleEntriesTable(pool)
+    return con.preparedQuery("SELECT * FROM " + titleEntriesTable(pool)
         + " WHERE counterReportTitle = $1")
         .execute(Tuple.of(counterReportTitle))
         .compose(res1 -> {
