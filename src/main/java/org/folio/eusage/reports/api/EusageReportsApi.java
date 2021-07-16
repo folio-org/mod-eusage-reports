@@ -1014,7 +1014,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
   }
 
   /** Draft, Work in Progress (WIP). */
-  private Future<Void> getUseOverTime(Vertx vertx, RoutingContext ctx) {
+  Future<Void> getUseOverTime(Vertx vertx, RoutingContext ctx) {
     TenantPgPool pool = TenantPgPool.pool(vertx, TenantUtil.tenant(ctx));
     String agreementId = ctx.request().params().get("agreementId");
     String start = ctx.request().params().get("startDate");

@@ -4,8 +4,13 @@ import static org.folio.eusage.reports.api.EusageReportsApi.agreementEntriesTabl
 import static org.folio.eusage.reports.api.EusageReportsApi.packageEntriesTable;
 import static org.folio.eusage.reports.api.EusageReportsApi.titleDataTable;
 import static org.folio.eusage.reports.api.EusageReportsApi.titleEntriesTable;
-import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.collection.IsIterableContainingInOrder.contains;
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
+import static org.mockito.Mockito.when;
 
 import io.vertx.core.Future;
 import io.vertx.core.Vertx;
@@ -13,6 +18,7 @@ import io.vertx.core.json.JsonObject;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.RunTestOnContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
+import io.vertx.ext.web.RoutingContext;
 import io.vertx.sqlclient.Row;
 import io.vertx.sqlclient.RowSet;
 import io.vertx.sqlclient.Tuple;
@@ -20,8 +26,12 @@ import org.folio.tlib.postgres.TenantPgPool;
 import org.folio.tlib.postgres.TenantPgPoolContainer;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
+import org.mockito.quality.Strictness;
 import org.testcontainers.containers.PostgreSQLContainer;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -30,6 +40,9 @@ import java.util.UUID;
 
 @RunWith(VertxUnitRunner.class)
 public class EusageReportsApiTest {
+
+  @Rule
+  public MockitoRule mockitoRule = MockitoJUnit.rule().strictness(Strictness.STRICT_STUBS);
 
   @ClassRule
   public static RunTestOnContext runTestOnContext = new RunTestOnContext();
@@ -63,6 +76,17 @@ public class EusageReportsApiTest {
     api.populateAgreementLine( null, null, new JsonObject(), agreementId, null)
         .onComplete(context.asyncAssertFailure(x ->
             context.assertTrue(x.getMessage().contains("Failed to decode agreement line:"), x.getMessage())));
+  }
+
+  @Test
+  public void useOverTimeStartDateAfterEndDate() {
+    RoutingContext ctx = mock(RoutingContext.class, RETURNS_DEEP_STUBS);
+    when(ctx.request().getHeader("X-Okapi-Tenant")).thenReturn("foo");
+    when(ctx.request().params().get("startDate")).thenReturn("2020-04-01");
+    when(ctx.request().params().get("endDate")).thenReturn("2020-02-01");
+    Throwable t = assertThrows(IllegalArgumentException.class, () ->
+        new EusageReportsApi().getUseOverTime(vertx, ctx));
+    assertThat(t.getMessage(), is("startDate=2020-04-01 is after endDate=2020-02-01"));
   }
 
   // agreementId
