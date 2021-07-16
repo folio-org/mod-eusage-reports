@@ -381,8 +381,8 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
           if (res1.iterator().hasNext()) {
             Row row = res1.iterator().next();
             UUID id = row.getUUID(0);
-            Boolean kbManualMatch = row.getBoolean(5);
-            if (row.getUUID(4) != null || Boolean.TRUE.equals(kbManualMatch)) {
+            Boolean kbManualMatch = row.getBoolean(4);
+            if (row.getUUID(3) != null || Boolean.TRUE.equals(kbManualMatch)) {
               return Future.succeededFuture(id);
             }
             return ermTitleLookup(ctx, identifier, type).compose(erm -> {
