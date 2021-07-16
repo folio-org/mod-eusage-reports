@@ -180,4 +180,13 @@ public class EusageReportsApiTest {
     }));
   }
 
+  @Test
+  public void useOverTime() {
+    RoutingContext ctx = mock(RoutingContext.class, RETURNS_DEEP_STUBS);
+    when(ctx.request().getHeader("X-Okapi-Tenant")).thenReturn("foo");
+    when(ctx.request().params().get("startDate")).thenReturn("2020-03-01");
+    when(ctx.request().params().get("endDate")).thenReturn("2020-05-01");
+    new EusageReportsApi().getUseOverTime(vertx, ctx);
+  }
+
 }
