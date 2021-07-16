@@ -21,6 +21,7 @@ import io.vertx.ext.web.validation.RequestParameter;
 import io.vertx.ext.web.validation.RequestParameters;
 import io.vertx.ext.web.validation.ValidationHandler;
 import io.vertx.sqlclient.Row;
+import io.vertx.sqlclient.RowSet;
 import io.vertx.sqlclient.RowStream;
 import io.vertx.sqlclient.SqlConnection;
 import io.vertx.sqlclient.Tuple;
@@ -1012,7 +1013,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
         });
   }
 
-  /** Draft, Work in Progress (WIP) */
+  /** Draft, Work in Progress (WIP). */
   private Future<Void> getUseOverTime(Vertx vertx, RoutingContext ctx) {
     TenantPgPool pool = TenantPgPool.pool(vertx, TenantUtil.tenant(ctx));
     String agreementId = ctx.request().params().get("agreementId");
@@ -1032,30 +1033,27 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
       LocalDate datePlusOne = date.plusMonths(1);
       journal(pool, agreementId, date, datePlusOne);
       date = datePlusOne;
-    }
-    while (date.compareTo(endDate) < 0);
+    } while (date.compareTo(endDate) < 0);
     return Future.succeededFuture();  // draft, Work in Progress (WIP)
   }
 
-  /** Draft, Work in Progress (WIP) */
-  private Future<Void> journal(TenantPgPool pool, String agreementId, LocalDate date, LocalDate datePlusOne) {
+  /** Draft, Work in Progress (WIP). */
+  Future<RowSet<Row>> journal(
+      TenantPgPool pool, String agreementId, LocalDate date, LocalDate datePlusOne) {
+
     return pool.preparedQuery(
-        "SELECT sum(COALESCE(uniqueaccesscount, 0)), min(kbtitlename), min(kbtitleid::text)"
+        "SELECT kbtitleid, min(kbtitlename) AS title, sum(COALESCE(uniqueaccesscount, 0))"
             + " FROM " + agreementEntriesTable(pool)
             + " LEFT JOIN " + packageEntriesTable(pool) + " USING (kbpackageid, kbtitleid)"
             + " LEFT JOIN " + titleEntriesTable(pool) + " USING (kbtitleid)"
             + " LEFT JOIN " + titleDataTable(pool)
-            + "    ON " + titleEntriesTable(pool) + ".id = "
+            + "   ON " + titleEntriesTable(pool) + ".id = "
             +     titleDataTable(pool) + ".titleentryid"
-            + " WHERE agreementid=$1 AND daterange($2, $3) @> lower(usagedaterange)"
+            + "   AND daterange($2, $3) @> lower(usagedaterange)"
+            + " WHERE agreementid=$1"
             + " GROUP BY kbtitleid"
-        ).execute(Tuple.of(agreementId, date, datePlusOne))
-    .map(rowSet -> {
-      rowSet.forEach(row -> {
-        row.getLong(0);
-      });
-      return null;  // draft, Work in Progress (WIP)
-    });
+            + " ORDER BY title, kbtitleid"
+        ).execute(Tuple.of(agreementId, date, datePlusOne));
   }
 
   @Override
