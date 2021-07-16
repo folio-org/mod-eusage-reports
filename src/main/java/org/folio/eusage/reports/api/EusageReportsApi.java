@@ -387,7 +387,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
             }
             return ermTitleLookup(ctx, identifier, type).compose(erm -> {
               if (erm == null) {
-                return Future.succeededFuture(row.getUUID(0));
+                return Future.succeededFuture(id);
               }
               UUID kbTitleId = erm.getUUID(0);
               String kbTitleName = erm.getString(1);
@@ -396,13 +396,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
                   + " kbTitleName = $2,"
                   + " kbTitleId = $3"
                   + " WHERE id = $1")
-                  .execute(Tuple.of(id, kbTitleName, kbTitleId))
-                  .compose(rowSet -> {
-                    if (rowSet.rowCount() == 0) {
-                      return Future.failedFuture("title " + id + " matches nothing");
-                    }
-                    return Future.succeededFuture(id);
-                  });
+                  .execute(Tuple.of(id, kbTitleName, kbTitleId)).map(id);
             });
           }
           return ermTitleLookup(ctx, identifier, type).compose(erm -> {
