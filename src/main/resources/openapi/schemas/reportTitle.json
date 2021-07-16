@@ -17,12 +17,12 @@
     },
     "kbTitleId": {
       "type": "string",
-      "description": "KB title identifier",
+      "description": "KB title identifier. If not given, title is ignored (kbManualMatch=true) or unmatched (kbManualMatch=false)",
       "format": "uuid"
     },
     "kbManualMatch": {
       "type": "boolean",
-      "description": "whether the counter title to kb title is manual"
+      "description": "whether the counter title to kb title is manually set or ignored"
     },
     "printISSN": {
       "type": "string",

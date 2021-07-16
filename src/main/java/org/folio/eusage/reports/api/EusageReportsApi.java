@@ -214,15 +214,16 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
             UUID id = UUID.fromString(titleEntry.getString("id"));
             String kbTitleName = titleEntry.getString("kbTitleName");
             String kbTitleIdStr = titleEntry.getString("kbTitleId");
+            Boolean kbManualMatch = titleEntry.getBoolean("kbManualMatch", true);
             future = future.compose(x ->
                 sqlConnection.preparedQuery("UPDATE " + titleEntriesTable(pool)
                     + " SET"
                     + " kbTitleName = $2,"
                     + " kbTitleId = $3,"
-                    + " kbManualMatch = TRUE"
+                    + " kbManualMatch = $4"
                     + " WHERE id = $1")
                     .execute(Tuple.of(id, kbTitleName, kbTitleIdStr == null
-                        ? null : UUID.fromString(kbTitleIdStr)))
+                        ? null : UUID.fromString(kbTitleIdStr), kbManualMatch))
                     .compose(rowSet -> {
                       if (rowSet.rowCount() == 0) {
                         return Future.failedFuture("title " + id + " matches nothing");
