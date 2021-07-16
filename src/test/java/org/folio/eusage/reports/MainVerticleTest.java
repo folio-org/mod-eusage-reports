@@ -38,6 +38,7 @@ public class MainVerticleTest {
   static final int MOCK_PORT = 9231;
   static final String pubDateSample = "1998-05-19";
   static final UUID goodKbTitleId = UUID.randomUUID();
+  static boolean enableGoodKbTitle;
   static final String goodKbTitleISSN = "1000-1002";
   static final String goodDoiValue = "publisherA:Code123";
   static final UUID otherKbTitleId = UUID.randomUUID();
@@ -302,11 +303,19 @@ public class MainVerticleTest {
     JsonArray ar = new JsonArray();
     UUID kbTitleId;
     switch (term) {
-      case goodKbTitleISSN: kbTitleId = goodKbTitleId; break; // return a known kbTitleId for "The cats journal"
-      case otherKbTitleISSN: kbTitleId = otherKbTitleId; break;
-      default: kbTitleId = UUID.randomUUID();
+      case goodKbTitleISSN:
+        kbTitleId = enableGoodKbTitle ? goodKbTitleId : null;
+        break; // return a known kbTitleId for "The cats journal"
+      case otherKbTitleISSN:
+        kbTitleId = otherKbTitleId;
+        break;
+      case noMatchKbTitleISSN:
+        kbTitleId = null; // for "The dogs journal" , no kb match
+        break;
+      default:
+        kbTitleId = UUID.randomUUID();
     }
-    if (!noMatchKbTitleISSN.equals(term)) { // for "The dogs journal" , no kb match
+    if (kbTitleId != null) {
       ar.add(getKbTitle(kbTitleId));
     }
     ctx.response().end(ar.encode());
@@ -945,6 +954,32 @@ public class MainVerticleTest {
             )
         ), null);
 
+    enableGoodKbTitle = false;
+    response = RestAssured.given()
+        .header(XOkapiHeaders.TENANT, tenant)
+        .header(XOkapiHeaders.URL, "http://localhost:" + MOCK_PORT)
+        .header("Content-Type", "application/json")
+        .body("{}")
+        .post("/eusage-reports/report-titles/from-counter")
+        .then().statusCode(200)
+        .header("Content-Type", is("application/json"))
+        .extract();
+    resObject = new JsonObject(response.body().asString());
+    analyzeTitles(context, resObject, 8, 8, 3, 0, 0);
+
+    enableGoodKbTitle = true;
+    response = RestAssured.given()
+        .header(XOkapiHeaders.TENANT, tenant)
+        .header(XOkapiHeaders.URL, "http://localhost:" + MOCK_PORT)
+        .header("Content-Type", "application/json")
+        .body("{}")
+        .post("/eusage-reports/report-titles/from-counter")
+        .then().statusCode(200)
+        .header("Content-Type", is("application/json"))
+        .extract();
+    resObject = new JsonObject(response.body().asString());
+    analyzeTitles(context, resObject, 8, 8, 2, 0, 0);
+
     response = RestAssured.given()
         .header(XOkapiHeaders.TENANT, tenant)
         .header(XOkapiHeaders.URL, "http://localhost:" + MOCK_PORT)
@@ -1090,13 +1125,13 @@ public class MainVerticleTest {
     response = RestAssured.given()
         .header(XOkapiHeaders.TENANT, tenant)
         .header(XOkapiHeaders.URL, "http://localhost:" + MOCK_PORT)
-        .get("/eusage-reports/title-data?limit=30")
+        .get("/eusage-reports/title-data?limit=100")
         .then().statusCode(200)
         .header("Content-Type", is("application/json"))
         .extract();
     resObject = new JsonObject(response.body().asString());
     JsonArray items = resObject.getJsonArray("data");
-    context.assertEquals(20, items.size());
+    context.assertEquals(60, items.size());
     int noWithPubDate = 0;
     for (int i = 0; i < items.size(); i++) {
       JsonObject item = items.getJsonObject(i);
@@ -1107,7 +1142,7 @@ public class MainVerticleTest {
         noWithPubDate++;
       }
     }
-    context.assertEquals(5, noWithPubDate);
+    context.assertEquals(15, noWithPubDate);
 
     response = RestAssured.given()
         .header(XOkapiHeaders.TENANT, tenant)

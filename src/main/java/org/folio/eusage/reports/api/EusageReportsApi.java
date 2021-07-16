@@ -365,10 +365,6 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
         + " WHERE counterReportTitle = $1")
         .execute(Tuple.of(counterReportTitle))
         .compose(res1 -> {
-          if (res1.iterator().hasNext()) {
-            Row row = res1.iterator().next();
-            return Future.succeededFuture(row.getUUID(0));
-          }
           String identifier = null;
           String type = null;
           if (onlineIssn != null) {
@@ -382,9 +378,37 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
             identifier = isbn.replace("-", "");
             type = "isbn";
           }
+          if (res1.iterator().hasNext()) {
+            Row row = res1.iterator().next();
+            UUID id = row.getUUID(0);
+            Boolean kbManualMatch = row.getBoolean(5);
+            if (row.getUUID(4) != null || Boolean.TRUE.equals(kbManualMatch)) {
+              return Future.succeededFuture(id);
+            }
+            return ermTitleLookup(ctx, identifier, type).compose(erm -> {
+              if (erm == null) {
+                return Future.succeededFuture(row.getUUID(0));
+              }
+              UUID kbTitleId = erm.getUUID(0);
+              String kbTitleName = erm.getString(1);
+              return con.preparedQuery("UPDATE " + titleEntriesTable(pool)
+                  + " SET"
+                  + " kbTitleName = $2,"
+                  + " kbTitleId = $3"
+                  + " WHERE id = $1")
+                  .execute(Tuple.of(id, kbTitleName, kbTitleId))
+                  .compose(rowSet -> {
+                    if (rowSet.rowCount() == 0) {
+                      return Future.failedFuture("title " + id + " matches nothing");
+                    }
+                    return Future.succeededFuture(id);
+                  });
+            });
+          }
           return ermTitleLookup(ctx, identifier, type).compose(erm -> {
             UUID kbTitleId = erm != null ? erm.getUUID(0) : null;
             String kbTitleName = erm != null ? erm.getString(1) : null;
+
             return updateTitleEntryByKbTitle(pool, con, kbTitleId,
                 counterReportTitle, printIssn, onlineIssn, isbn, doi)
                 .compose(id -> {
