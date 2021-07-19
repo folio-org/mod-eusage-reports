@@ -40,6 +40,7 @@ import org.folio.okapi.common.XOkapiHeaders;
 import org.folio.tlib.RouterCreator;
 import org.folio.tlib.TenantInitHooks;
 import org.folio.tlib.postgres.TenantPgPool;
+import org.folio.tlib.util.ResourceUtil;
 import org.folio.tlib.util.TenantUtil;
 
 public class EusageReportsApi implements RouterCreator, TenantInitHooks {
@@ -1034,7 +1035,13 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
       journal(pool, agreementId, date, datePlusOne);
       date = datePlusOne;
     } while (date.compareTo(endDate) < 0);
-    return Future.succeededFuture();  // draft, Work in Progress (WIP)
+
+    // draft, Work in Progress (WIP), hardcoded example JSON
+    ctx.response().setStatusCode(200);
+    ctx.response().putHeader("Content-Type", "application/json");
+    ctx.response().end(ResourceUtil.load("/openapi/examples/report.json"));
+
+    return Future.succeededFuture();
   }
 
   /** Draft, Work in Progress (WIP). */

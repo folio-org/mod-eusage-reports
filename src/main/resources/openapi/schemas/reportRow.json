@@ -28,13 +28,15 @@
     },
     "accessCountTotal": {
       "type": "integer",
+      "nullable": true,
       "description": "Sum of all access counts"
     },
     "accessCountsByPeriod": {
       "type": "array",
       "description": "Access count per reporting period",
       "items": {
-        "type": ["integer", "null"]
+        "type": "integer",
+        "nullable": true
       }
     }
   },

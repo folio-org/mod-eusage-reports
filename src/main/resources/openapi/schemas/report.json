@@ -14,25 +14,29 @@
       }
     },
     "totalItemRequestsTotal": {
-      "type": ["integer", "null"],
+      "type": "integer",
+      "nullable": true,
       "description": "Access count total for all periods and all items"
     },
     "totalItemRequestsByPeriod": {
       "type": "array",
       "description": "Access count per period, total for all items",
       "items": {
-        "type": ["integer", "null"]
+        "type": "integer",
+        "nullable": true
       }
     },
     "uniqueItemRequestsTotal": {
-      "type": ["integer", "null"],
+      "type": "integer",
+      "nullable": true,
       "description": "Unique access count total for all periods and all items"
     },
     "uniqueItemRequestsByPeriod": {
       "type": "array",
       "description": "Unique access count per period, total for all items",
       "items": {
-        "type": ["integer", "null"]
+        "type": "integer",
+        "nullable": true
       }
     },
     "items": {
