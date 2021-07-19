@@ -13,18 +13,26 @@
         "type": "string"
       }
     },
-    "totalItemRequests": {
+    "totalItemRequestsTotal": {
+      "type": ["integer", "null"],
+      "description": "Access count total for all periods and all items"
+    },
+    "totalItemRequestsByPeriod": {
       "type": "array",
       "description": "Access count per period, total for all items",
       "items": {
-        "type": "integer"
+        "type": ["integer", "null"]
       }
     },
-    "uniqueItemRequests": {
+    "uniqueItemRequestsTotal": {
+      "type": ["integer", "null"],
+      "description": "Unique access count total for all periods and all items"
+    },
+    "uniqueItemRequestsByPeriod": {
       "type": "array",
-      "description": "Access count per period, total for all items",
+      "description": "Unique access count per period, total for all items",
       "items": {
-        "type": "integer"
+        "type": ["integer", "null"]
       }
     },
     "items": {
@@ -35,5 +43,6 @@
         "$ref": "reportRow.json"
       }
     }
-  }
+  },
+  "additionalProperties": false
 }

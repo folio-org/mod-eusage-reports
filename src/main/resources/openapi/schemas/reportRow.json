@@ -34,8 +34,9 @@
       "type": "array",
       "description": "Access count per reporting period",
       "items": {
-        "type": "integer"
+        "type": ["integer", "null"]
       }
     }
-  }
+  },
+  "additionalProperties": false
 }

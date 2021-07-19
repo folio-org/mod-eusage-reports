@@ -169,6 +169,8 @@ paths:
             application/json:
               schema:
                 $ref: schemas/report.json
+              example:
+                $ref: examples/report.json
         "400":
           $ref: "#/components/responses/trait_400"
         "404":
