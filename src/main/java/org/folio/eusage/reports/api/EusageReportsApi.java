@@ -550,7 +550,6 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     return null;
   }
 
-
   static JsonObject getIssnIdentifiers(JsonObject reportItem) {
     JsonArray itemIdentifiers = reportItem.getJsonArray(altKey(reportItem,
         "itemIdentifier", "Item_ID"));
@@ -594,6 +593,11 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     final UUID counterReportId = UUID.fromString(jsonObject.getString("id"));
     final UUID providerId = UUID.fromString(jsonObject.getString("providerId"));
     final JsonObject reportItem = jsonObject.getJsonObject("reportItem");
+    final String counterReportTitle = reportItem.getString(altKey(reportItem,
+        "itemName", "Title"));
+    if (counterReportTitle == null) {
+      return Future.succeededFuture();
+    }
     final String usageDateRange = getUsageDate(reportItem);
     final JsonObject identifiers = getIssnIdentifiers(reportItem);
     final String onlineIssn = identifiers.getString("onlineISSN");
@@ -601,16 +605,14 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     final String isbn = identifiers.getString("ISBN");
     final String doi = identifiers.getString("DOI");
     final String publicationDate = identifiers.getString("Publication_Date");
-    final String counterReportTitle = reportItem.getString(altKey(reportItem,
-        "itemName", "Title"));
     log.debug("handleReport title={} match={}", counterReportTitle, onlineIssn);
     final int totalAccessCount = getTotalCount(reportItem, "Total_Item_Requests");
     final int uniqueAccessCount = getTotalCount(reportItem, "Unique_Item_Requests");
     return upsertTitleEntryCounterReport(pool, con, ctx, counterReportTitle,
-            printIssn, onlineIssn, isbn, doi)
-            .compose(titleEntryId -> insertTdEntry(pool, con, titleEntryId, counterReportId,
-                counterReportTitle,  providerId, publicationDate, usageDateRange,
-                uniqueAccessCount, totalAccessCount));
+        printIssn, onlineIssn, isbn, doi)
+        .compose(titleEntryId -> insertTdEntry(pool, con, titleEntryId, counterReportId,
+            counterReportTitle, providerId, publicationDate, usageDateRange,
+            uniqueAccessCount, totalAccessCount));
   }
 
   HttpRequest<Buffer> getRequest(RoutingContext ctx, String uri) {
@@ -707,14 +709,10 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
         log.error("GET {} returned bad JSON: {}", uri, x.getMessage(), x);
         promise.tryFail("GET " + uri + " returned bad JSON: " + x.getMessage());
       });
-      parser.endHandler(e -> {
-        log.info("parser.endHandler");
-        GenericCompositeFuture.all(futures)
-            .onComplete(x -> {
-              log.info("parser.endHandler onComplete");
-              promise.handle(x.mapEmpty());
-            });
-      });
+      parser.endHandler(e ->
+          GenericCompositeFuture.all(futures)
+              .onComplete(x -> promise.handle(x.mapEmpty()))
+      );
       return getRequest(ctx, uri)
           .as(BodyCodec.jsonStream(parser))
           .send()

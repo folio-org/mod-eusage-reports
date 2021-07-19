@@ -204,6 +204,10 @@ public class MainVerticleTest {
                     )
                     .put("itemPerformance", new JsonArray())
                 )
+                .add(new JsonObject()
+                    .put("Platform", "My Platform")
+                    .put("itemPerformance", new JsonArray())
+                )
             )
         )
     );
