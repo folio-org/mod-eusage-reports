@@ -495,12 +495,6 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
         .mapEmpty();
   }
 
-  static Future<Void> clearTdEntry(TenantPgPool pool, UUID counterReportId) {
-    return pool.getConnection()
-        .compose(con -> clearTdEntry(pool, con, counterReportId)
-            .eventually(x -> con.close()));
-  }
-
   static Future<Void> insertTdEntry(TenantPgPool pool, SqlConnection con, UUID titleEntryId,
                                     UUID counterReportId, String counterReportTitle,
                                     UUID providerId, String publicationDate,
@@ -595,7 +589,8 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     return keys[0];
   }
 
-  Future<Void> handleReport(TenantPgPool pool, RoutingContext ctx, JsonObject jsonObject) {
+  Future<Void> handleReport(TenantPgPool pool, SqlConnection con, RoutingContext ctx,
+                            JsonObject jsonObject) {
     final UUID counterReportId = UUID.fromString(jsonObject.getString("id"));
     final UUID providerId = UUID.fromString(jsonObject.getString("providerId"));
     final JsonObject reportItem = jsonObject.getJsonObject("reportItem");
@@ -609,19 +604,13 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     final String counterReportTitle = reportItem.getString(altKey(reportItem,
         "itemName", "Title"));
     log.debug("handleReport title={} match={}", counterReportTitle, onlineIssn);
-    return pool.getConnection().compose(con -> con.begin().compose(tx -> {
-      Future<Void> future = Future.succeededFuture();
-      final int totalAccessCount = getTotalCount(reportItem, "Total_Item_Requests");
-      final int uniqueAccessCount = getTotalCount(reportItem, "Unique_Item_Requests");
-      future = future.compose(x ->
-          upsertTitleEntryCounterReport(pool, con, ctx, counterReportTitle,
-              printIssn, onlineIssn, isbn, doi)
-              .compose(titleEntryId -> insertTdEntry(pool, con, titleEntryId, counterReportId,
-                  counterReportTitle,  providerId, publicationDate, usageDateRange,
-                  uniqueAccessCount, totalAccessCount))
-      );
-      return future.compose(x -> tx.commit());
-    }).eventually(x -> con.close()));
+    final int totalAccessCount = getTotalCount(reportItem, "Total_Item_Requests");
+    final int uniqueAccessCount = getTotalCount(reportItem, "Unique_Item_Requests");
+    return upsertTitleEntryCounterReport(pool, con, ctx, counterReportTitle,
+            printIssn, onlineIssn, isbn, doi)
+            .compose(titleEntryId -> insertTdEntry(pool, con, titleEntryId, counterReportId,
+                counterReportTitle,  providerId, publicationDate, usageDateRange,
+                uniqueAccessCount, totalAccessCount));
   }
 
   HttpRequest<Buffer> getRequest(RoutingContext ctx, String uri) {
@@ -680,57 +669,66 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     final String uri = "/counter-reports" + (id != null ? "/" + id : "") + parms;
     AtomicInteger pathSize = new AtomicInteger(id != null ? 1 : 0);
     JsonObject reportObj = new JsonObject();
-    parser.handler(event -> {
-      log.debug("event type={}", event.type().name());
-      JsonEventType type = event.type();
-      if (JsonEventType.END_OBJECT.equals(type)) {
-        pathSize.decrementAndGet();
-        objectMode.set(false);
-        parser.objectEventMode();
-      }
-      if (JsonEventType.START_OBJECT.equals(type)) {
-        pathSize.incrementAndGet();
-      }
-      if (objectMode.get() && event.isObject()) {
-        reportObj.put("reportItem", event.objectValue());
-        log.debug("Object value {}", reportObj.encodePrettily());
-        futures.add(handleReport(pool, ctx, reportObj));
-      } else {
-        String f = event.fieldName();
-        log.debug("Field = {}", f);
-        if (pathSize.get() == 2) { // if inside each top-level of each report
-          if ("id".equals(f)) {
-            reportObj.put("id", event.stringValue());
-            futures.add(clearTdEntry(pool, UUID.fromString(reportObj.getString("id"))));
+    return pool.getConnection().compose(con -> {
+      parser.handler(event -> {
+        log.debug("event type={}", event.type().name());
+        JsonEventType type = event.type();
+        if (JsonEventType.END_OBJECT.equals(type)) {
+          pathSize.decrementAndGet();
+          objectMode.set(false);
+          parser.objectEventMode();
+        }
+        if (JsonEventType.START_OBJECT.equals(type)) {
+          pathSize.incrementAndGet();
+        }
+        if (objectMode.get() && event.isObject()) {
+          reportObj.put("reportItem", event.objectValue());
+          log.debug("Object value {}", reportObj.encodePrettily());
+          futures.add(handleReport(pool, con, ctx, reportObj));
+        } else {
+          String f = event.fieldName();
+          log.debug("Field = {}", f);
+          if (pathSize.get() == 2) { // if inside each top-level of each report
+            if ("id".equals(f)) {
+              reportObj.put("id", event.stringValue());
+              futures.add(clearTdEntry(pool, con, UUID.fromString(reportObj.getString("id"))));
+            }
+            if ("providerId".equals(f)) {
+              reportObj.put(f, event.stringValue());
+            }
           }
-          if ("providerId".equals(f)) {
-            reportObj.put(f, event.stringValue());
+          if ("reportItems".equals(f) || "Report_Items".equals(f)) {
+            objectMode.set(true);
+            parser.objectValueMode();
           }
         }
-        if ("reportItems".equals(f) || "Report_Items".equals(f)) {
-          objectMode.set(true);
-          parser.objectValueMode();
-        }
-      }
+      });
+      parser.exceptionHandler(x -> {
+        log.error("GET {} returned bad JSON: {}", uri, x.getMessage(), x);
+        promise.tryFail("GET " + uri + " returned bad JSON: " + x.getMessage());
+      });
+      parser.endHandler(e -> {
+        log.info("parser.endHandler");
+        GenericCompositeFuture.all(futures)
+            .onComplete(x -> {
+              log.info("parser.endHandler onComplete");
+              promise.handle(x.mapEmpty());
+            });
+      });
+      return getRequest(ctx, uri)
+          .as(BodyCodec.jsonStream(parser))
+          .send()
+          .compose(res -> {
+            if (res.statusCode() == 404) {
+              return Future.succeededFuture(false);
+            }
+            if (res.statusCode() != 200) {
+              return Future.failedFuture("GET " + uri + " returned status code "
+                  + res.statusCode());
+            }
+            return promise.future().map(true);
+          }).eventually(x -> con.close());
     });
-    parser.exceptionHandler(x -> {
-      log.error("GET {} returned bad JSON: {}", uri, x.getMessage(), x);
-      promise.tryFail("GET " + uri + " returned bad JSON: " + x.getMessage());
-    });
-    parser.endHandler(e -> GenericCompositeFuture.all(futures)
-        .onComplete(x -> promise.handle(x.mapEmpty())));
-    return getRequest(ctx, uri)
-        .as(BodyCodec.jsonStream(parser))
-        .send()
-        .compose(res -> {
-          if (res.statusCode() == 404) {
-            return Future.succeededFuture(false);
-          }
-          if (res.statusCode() != 200) {
-            return Future.failedFuture("GET " + uri + " returned status code " + res.statusCode());
-          }
-          return promise.future().map(true);
-        });
   }
 
   Future<Void> getReportData(Vertx vertx, RoutingContext ctx) {
