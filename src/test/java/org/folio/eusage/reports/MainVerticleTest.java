@@ -40,10 +40,12 @@ public class MainVerticleTest {
   static final UUID goodKbTitleId = UUID.randomUUID();
   static boolean enableGoodKbTitle;
   static final String goodKbTitleISSN = "1000-1002";
+  static final String goodKbTitleISSNstrip = "10001002";
   static final String goodDoiValue = "publisherA:Code123";
   static final UUID otherKbTitleId = UUID.randomUUID();
   static final String otherKbTitleISSN = "1000-2000";
   static final String noMatchKbTitleISSN = "1001-1002";
+  static final String noMatchKbTitleISSNstrip = "10011002";
   static final UUID goodCounterReportId = UUID.randomUUID();
   static final UUID otherCounterReportId = UUID.randomUUID();
   static final UUID badJsonCounterReportId = UUID.randomUUID();
@@ -304,12 +306,14 @@ public class MainVerticleTest {
     UUID kbTitleId;
     switch (term) {
       case goodKbTitleISSN:
+      case goodKbTitleISSNstrip:
         kbTitleId = enableGoodKbTitle ? goodKbTitleId : null;
         break; // return a known kbTitleId for "The cats journal"
       case otherKbTitleISSN:
         kbTitleId = otherKbTitleId;
         break;
       case noMatchKbTitleISSN:
+      case noMatchKbTitleISSNstrip:
         kbTitleId = null; // for "The dogs journal" , no kb match
         break;
       default:

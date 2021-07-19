@@ -291,13 +291,21 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     return Tuple.of(titleId, resource.getString("name"));
   }
 
+  Future<Tuple> ermTitleLookup2(RoutingContext ctx, String identifier, String type) {
+    if (identifier == null) {
+      return Future.succeededFuture();
+    }
+    // some titles do not have hyphen in identifier, so try that as well
+    return ermTitleLookup(ctx, identifier, type).compose(x -> x != null
+        ? Future.succeededFuture(x)
+        : ermTitleLookup(ctx, identifier.replace("-", ""), type)
+    );
+  }
+
   Future<Tuple> ermTitleLookup(RoutingContext ctx, String identifier, String type) {
     // assuming identifier only has unreserved characters
     // TODO .. this will match any type of identifier.
     // what if there's more than one hit?
-    if (identifier == null) {
-      return Future.succeededFuture();
-    }
     String uri = "/erm/resource?"
         + "match=identifiers.identifier.value&term=" + identifier
         + "&filters=identifiers.identifier.ns.value%3D" + type;
@@ -374,8 +382,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
             identifier = printIssn;
             type = "issn";
           } else if (isbn != null) {
-            // ERM seem to have ISBNs without hyphen
-            identifier = isbn.replace("-", "");
+            identifier = isbn;
             type = "isbn";
           }
           if (res1.iterator().hasNext()) {
@@ -385,7 +392,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
             if (row.getUUID(3) != null || Boolean.TRUE.equals(kbManualMatch)) {
               return Future.succeededFuture(id);
             }
-            return ermTitleLookup(ctx, identifier, type).compose(erm -> {
+            return ermTitleLookup2(ctx, identifier, type).compose(erm -> {
               if (erm == null) {
                 return Future.succeededFuture(id);
               }
@@ -399,7 +406,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
                   .execute(Tuple.of(id, kbTitleName, kbTitleId)).map(id);
             });
           }
-          return ermTitleLookup(ctx, identifier, type).compose(erm -> {
+          return ermTitleLookup2(ctx, identifier, type).compose(erm -> {
             UUID kbTitleId = erm != null ? erm.getUUID(0) : null;
             String kbTitleName = erm != null ? erm.getString(1) : null;
 
