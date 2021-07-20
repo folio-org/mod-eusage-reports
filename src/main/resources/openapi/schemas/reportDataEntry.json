@@ -58,7 +58,8 @@
     },
     "orderType": {
       "type": "string",
-      "description": "purchase order type \"One-Time\", \"Ongoing\""
+      "description": "purchase order type",
+      "enum": [ "One-Time", "Ongoing"]
     },
     "invoiceNumber": {
       "type": "string",
