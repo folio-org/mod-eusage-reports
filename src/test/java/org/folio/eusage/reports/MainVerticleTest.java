@@ -38,11 +38,14 @@ public class MainVerticleTest {
   static final int MOCK_PORT = 9231;
   static final String pubDateSample = "1998-05-19";
   static final UUID goodKbTitleId = UUID.randomUUID();
+  static boolean enableGoodKbTitle;
   static final String goodKbTitleISSN = "1000-1002";
+  static final String goodKbTitleISSNstrip = "10001002";
   static final String goodDoiValue = "publisherA:Code123";
   static final UUID otherKbTitleId = UUID.randomUUID();
   static final String otherKbTitleISSN = "1000-2000";
   static final String noMatchKbTitleISSN = "1001-1002";
+  static final String noMatchKbTitleISSNstrip = "10011002";
   static final UUID goodCounterReportId = UUID.randomUUID();
   static final UUID otherCounterReportId = UUID.randomUUID();
   static final UUID badJsonCounterReportId = UUID.randomUUID();
@@ -201,6 +204,10 @@ public class MainVerticleTest {
                     )
                     .put("itemPerformance", new JsonArray())
                 )
+                .add(new JsonObject()
+                    .put("Platform", "My Platform")
+                    .put("itemPerformance", new JsonArray())
+                )
             )
         )
     );
@@ -302,11 +309,21 @@ public class MainVerticleTest {
     JsonArray ar = new JsonArray();
     UUID kbTitleId;
     switch (term) {
-      case goodKbTitleISSN: kbTitleId = goodKbTitleId; break; // return a known kbTitleId for "The cats journal"
-      case otherKbTitleISSN: kbTitleId = otherKbTitleId; break;
-      default: kbTitleId = UUID.randomUUID();
+      case goodKbTitleISSN:
+      case goodKbTitleISSNstrip:
+        kbTitleId = enableGoodKbTitle ? goodKbTitleId : null;
+        break; // return a known kbTitleId for "The cats journal"
+      case otherKbTitleISSN:
+        kbTitleId = otherKbTitleId;
+        break;
+      case noMatchKbTitleISSN:
+      case noMatchKbTitleISSNstrip:
+        kbTitleId = null; // for "The dogs journal" , no kb match
+        break;
+      default:
+        kbTitleId = UUID.randomUUID();
     }
-    if (!noMatchKbTitleISSN.equals(term)) { // for "The dogs journal" , no kb match
+    if (kbTitleId != null) {
       ar.add(getKbTitle(kbTitleId));
     }
     ctx.response().end(ar.encode());
@@ -824,6 +841,34 @@ public class MainVerticleTest {
         .then().statusCode(204);
   }
 
+  void analyzeTitles(TestContext context, JsonObject resObject,
+                     int expectTotal, int expectNumber, int expectUndef, int expectManual, int expectIgnored) {
+    context.assertEquals(expectTotal, resObject.getJsonObject("resultInfo").getInteger("totalRecords"));
+    context.assertEquals(0, resObject.getJsonObject("resultInfo").getJsonArray("diagnostics").size());
+    JsonArray titlesAr = resObject.getJsonArray("titles");
+    context.assertEquals(expectNumber, titlesAr.size());
+    int noManual = 0;
+    int noIgnored = 0;
+    int noUndef = 0;
+    for (int i = 0; i < titlesAr.size(); i++) {
+      JsonObject title = titlesAr.getJsonObject(i);
+      if (title.getBoolean("kbManualMatch")) {
+        if (title.containsKey("kbTitleId")) {
+          noManual++;
+        } else {
+          noIgnored++;
+        }
+      } else {
+        if (!title.containsKey("kbTitleId")) {
+          noUndef++;
+        }
+      }
+    }
+    context.assertEquals(expectUndef, noUndef);
+    context.assertEquals(expectManual, noManual);
+    context.assertEquals(expectIgnored, noIgnored);
+  }
+
   @Test
   public void testFromCounterMissingOkapiUrl() {
     String tenant = "testlib";
@@ -901,9 +946,7 @@ public class MainVerticleTest {
         .header("Content-Type", is("application/json"))
         .extract();
     JsonObject resObject = new JsonObject(response.body().asString());
-    context.assertEquals(0, resObject.getJsonArray("titles").size());
-    context.assertEquals(0, resObject.getJsonObject("resultInfo").getInteger("totalRecords"));
-    context.assertEquals(0, resObject.getJsonObject("resultInfo").getJsonArray("diagnostics").size());
+    analyzeTitles(context, resObject, 0, 0, 0, 0, 0);
 
     tenantOp(context, tenant, new JsonObject()
         .put("module_from", "mod-eusage-reports-1.0.0")
@@ -919,6 +962,7 @@ public class MainVerticleTest {
             )
         ), null);
 
+    enableGoodKbTitle = false;
     response = RestAssured.given()
         .header(XOkapiHeaders.TENANT, tenant)
         .header(XOkapiHeaders.URL, "http://localhost:" + MOCK_PORT)
@@ -929,18 +973,38 @@ public class MainVerticleTest {
         .header("Content-Type", is("application/json"))
         .extract();
     resObject = new JsonObject(response.body().asString());
-    context.assertEquals(8, resObject.getJsonObject("resultInfo").getInteger("totalRecords"));
-    context.assertEquals(0, resObject.getJsonObject("resultInfo").getJsonArray("diagnostics").size());
+    analyzeTitles(context, resObject, 8, 8, 3, 0, 0);
+
+    enableGoodKbTitle = true;
+    response = RestAssured.given()
+        .header(XOkapiHeaders.TENANT, tenant)
+        .header(XOkapiHeaders.URL, "http://localhost:" + MOCK_PORT)
+        .header("Content-Type", "application/json")
+        .body("{}")
+        .post("/eusage-reports/report-titles/from-counter")
+        .then().statusCode(200)
+        .header("Content-Type", is("application/json"))
+        .extract();
+    resObject = new JsonObject(response.body().asString());
+    analyzeTitles(context, resObject, 8, 8, 2, 0, 0);
+
+    response = RestAssured.given()
+        .header(XOkapiHeaders.TENANT, tenant)
+        .header(XOkapiHeaders.URL, "http://localhost:" + MOCK_PORT)
+        .header("Content-Type", "application/json")
+        .body("{}")
+        .post("/eusage-reports/report-titles/from-counter")
+        .then().statusCode(200)
+        .header("Content-Type", is("application/json"))
+        .extract();
+    resObject = new JsonObject(response.body().asString());
+    analyzeTitles(context, resObject, 8, 8, 2, 0, 0);
     JsonArray titlesAr = resObject.getJsonArray("titles");
-    context.assertEquals(8, titlesAr.size());
-    int noDefined = 0;
-    int noUndefined = 0;
     int noGood = 0;
     JsonObject unmatchedTitle = null;
     for (int i = 0; i < titlesAr.size(); i++) {
       JsonObject title = titlesAr.getJsonObject(i);
       if (title.containsKey("kbTitleName")) {
-        noDefined++;
         String kbTitleName = title.getString("kbTitleName");
         if ("good kb title instance name".equals(kbTitleName)) {
           noGood++;
@@ -954,17 +1018,15 @@ public class MainVerticleTest {
         } else {
           context.assertEquals("No match", counterReportTitle);
         }
-        noUndefined++;
       }
     }
     context.assertEquals(1, noGood);
-    context.assertEquals(6, noDefined);
-    context.assertEquals(2, noUndefined);
 
+
+    // put without kbTitleId kbTitleName (so title is ignored)
     JsonObject postTitleObject = new JsonObject();
     postTitleObject.put("titles", new JsonArray().add(unmatchedTitle));
-
-    // put without kbTitleId kbTitleName
+    unmatchedTitle.remove("kbManualMatch"); // default is true
     RestAssured.given()
         .header(XOkapiHeaders.TENANT, tenant)
         .header(XOkapiHeaders.URL, "http://localhost:" + MOCK_PORT)
@@ -981,11 +1043,8 @@ public class MainVerticleTest {
         .header("Content-Type", is("application/json"))
         .extract();
     resObject = new JsonObject(response.body().asString());
+    analyzeTitles(context, resObject, 8, 8, 1, 0, 1);
     titlesAr = resObject.getJsonArray("titles");
-    context.assertEquals(8, titlesAr.size());
-    int noManual = 0;
-    noDefined = 0;
-    noUndefined = 0;
     for (int i = 0; i < titlesAr.size(); i++) {
       JsonObject title = titlesAr.getJsonObject(i);
       String counterReportTitle = title.getString("counterReportTitle");
@@ -994,23 +1053,31 @@ public class MainVerticleTest {
       } else {
         context.assertFalse(title.containsKey("DOI"), title.encodePrettily());
       }
-      if (title.getBoolean("kbManualMatch")) {
-        context.assertFalse(title.containsKey("kbTitleId"));
-        context.assertFalse(title.containsKey("kbTitleName"));
-        noManual++;
-      } else {
-        if (title.containsKey("kbTitleName")) {
-          noDefined++;
-        } else {
-          noUndefined++;
-        }
-      }
     }
-    context.assertEquals(1, noManual);
-    context.assertEquals(6, noDefined);
-    context.assertEquals(1, noUndefined);
 
-    // put with kbTitleId kbTitleName
+    // un-ignore the title, no longer manual match
+    unmatchedTitle.put("kbManualMatch", false);
+    postTitleObject.put("titles", new JsonArray().add(unmatchedTitle));
+    RestAssured.given()
+        .header(XOkapiHeaders.TENANT, tenant)
+        .header(XOkapiHeaders.URL, "http://localhost:" + MOCK_PORT)
+        .header("Content-Type", "application/json")
+        .body(postTitleObject.encode())
+        .post("/eusage-reports/report-titles")
+        .then().statusCode(204);
+
+    response = RestAssured.given()
+        .header(XOkapiHeaders.TENANT, tenant)
+        .header(XOkapiHeaders.URL, "http://localhost:" + MOCK_PORT)
+        .get("/eusage-reports/report-titles")
+        .then().statusCode(200)
+        .header("Content-Type", is("application/json"))
+        .extract();
+    resObject = new JsonObject(response.body().asString());
+    analyzeTitles(context, resObject, 8, 8, 2, 0, 0);
+
+    // put with kbTitleId kbTitleName with manual
+    unmatchedTitle.put("kbManualMatch", true);
     unmatchedTitle.put("kbTitleName", "correct kb title name");
     unmatchedTitle.put("kbTitleId", UUID.randomUUID().toString());
     RestAssured.given()
@@ -1029,25 +1096,7 @@ public class MainVerticleTest {
         .header("Content-Type", is("application/json"))
         .extract();
     resObject = new JsonObject(response.body().asString());
-    titlesAr = resObject.getJsonArray("titles");
-    context.assertEquals(8, titlesAr.size());
-    noManual = 0;
-    noDefined = 0;
-    noUndefined = 0;
-    for (int i = 0; i < titlesAr.size(); i++) {
-      JsonObject title = titlesAr.getJsonObject(i);
-      if (title.containsKey("kbTitleName")) {
-        noDefined++;
-      } else {
-        noUndefined++;
-      }
-      if (title.getBoolean("kbManualMatch")) {
-        noManual++;
-      }
-    }
-    context.assertEquals(1, noManual);
-    context.assertEquals(7, noDefined);
-    context.assertEquals(1, noUndefined);
+    analyzeTitles(context, resObject, 8, 8, 1, 1, 0);
 
     JsonObject n = new JsonObject();
     n.put("id", UUID.randomUUID());
@@ -1084,13 +1133,13 @@ public class MainVerticleTest {
     response = RestAssured.given()
         .header(XOkapiHeaders.TENANT, tenant)
         .header(XOkapiHeaders.URL, "http://localhost:" + MOCK_PORT)
-        .get("/eusage-reports/title-data?limit=30")
+        .get("/eusage-reports/title-data?limit=100")
         .then().statusCode(200)
         .header("Content-Type", is("application/json"))
         .extract();
     resObject = new JsonObject(response.body().asString());
     JsonArray items = resObject.getJsonArray("data");
-    context.assertEquals(20, items.size());
+    context.assertEquals(60, items.size());
     int noWithPubDate = 0;
     for (int i = 0; i < items.size(); i++) {
       JsonObject item = items.getJsonObject(i);
@@ -1101,7 +1150,7 @@ public class MainVerticleTest {
         noWithPubDate++;
       }
     }
-    context.assertEquals(5, noWithPubDate);
+    context.assertEquals(15, noWithPubDate);
 
     response = RestAssured.given()
         .header(XOkapiHeaders.TENANT, tenant)

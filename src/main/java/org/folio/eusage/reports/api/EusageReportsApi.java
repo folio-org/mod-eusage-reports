@@ -217,15 +217,16 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
             UUID id = UUID.fromString(titleEntry.getString("id"));
             String kbTitleName = titleEntry.getString("kbTitleName");
             String kbTitleIdStr = titleEntry.getString("kbTitleId");
+            Boolean kbManualMatch = titleEntry.getBoolean("kbManualMatch", true);
             future = future.compose(x ->
                 sqlConnection.preparedQuery("UPDATE " + titleEntriesTable(pool)
                     + " SET"
                     + " kbTitleName = $2,"
                     + " kbTitleId = $3,"
-                    + " kbManualMatch = TRUE"
+                    + " kbManualMatch = $4"
                     + " WHERE id = $1")
                     .execute(Tuple.of(id, kbTitleName, kbTitleIdStr == null
-                        ? null : UUID.fromString(kbTitleIdStr)))
+                        ? null : UUID.fromString(kbTitleIdStr), kbManualMatch))
                     .compose(rowSet -> {
                       if (rowSet.rowCount() == 0) {
                         return Future.failedFuture("title " + id + " matches nothing");
@@ -293,13 +294,21 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     return Tuple.of(titleId, resource.getString("name"));
   }
 
+  Future<Tuple> ermTitleLookup2(RoutingContext ctx, String identifier, String type) {
+    if (identifier == null) {
+      return Future.succeededFuture();
+    }
+    // some titles do not have hyphen in identifier, so try that as well
+    return ermTitleLookup(ctx, identifier, type).compose(x -> x != null
+        ? Future.succeededFuture(x)
+        : ermTitleLookup(ctx, identifier.replace("-", ""), type)
+    );
+  }
+
   Future<Tuple> ermTitleLookup(RoutingContext ctx, String identifier, String type) {
     // assuming identifier only has unreserved characters
     // TODO .. this will match any type of identifier.
     // what if there's more than one hit?
-    if (identifier == null) {
-      return Future.succeededFuture();
-    }
     String uri = "/erm/resource?"
         + "match=identifiers.identifier.value&term=" + identifier
         + "&filters=identifiers.identifier.ns.value%3D" + type;
@@ -363,14 +372,10 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
                                              RoutingContext ctx, String counterReportTitle,
                                              String printIssn, String onlineIssn, String isbn,
                                              String doi) {
-    return con.preparedQuery("SELECT id FROM " + titleEntriesTable(pool)
+    return con.preparedQuery("SELECT * FROM " + titleEntriesTable(pool)
         + " WHERE counterReportTitle = $1")
         .execute(Tuple.of(counterReportTitle))
         .compose(res1 -> {
-          if (res1.iterator().hasNext()) {
-            Row row = res1.iterator().next();
-            return Future.succeededFuture(row.getUUID(0));
-          }
           String identifier = null;
           String type = null;
           if (onlineIssn != null) {
@@ -380,13 +385,34 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
             identifier = printIssn;
             type = "issn";
           } else if (isbn != null) {
-            // ERM seem to have ISBNs without hyphen
-            identifier = isbn.replace("-", "");
+            identifier = isbn;
             type = "isbn";
           }
-          return ermTitleLookup(ctx, identifier, type).compose(erm -> {
+          if (res1.iterator().hasNext()) {
+            Row row = res1.iterator().next();
+            UUID id = row.getUUID(0);
+            Boolean kbManualMatch = row.getBoolean(4);
+            if (row.getUUID(3) != null || Boolean.TRUE.equals(kbManualMatch)) {
+              return Future.succeededFuture(id);
+            }
+            return ermTitleLookup2(ctx, identifier, type).compose(erm -> {
+              if (erm == null) {
+                return Future.succeededFuture(id);
+              }
+              UUID kbTitleId = erm.getUUID(0);
+              String kbTitleName = erm.getString(1);
+              return con.preparedQuery("UPDATE " + titleEntriesTable(pool)
+                  + " SET"
+                  + " kbTitleName = $2,"
+                  + " kbTitleId = $3"
+                  + " WHERE id = $1")
+                  .execute(Tuple.of(id, kbTitleName, kbTitleId)).map(id);
+            });
+          }
+          return ermTitleLookup2(ctx, identifier, type).compose(erm -> {
             UUID kbTitleId = erm != null ? erm.getUUID(0) : null;
             String kbTitleName = erm != null ? erm.getString(1) : null;
+
             return updateTitleEntryByKbTitle(pool, con, kbTitleId,
                 counterReportTitle, printIssn, onlineIssn, isbn, doi)
                 .compose(id -> {
@@ -472,12 +498,6 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
         .mapEmpty();
   }
 
-  static Future<Void> clearTdEntry(TenantPgPool pool, UUID counterReportId) {
-    return pool.getConnection()
-        .compose(con -> clearTdEntry(pool, con, counterReportId)
-            .eventually(x -> con.close()));
-  }
-
   static Future<Void> insertTdEntry(TenantPgPool pool, SqlConnection con, UUID titleEntryId,
                                     UUID counterReportId, String counterReportTitle,
                                     UUID providerId, String publicationDate,
@@ -533,7 +553,6 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     return null;
   }
 
-
   static JsonObject getIssnIdentifiers(JsonObject reportItem) {
     JsonArray itemIdentifiers = reportItem.getJsonArray(altKey(reportItem,
         "itemIdentifier", "Item_ID"));
@@ -572,10 +591,16 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     return keys[0];
   }
 
-  Future<Void> handleReport(TenantPgPool pool, RoutingContext ctx, JsonObject jsonObject) {
+  Future<Void> handleReport(TenantPgPool pool, SqlConnection con, RoutingContext ctx,
+                            JsonObject jsonObject) {
     final UUID counterReportId = UUID.fromString(jsonObject.getString("id"));
     final UUID providerId = UUID.fromString(jsonObject.getString("providerId"));
     final JsonObject reportItem = jsonObject.getJsonObject("reportItem");
+    final String counterReportTitle = reportItem.getString(altKey(reportItem,
+        "itemName", "Title"));
+    if (counterReportTitle == null) {
+      return Future.succeededFuture();
+    }
     final String usageDateRange = getUsageDate(reportItem);
     final JsonObject identifiers = getIssnIdentifiers(reportItem);
     final String onlineIssn = identifiers.getString("onlineISSN");
@@ -583,22 +608,14 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     final String isbn = identifiers.getString("ISBN");
     final String doi = identifiers.getString("DOI");
     final String publicationDate = identifiers.getString("Publication_Date");
-    final String counterReportTitle = reportItem.getString(altKey(reportItem,
-        "itemName", "Title"));
     log.debug("handleReport title={} match={}", counterReportTitle, onlineIssn);
-    return pool.getConnection().compose(con -> con.begin().compose(tx -> {
-      Future<Void> future = Future.succeededFuture();
-      final int totalAccessCount = getTotalCount(reportItem, "Total_Item_Requests");
-      final int uniqueAccessCount = getTotalCount(reportItem, "Unique_Item_Requests");
-      future = future.compose(x ->
-          upsertTitleEntryCounterReport(pool, con, ctx, counterReportTitle,
-              printIssn, onlineIssn, isbn, doi)
-              .compose(titleEntryId -> insertTdEntry(pool, con, titleEntryId, counterReportId,
-                  counterReportTitle,  providerId, publicationDate, usageDateRange,
-                  uniqueAccessCount, totalAccessCount))
-      );
-      return future.compose(x -> tx.commit());
-    }).eventually(x -> con.close()));
+    final int totalAccessCount = getTotalCount(reportItem, "Total_Item_Requests");
+    final int uniqueAccessCount = getTotalCount(reportItem, "Unique_Item_Requests");
+    return upsertTitleEntryCounterReport(pool, con, ctx, counterReportTitle,
+        printIssn, onlineIssn, isbn, doi)
+        .compose(titleEntryId -> insertTdEntry(pool, con, titleEntryId, counterReportId,
+            counterReportTitle, providerId, publicationDate, usageDateRange,
+            uniqueAccessCount, totalAccessCount));
   }
 
   HttpRequest<Buffer> getRequest(RoutingContext ctx, String uri) {
@@ -657,57 +674,62 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     final String uri = "/counter-reports" + (id != null ? "/" + id : "") + parms;
     AtomicInteger pathSize = new AtomicInteger(id != null ? 1 : 0);
     JsonObject reportObj = new JsonObject();
-    parser.handler(event -> {
-      log.debug("event type={}", event.type().name());
-      JsonEventType type = event.type();
-      if (JsonEventType.END_OBJECT.equals(type)) {
-        pathSize.decrementAndGet();
-        objectMode.set(false);
-        parser.objectEventMode();
-      }
-      if (JsonEventType.START_OBJECT.equals(type)) {
-        pathSize.incrementAndGet();
-      }
-      if (objectMode.get() && event.isObject()) {
-        reportObj.put("reportItem", event.objectValue());
-        log.debug("Object value {}", reportObj.encodePrettily());
-        futures.add(handleReport(pool, ctx, reportObj));
-      } else {
-        String f = event.fieldName();
-        log.debug("Field = {}", f);
-        if (pathSize.get() == 2) { // if inside each top-level of each report
-          if ("id".equals(f)) {
-            reportObj.put("id", event.stringValue());
-            futures.add(clearTdEntry(pool, UUID.fromString(reportObj.getString("id"))));
+    return pool.getConnection().compose(con -> {
+      parser.handler(event -> {
+        log.debug("event type={}", event.type().name());
+        JsonEventType type = event.type();
+        if (JsonEventType.END_OBJECT.equals(type)) {
+          pathSize.decrementAndGet();
+          objectMode.set(false);
+          parser.objectEventMode();
+        }
+        if (JsonEventType.START_OBJECT.equals(type)) {
+          pathSize.incrementAndGet();
+        }
+        if (objectMode.get() && event.isObject()) {
+          reportObj.put("reportItem", event.objectValue());
+          log.debug("Object value {}", reportObj.encodePrettily());
+          futures.add(handleReport(pool, con, ctx, reportObj));
+        } else {
+          String f = event.fieldName();
+          log.debug("Field = {}", f);
+          if (pathSize.get() == 2) { // if inside each top-level of each report
+            if ("id".equals(f)) {
+              reportObj.put("id", event.stringValue());
+              futures.add(clearTdEntry(pool, con, UUID.fromString(reportObj.getString("id"))));
+            }
+            if ("providerId".equals(f)) {
+              reportObj.put(f, event.stringValue());
+            }
           }
-          if ("providerId".equals(f)) {
-            reportObj.put(f, event.stringValue());
+          if ("reportItems".equals(f) || "Report_Items".equals(f)) {
+            objectMode.set(true);
+            parser.objectValueMode();
           }
         }
-        if ("reportItems".equals(f) || "Report_Items".equals(f)) {
-          objectMode.set(true);
-          parser.objectValueMode();
-        }
-      }
+      });
+      parser.exceptionHandler(x -> {
+        log.error("GET {} returned bad JSON: {}", uri, x.getMessage(), x);
+        promise.tryFail("GET " + uri + " returned bad JSON: " + x.getMessage());
+      });
+      parser.endHandler(e ->
+          GenericCompositeFuture.all(futures)
+              .onComplete(x -> promise.handle(x.mapEmpty()))
+      );
+      return getRequest(ctx, uri)
+          .as(BodyCodec.jsonStream(parser))
+          .send()
+          .compose(res -> {
+            if (res.statusCode() == 404) {
+              return Future.succeededFuture(false);
+            }
+            if (res.statusCode() != 200) {
+              return Future.failedFuture("GET " + uri + " returned status code "
+                  + res.statusCode());
+            }
+            return promise.future().map(true);
+          }).eventually(x -> con.close());
     });
-    parser.exceptionHandler(x -> {
-      log.error("GET {} returned bad JSON: {}", uri, x.getMessage(), x);
-      promise.tryFail("GET " + uri + " returned bad JSON: " + x.getMessage());
-    });
-    parser.endHandler(e -> GenericCompositeFuture.all(futures)
-        .onComplete(x -> promise.handle(x.mapEmpty())));
-    return getRequest(ctx, uri)
-        .as(BodyCodec.jsonStream(parser))
-        .send()
-        .compose(res -> {
-          if (res.statusCode() == 404) {
-            return Future.succeededFuture(false);
-          }
-          if (res.statusCode() != 200) {
-            return Future.failedFuture("GET " + uri + " returned status code " + res.statusCode());
-          }
-          return promise.future().map(true);
-        });
   }
 
   Future<Void> getReportData(Vertx vertx, RoutingContext ctx) {
