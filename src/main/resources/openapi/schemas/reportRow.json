@@ -24,7 +24,8 @@
     },
     "metricType": {
       "type": "string",
-      "description": "Total_Item_Requests or Unique_Item_Requests"
+      "enum": ["Total_Item_Requests", "Unique_Item_Requests"],
+      "description": "Handling of multiple requests of the same client"
     },
     "accessCountTotal": {
       "type": "integer",
