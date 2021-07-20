@@ -752,6 +752,8 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
               .put("fiscalYearRange", row.getString(9))
               .put("subscriptionDateRange", row.getString(10))
               .put("coverageDateRanges", row.getString(11))
+              .put("orderType", row.getString(12))
+              .put("invoiceNumber", row.getString(13))
       );
     } catch (Exception e) {
       log.error(e.getMessage(), e);
@@ -763,6 +765,40 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     final String uri = "/erm/sas/" + agreementId;
     return getRequestSend(ctx, uri, 404)
         .map(res -> res.statusCode() != 404);
+  }
+
+  /**
+   * Fetch purchase order by ID.
+   * @see <a
+   * href="https://github.com/folio-org/acq-models/blob/master/mod-orders-storage/schemas/purchase_order.json">
+   * purchase order schema</a>
+   * @param id purchase order ID.
+   * @param ctx routing context.
+   * @return purchase order object.
+   */
+  Future<JsonObject> lookupPurchaseOrderLine(UUID id, RoutingContext ctx) {
+    String uri = "/orders/composite-orders/" + id;
+    return getRequestSend(ctx, uri)
+        .map(HttpResponse::bodyAsJsonObject);
+  }
+
+  /**
+   * Get orderType from purchase order.
+   * @param poLine po line object.
+   * @param ctx routing context.
+   * @param result JSON object with "orderType" is being set.
+   * @return
+   */
+  Future<Void> getOrderType(JsonObject poLine, RoutingContext ctx, JsonObject result) {
+    String purchaseOrderId = poLine.getString("purchaseOrderId");
+    if (purchaseOrderId == null) {
+      result.put("orderType", "Ongoing");
+      return Future.succeededFuture();
+    }
+    return lookupPurchaseOrderLine(UUID.fromString(purchaseOrderId), ctx)
+        .onSuccess(purchase ->
+          result.put("orderType", purchase.getString("orderType", "Ongoing")))
+        .mapEmpty();
   }
 
   /**
@@ -890,12 +926,17 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
         result.put("currency", newCurrency);
         result.put("encumberedCost",
             result.getDouble("encumberedCost") + cost.getDouble("listUnitPriceElectronic"));
-        return getFiscalYear(poLine, ctx, result);
+        return getFiscalYear(poLine, ctx, result)
+            .compose(x -> getOrderType(poLine, ctx, result));
       }));
       futures.add(lookupInvoiceLines(poLineId, ctx).compose(invoiceResponse -> {
         JsonArray invoices = invoiceResponse.getJsonArray("invoiceLines");
         for (int j = 0; j < invoices.size(); j++) {
           JsonObject invoiceLine = invoices.getJsonObject(j);
+          String invoiceNumber = invoiceLine.getString("invoiceLineNumber");
+          if (invoiceNumber != null) {
+            result.put("invoiceNumber", invoiceNumber);
+          }
           Double thisTotal = invoiceLine.getDouble("total");
           if (thisTotal != null) {
             result.put("invoicedCost", thisTotal + result.getDouble("invoicedCost"));
@@ -967,6 +1008,8 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
               .compose(x -> createPackageFromAgreement(pool, con, kbPackageId, kbPackageName, ctx))
               .compose(x -> {
                 UUID id = UUID.randomUUID();
+                String orderType = poResult.getString("orderType");
+                String invoiceNumber = poResult.getString("invoiceNumber");
                 Number encumberedCost = poResult.getDouble("encumberedCost");
                 Number invoicedCost = poResult.getDouble("invoicedCost");
                 String subScriptionDateRange = poResult.getString("subscriptionDateRange");
@@ -974,11 +1017,13 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
                 return con.preparedQuery("INSERT INTO " + agreementEntriesTable(pool)
                     + "(id, kbTitleId, kbPackageId, type,"
                     + " agreementId, agreementLineId, poLineId, encumberedCost, invoicedCost,"
-                    + " fiscalYearRange, subscriptionDateRange, coverageDateRanges)"
-                    + " VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)")
+                    + " fiscalYearRange, subscriptionDateRange, coverageDateRanges, orderType,"
+                    + " invoiceNumber)"
+                    + " VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)")
                     .execute(Tuple.of(id, kbTitleId, kbPackageId, type,
                         agreementId, agreementLineId, poLineId, encumberedCost, invoicedCost,
-                        fiscalYearRange, subScriptionDateRange, coverageDateRanges))
+                        fiscalYearRange, subScriptionDateRange, coverageDateRanges, orderType,
+                        invoiceNumber))
                     .mapEmpty();
               })
           );
@@ -1182,7 +1227,9 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
             + "invoicedCost numeric(20, 8), "
             + "fiscalYearRange daterange, "
             + "subscriptionDateRange daterange, "
-            + "coverageDateRanges daterange"
+            + "coverageDateRanges daterange,"
+            + "orderType text,"
+            + "invoiceNumber text"
             + ")")
         .execute().mapEmpty());
     return future;
