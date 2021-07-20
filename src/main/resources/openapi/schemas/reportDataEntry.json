@@ -19,7 +19,7 @@
     },
     "type": {
       "type": "string",
-      "description": "one of journal, pacakge, ebook"
+      "description": "one of journal, package, ebook"
     },
     "agreementId": {
       "type": "string",
