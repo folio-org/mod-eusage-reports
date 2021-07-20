@@ -72,6 +72,7 @@
             "erm.resources.collection.get",
             "erm.resources.item.entitlement.get",
             "erm.resources.item.get",
+            "orders.item.get",
             "orders.po-lines.item.get",
             "invoice-storage.invoice-lines.collection.get",
             "invoice-storage.invoice-lines.item.get",
