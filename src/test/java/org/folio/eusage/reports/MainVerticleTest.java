@@ -498,6 +498,7 @@ public class MainVerticleTest {
                   .put("fundId", goodFundId.toString())
               )
           );
+          orderLine.put("purchaseOrderId", UUID.randomUUID().toString());
         }
         ctx.response().end(orderLine.encode());
         return;
@@ -523,10 +524,11 @@ public class MainVerticleTest {
       if (poLineId.equals(poLineIds[i])) {
         {
           JsonObject invoice = new JsonObject()
-            .put("poLineId", poLineId)
-            .put("quantity", 1 + i)
-            .put("subTotal", 10.0 + i * 5)
-            .put("total", 12.0 + i * 6);
+              .put("poLineId", poLineId)
+              .put("quantity", 1 + i)
+              .put("subTotal", 10.0 + i * 5)
+              .put("total", 12.0 + i * 6)
+              .put("invoiceLineNumber", String.format("%d", i));
           if (i == 0) {
             invoice.put("subscriptionStart", "2020-01-01T00:00:00.000+00:00");
             invoice.put("subscriptionEnd", "2020-12-31T00:00:00.000+00:00");
@@ -620,6 +622,18 @@ public class MainVerticleTest {
     }
   }
 
+  static void getCompositeOrders(RoutingContext ctx) {
+    String path = ctx.request().path();
+    int offset = path.lastIndexOf('/');
+    UUID id = UUID.fromString(path.substring(offset + 1));
+
+    JsonObject ret = new JsonObject();
+    ret.put("orderType", "One-Time");
+    ctx.response().setChunked(true);
+    ctx.response().putHeader("Content-Type", "application/json");
+    ctx.end(ret.encode());
+  }
+
   @BeforeClass
   public static void beforeClass(TestContext context) {
     vertx = Vertx.vertx();
@@ -640,6 +654,7 @@ public class MainVerticleTest {
     router.getWithRegex("/finance-storage/funds/[-0-9a-z]*").handler(MainVerticleTest::getFund);
     router.getWithRegex("/finance-storage/ledgers/[-0-9a-z]*").handler(MainVerticleTest::getLedger);
     router.getWithRegex("/finance-storage/fiscal-years/[-0-9a-z]*").handler(MainVerticleTest::getFiscalYear);
+    router.getWithRegex("/orders/composite-orders/[-0-9a-z]*").handler(MainVerticleTest::getCompositeOrders);
     vertx.createHttpServer()
         .requestHandler(router)
         .listen(MOCK_PORT)
@@ -1365,15 +1380,19 @@ public class MainVerticleTest {
     context.assertEquals(4, items.size());
     int noPackages = 0;
     for (int i = 0; i < items.size(); i++) {
-      String type =  items.getJsonObject(i).getString("type");
+      JsonObject item = items.getJsonObject(i);
+      String type =  item.getString("type");
       if ("package".equals(type)) {
-        context.assertEquals(goodPackageId.toString(), items.getJsonObject(i).getString("kbPackageId"));
-        context.assertFalse(items.getJsonObject(i).containsKey("kbTitleId"));
+        context.assertEquals(goodPackageId.toString(), item.getString("kbPackageId"));
+        context.assertFalse(item.containsKey("kbTitleId"));
         noPackages++;
       } else {
         context.assertEquals("serial", type);
-        context.assertFalse(items.getJsonObject(i).containsKey("kbPackageId"));
-        context.assertTrue(items.getJsonObject(i).containsKey("kbTitleId"));
+        context.assertFalse(item.containsKey("kbPackageId"));
+        context.assertTrue(item.containsKey("kbTitleId"));
+        context.assertEquals("One-Time", item.getString("orderType"));
+        String invoiceNumber = item.getString("invoiceNumber");
+        context.assertTrue("0".equals(invoiceNumber) || "1".equals(invoiceNumber));
       }
     }
     context.assertEquals(1, noPackages);

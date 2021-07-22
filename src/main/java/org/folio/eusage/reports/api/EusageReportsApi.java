@@ -21,6 +21,7 @@ import io.vertx.ext.web.validation.RequestParameter;
 import io.vertx.ext.web.validation.RequestParameters;
 import io.vertx.ext.web.validation.ValidationHandler;
 import io.vertx.sqlclient.Row;
+import io.vertx.sqlclient.RowSet;
 import io.vertx.sqlclient.RowStream;
 import io.vertx.sqlclient.SqlConnection;
 import io.vertx.sqlclient.Tuple;
@@ -39,6 +40,8 @@ import org.folio.okapi.common.XOkapiHeaders;
 import org.folio.tlib.RouterCreator;
 import org.folio.tlib.TenantInitHooks;
 import org.folio.tlib.postgres.TenantPgPool;
+import org.folio.tlib.util.ResourceUtil;
+import org.folio.tlib.util.TenantUtil;
 
 public class EusageReportsApi implements RouterCreator, TenantInitHooks {
   private static final Logger log = LogManager.getLogger(EusageReportsApi.class);
@@ -749,6 +752,8 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
               .put("fiscalYearRange", row.getString(9))
               .put("subscriptionDateRange", row.getString(10))
               .put("coverageDateRanges", row.getString(11))
+              .put("orderType", row.getString(12))
+              .put("invoiceNumber", row.getString(13))
       );
     } catch (Exception e) {
       log.error(e.getMessage(), e);
@@ -760,6 +765,40 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     final String uri = "/erm/sas/" + agreementId;
     return getRequestSend(ctx, uri, 404)
         .map(res -> res.statusCode() != 404);
+  }
+
+  /**
+   * Fetch purchase order by ID.
+   * @see <a
+   * href="https://github.com/folio-org/acq-models/blob/master/mod-orders-storage/schemas/purchase_order.json">
+   * purchase order schema</a>
+   * @param id purchase order ID.
+   * @param ctx routing context.
+   * @return purchase order object.
+   */
+  Future<JsonObject> lookupPurchaseOrderLine(UUID id, RoutingContext ctx) {
+    String uri = "/orders/composite-orders/" + id;
+    return getRequestSend(ctx, uri)
+        .map(HttpResponse::bodyAsJsonObject);
+  }
+
+  /**
+   * Get orderType from purchase order.
+   * @param poLine po line object.
+   * @param ctx routing context.
+   * @param result JSON object with "orderType" is being set.
+   * @return
+   */
+  Future<Void> getOrderType(JsonObject poLine, RoutingContext ctx, JsonObject result) {
+    String purchaseOrderId = poLine.getString("purchaseOrderId");
+    if (purchaseOrderId == null) {
+      result.put("orderType", "Ongoing");
+      return Future.succeededFuture();
+    }
+    return lookupPurchaseOrderLine(UUID.fromString(purchaseOrderId), ctx)
+        .onSuccess(purchase ->
+          result.put("orderType", purchase.getString("orderType", "Ongoing")))
+        .mapEmpty();
   }
 
   /**
@@ -887,12 +926,17 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
         result.put("currency", newCurrency);
         result.put("encumberedCost",
             result.getDouble("encumberedCost") + cost.getDouble("listUnitPriceElectronic"));
-        return getFiscalYear(poLine, ctx, result);
+        return getFiscalYear(poLine, ctx, result)
+            .compose(x -> getOrderType(poLine, ctx, result));
       }));
       futures.add(lookupInvoiceLines(poLineId, ctx).compose(invoiceResponse -> {
         JsonArray invoices = invoiceResponse.getJsonArray("invoiceLines");
         for (int j = 0; j < invoices.size(); j++) {
           JsonObject invoiceLine = invoices.getJsonObject(j);
+          String invoiceNumber = invoiceLine.getString("invoiceLineNumber");
+          if (invoiceNumber != null) {
+            result.put("invoiceNumber", invoiceNumber);
+          }
           Double thisTotal = invoiceLine.getDouble("total");
           if (thisTotal != null) {
             result.put("invoicedCost", thisTotal + result.getDouble("invoicedCost"));
@@ -964,6 +1008,8 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
               .compose(x -> createPackageFromAgreement(pool, con, kbPackageId, kbPackageName, ctx))
               .compose(x -> {
                 UUID id = UUID.randomUUID();
+                String orderType = poResult.getString("orderType");
+                String invoiceNumber = poResult.getString("invoiceNumber");
                 Number encumberedCost = poResult.getDouble("encumberedCost");
                 Number invoicedCost = poResult.getDouble("invoicedCost");
                 String subScriptionDateRange = poResult.getString("subscriptionDateRange");
@@ -971,11 +1017,13 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
                 return con.preparedQuery("INSERT INTO " + agreementEntriesTable(pool)
                     + "(id, kbTitleId, kbPackageId, type,"
                     + " agreementId, agreementLineId, poLineId, encumberedCost, invoicedCost,"
-                    + " fiscalYearRange, subscriptionDateRange, coverageDateRanges)"
-                    + " VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)")
+                    + " fiscalYearRange, subscriptionDateRange, coverageDateRanges, orderType,"
+                    + " invoiceNumber)"
+                    + " VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)")
                     .execute(Tuple.of(id, kbTitleId, kbPackageId, type,
                         agreementId, agreementLineId, poLineId, encumberedCost, invoicedCost,
-                        fiscalYearRange, subScriptionDateRange, coverageDateRanges))
+                        fiscalYearRange, subScriptionDateRange, coverageDateRanges, orderType,
+                        invoiceNumber))
                     .mapEmpty();
               })
           );
@@ -1033,6 +1081,55 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
         });
   }
 
+  /** Draft, Work in Progress (WIP). */
+  Future<Void> getUseOverTime(Vertx vertx, RoutingContext ctx) {
+    TenantPgPool pool = TenantPgPool.pool(vertx, TenantUtil.tenant(ctx));
+    String agreementId = ctx.request().params().get("agreementId");
+    String start = ctx.request().params().get("startDate");
+    String end = ctx.request().params().get("endDate");
+
+    LocalDate startDate = LocalDate.parse(start).withDayOfMonth(1);
+    LocalDate endDate = LocalDate.parse(end).withDayOfMonth(1);
+    if (startDate.compareTo(endDate) > 0) {
+      throw new IllegalArgumentException("startDate=" + start + " is after endDate=" + end);
+    }
+
+    endDate.plusMonths(1);  // PostgreSQL range end value is exclusive
+
+    LocalDate date = startDate;
+    do {
+      LocalDate datePlusOne = date.plusMonths(1);
+      journal(pool, agreementId, date, datePlusOne);
+      date = datePlusOne;
+    } while (date.compareTo(endDate) < 0);
+
+    // draft, Work in Progress (WIP), hardcoded example JSON
+    ctx.response().setStatusCode(200);
+    ctx.response().putHeader("Content-Type", "application/json");
+    ctx.response().end(ResourceUtil.load("/openapi/examples/report.json"));
+
+    return Future.succeededFuture();
+  }
+
+  /** Draft, Work in Progress (WIP). */
+  Future<RowSet<Row>> journal(
+      TenantPgPool pool, String agreementId, LocalDate date, LocalDate datePlusOne) {
+
+    return pool.preparedQuery(
+        "SELECT kbtitleid, min(kbtitlename) AS title, sum(COALESCE(uniqueaccesscount, 0))"
+            + " FROM " + agreementEntriesTable(pool)
+            + " LEFT JOIN " + packageEntriesTable(pool) + " USING (kbpackageid, kbtitleid)"
+            + " LEFT JOIN " + titleEntriesTable(pool) + " USING (kbtitleid)"
+            + " LEFT JOIN " + titleDataTable(pool)
+            + "   ON " + titleEntriesTable(pool) + ".id = "
+            +     titleDataTable(pool) + ".titleentryid"
+            + "   AND daterange($2, $3) @> lower(usagedaterange)"
+            + " WHERE agreementid=$1"
+            + " GROUP BY kbtitleid"
+            + " ORDER BY title, kbtitleid"
+        ).execute(Tuple.of(agreementId, date, datePlusOne));
+  }
+
   @Override
   public Future<Router> createRouter(Vertx vertx, WebClient webClient) {
     this.webClient = webClient;
@@ -1068,6 +1165,11 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
               .handler(ctx -> postFromAgreement(vertx, ctx)
                   .onFailure(cause -> failHandler(400, ctx, cause)))
               .failureHandler(EusageReportsApi::failHandler);
+          routerBuilder
+               .operation("getUseOverTime")
+               .handler(ctx -> getUseOverTime(vertx, ctx)
+                  .onFailure(cause -> failHandler(400, ctx, cause)))
+               .failureHandler(EusageReportsApi::failHandler);
           return Future.succeededFuture(routerBuilder.createRouter());
         });
   }
@@ -1149,7 +1251,9 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
             + "invoicedCost numeric(20, 8), "
             + "fiscalYearRange daterange, "
             + "subscriptionDateRange daterange, "
-            + "coverageDateRanges daterange"
+            + "coverageDateRanges daterange,"
+            + "orderType text,"
+            + "invoiceNumber text"
             + ")")
         .execute().mapEmpty());
     future = future.compose(x -> pool
