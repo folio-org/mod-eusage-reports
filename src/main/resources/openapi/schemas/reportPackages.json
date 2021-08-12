@@ -1,5 +1,5 @@
 {
-  "description": "get kb packages",
+  "description": "get KB packages",
   "type": "object",
   "properties": {
     "packages": {

@@ -1,15 +1,15 @@
 {
-  "description": "package entry",
+  "description": "KB package entry",
   "type": "object",
   "properties": {
     "kbPackageId": {
       "type": "string",
-      "description" : "kb package identifier",
+      "description" : "KB package identifier",
       "format": "uuid"
     },
     "kbPackageName": {
       "type": "string",
-      "description": "kb package name"
+      "description": "KB package name"
     },
     "kbTitleId": {
       "type": "string",
