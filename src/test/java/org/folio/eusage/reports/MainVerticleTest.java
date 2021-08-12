@@ -831,6 +831,30 @@ public class MainVerticleTest {
   }
 
   @Test
+  public void testGetPackagesNoInit() {
+    String tenant = "testlib";
+    RestAssured.given()
+        .header(XOkapiHeaders.TENANT, tenant)
+        .header(XOkapiHeaders.URL, "http://localhost:" + MOCK_PORT)
+        .get("/eusage-reports/report-packages")
+        .then().statusCode(400)
+        .header("Content-Type", is("text/plain"))
+        .body(containsString("testlib_mod_eusage_reports.package_entries"));
+  }
+
+  @Test
+  public void testGetPackagesBadCql() {
+    String tenant = "testlib";
+    RestAssured.given()
+        .header(XOkapiHeaders.TENANT, tenant)
+        .header(XOkapiHeaders.URL, "http://localhost:" + MOCK_PORT)
+        .get("/eusage-reports/report-packages?query=foo=bar")
+        .then().statusCode(400)
+        .header("Content-Type", is("text/plain"))
+        .body(containsString("Unsupported CQL index: foo"));
+  }
+
+  @Test
   public void testGetReportDataNoTenant() {
     RestAssured.given()
         .header(XOkapiHeaders.URL, "http://localhost:" + MOCK_PORT)
@@ -1477,6 +1501,32 @@ public class MainVerticleTest {
       }
     }
     context.assertEquals(1, noPackages);
+
+    response = RestAssured.given()
+        .header(XOkapiHeaders.TENANT, tenant)
+        .header(XOkapiHeaders.URL, "http://localhost:" + MOCK_PORT)
+        .get("/eusage-reports/report-packages")
+        .then().statusCode(200)
+        .header("Content-Type", is("application/json"))
+        .extract();
+    resObject = new JsonObject(response.body().asString());
+    context.assertEquals(packageTitles.length, resObject.getJsonArray("packages").size());
+    for (int i = 0; i < packageTitles.length; i++) {
+      JsonObject kbPackage = resObject.getJsonArray("packages").getJsonObject(i);
+      context.assertEquals("good package name", kbPackage.getString("kbPackageName"));
+      context.assertEquals(goodPackageId.toString(), kbPackage.getString("kbPackageId"));
+      context.assertEquals(packageTitles[i].toString(), kbPackage.getString("kbTitleId"));
+    }
+
+    response = RestAssured.given()
+        .header(XOkapiHeaders.TENANT, tenant)
+        .header(XOkapiHeaders.URL, "http://localhost:" + MOCK_PORT)
+        .get("/eusage-reports/report-packages?query=kbPackageId==" + goodPackageId)
+        .then().statusCode(200)
+        .header("Content-Type", is("application/json"))
+        .extract();
+    resObject = new JsonObject(response.body().asString());
+    context.assertEquals(packageTitles.length, resObject.getJsonArray("packages").size());
 
     orderLinesCurrencies.clear();
     orderLinesCurrencies.add("DKK");
