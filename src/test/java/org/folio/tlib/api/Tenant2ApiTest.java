@@ -6,6 +6,7 @@ import static org.hamcrest.number.OrderingComparison.lessThan;
 import static org.hamcrest.MatcherAssert.assertThat;
 
 import io.restassured.RestAssured;
+import io.restassured.builder.RequestSpecBuilder;
 import io.restassured.response.ExtractableResponse;
 import io.restassured.response.Response;
 import io.vertx.core.Future;
@@ -88,7 +89,9 @@ public class Tenant2ApiTest {
     TenantPgPool.setModule("mod-tenant");
     vertx = Vertx.vertx();
     RestAssured.enableLoggingOfRequestAndResponseIfValidationFails();
-    RestAssured.port = port;
+    RestAssured.baseURI = "http://localhost:" + port;
+    RestAssured.requestSpecification = new RequestSpecBuilder().build();
+
     initialPgConnectOptions = TenantPgPool.getDefaultConnectOptions();
 
     new Tenant2Api(hooks).createRouter(vertx, WebClient.create(vertx))

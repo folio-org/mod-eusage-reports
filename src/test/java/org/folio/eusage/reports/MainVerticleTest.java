@@ -1,6 +1,7 @@
 package org.folio.eusage.reports;
 
 import io.restassured.RestAssured;
+import io.restassured.builder.RequestSpecBuilder;
 import io.restassured.response.ExtractableResponse;
 import io.restassured.response.Response;
 import io.vertx.core.DeploymentOptions;
@@ -638,7 +639,8 @@ public class MainVerticleTest {
   public static void beforeClass(TestContext context) {
     vertx = Vertx.vertx();
     RestAssured.enableLoggingOfRequestAndResponseIfValidationFails();
-    RestAssured.port = MODULE_PORT;
+    RestAssured.baseURI = "http://localhost:" + MODULE_PORT;
+    RestAssured.requestSpecification = new RequestSpecBuilder().build();
 
     Router router = Router.router(vertx);
     router.getWithRegex("/counter-reports").handler(MainVerticleTest::getCounterReports);
