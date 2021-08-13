@@ -36,7 +36,8 @@ public class MainVerticleTest {
   static Vertx vertx;
   static final int MODULE_PORT = 9230;
   static final int MOCK_PORT = 9231;
-  static final String pubDateSample = "1998-05-19";
+  static final String pubDateSample = "1998-05-01";
+  static final String pubYearSample = "1999";
   static final UUID goodKbTitleId = UUID.randomUUID();
   static boolean enableGoodKbTitle;
   static final String goodKbTitleISSN = "1000-1002";
@@ -129,6 +130,7 @@ public class MainVerticleTest {
                     )
                 )
                 .add(new JsonObject()
+                    .put("YOP", pubYearSample)
                     .put("Title", cnt == -1 ? "The other journal" : "The dogs journal")
                     .put("itemDataType", "JOURNAL")
                     .put("Item_ID", new JsonArray()
@@ -1208,11 +1210,16 @@ public class MainVerticleTest {
       context.assertEquals(usageProviderId.toString(), item.getString("providerId"));
       String pubDate = item.getString("publicationDate");
       if (pubDate != null) {
-        context.assertEquals(pubDateSample, pubDate);
         noWithPubDate++;
+        String title = item.getString("counterReportTitle");
+        if ("The dogs journal".equals(title)) {
+          context.assertEquals(pubYearSample + "-01-01", pubDate);
+        } else {
+          context.assertEquals(pubDateSample, pubDate);
+        }
       }
     }
-    context.assertEquals(15, noWithPubDate);
+    context.assertEquals(30, noWithPubDate);
 
     response = RestAssured.given()
         .header(XOkapiHeaders.TENANT, tenant)
