@@ -275,33 +275,28 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
   }
 
   Future<Void> getReportPackages(Vertx vertx, RoutingContext ctx) {
-    try {
-      PgCqlQuery pgCqlQuery = PgCqlQuery.query();
-      pgCqlQuery.addField(new PgCqlField("kbPackageId", PgCqlField.Type.UUID));
-      pgCqlQuery.addField(new PgCqlField("kbPackageName", PgCqlField.Type.FULLTEXT));
-      pgCqlQuery.addField(new PgCqlField("kbTitleId", PgCqlField.Type.UUID));
+    PgCqlQuery pgCqlQuery = PgCqlQuery.query();
+    pgCqlQuery.addField(new PgCqlField("kbPackageId", PgCqlField.Type.UUID));
+    pgCqlQuery.addField(new PgCqlField("kbPackageName", PgCqlField.Type.FULLTEXT));
+    pgCqlQuery.addField(new PgCqlField("kbTitleId", PgCqlField.Type.UUID));
 
-      RequestParameters params = ctx.get(ValidationHandler.REQUEST_CONTEXT_KEY);
-      final String tenant = stringOrNull(params.headerParameter(XOkapiHeaders.TENANT));
-      final TenantPgPool pool = TenantPgPool.pool(vertx, tenant);
+    RequestParameters params = ctx.get(ValidationHandler.REQUEST_CONTEXT_KEY);
+    final String tenant = stringOrNull(params.headerParameter(XOkapiHeaders.TENANT));
+    final TenantPgPool pool = TenantPgPool.pool(vertx, tenant);
 
-      pgCqlQuery.parse(stringOrNull(params.queryParameter("query")));
-      String cqlWhere = pgCqlQuery.getWhereClause();
+    pgCqlQuery.parse(stringOrNull(params.queryParameter("query")));
+    String cqlWhere = pgCqlQuery.getWhereClause();
 
-      String from = packageEntriesTable(pool);
-      if (cqlWhere != null) {
-        from = from + " WHERE " + cqlWhere;
-      }
-      return streamResult(ctx, pool, null, from, "packages",
-          row -> new JsonObject()
-              .put("kbPackageId", row.getUUID(0))
-              .put("kbPackageName", row.getString(1))
-              .put("kbTitleId", row.getUUID(2))
-      );
-    } catch (Exception e) {
-      log.error(e.getMessage(), e);
-      return Future.failedFuture(e);
+    String from = packageEntriesTable(pool);
+    if (cqlWhere != null) {
+      from = from + " WHERE " + cqlWhere;
     }
+    return streamResult(ctx, pool, null, from, "packages",
+        row -> new JsonObject()
+            .put("kbPackageId", row.getUUID(0))
+            .put("kbPackageName", row.getString(1))
+            .put("kbTitleId", row.getUUID(2))
+    );
   }
 
   Future<Void> getTitleData(Vertx vertx, RoutingContext ctx) {
