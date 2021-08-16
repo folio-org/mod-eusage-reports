@@ -646,9 +646,10 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
         .parseDefaulting(ChronoField.DAY_OF_MONTH, 1)
         .toFormatter();
 
-    final LocalDate pubdate = publicationDate != null
-        ? LocalDate.parse(publicationDate) : yop != null
-        ? LocalDate.parse(yop, format) : null;
+    final LocalDate pubdate =
+        publicationDate != null ? LocalDate.parse(publicationDate) :
+            yop != null ? LocalDate.parse(yop, format) :
+                null;
 
     log.debug("handleReport title={} match={}", counterReportTitle, onlineIssn);
     final int totalAccessCount = getTotalCount(reportItem, "Total_Item_Requests");
