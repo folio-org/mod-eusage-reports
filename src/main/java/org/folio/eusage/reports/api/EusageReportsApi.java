@@ -28,6 +28,8 @@ import io.vertx.sqlclient.Tuple;
 import java.time.LocalDate;
 import java.time.Period;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeFormatterBuilder;
+import java.time.temporal.ChronoField;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -529,10 +531,9 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
 
   static Future<Void> insertTdEntry(TenantPgPool pool, SqlConnection con, UUID titleEntryId,
                                     UUID counterReportId, String counterReportTitle,
-                                    UUID providerId, String publicationDate,
+                                    UUID providerId, LocalDate publicationDate,
                                     String usageDateRange,
                                     int uniqueAccessCount, int totalAccessCount) {
-    LocalDate localDate = publicationDate != null ? LocalDate.parse(publicationDate) : null;
     return con.preparedQuery("INSERT INTO " + titleDataTable(pool)
         + "(id, titleEntryId,"
         + " counterReportId, counterReportTitle, providerId,"
@@ -541,7 +542,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
         + " VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)")
         .execute(Tuple.of(UUID.randomUUID(), titleEntryId,
             counterReportId, counterReportTitle, providerId,
-            localDate, usageDateRange,
+            publicationDate, usageDateRange,
             uniqueAccessCount, totalAccessCount, false))
         .mapEmpty();
   }
@@ -630,20 +631,33 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     if (counterReportTitle == null) {
       return Future.succeededFuture();
     }
+    String yop = reportItem.getString("YOP");
     final String usageDateRange = getUsageDate(reportItem);
     final JsonObject identifiers = getIssnIdentifiers(reportItem);
     final String onlineIssn = identifiers.getString("onlineISSN");
     final String printIssn = identifiers.getString("printISSN");
     final String isbn = identifiers.getString("ISBN");
     final String doi = identifiers.getString("DOI");
-    final String publicationDate = identifiers.getString("Publication_Date");
+    String publicationDate = identifiers.getString("Publication_Date");
+
+    DateTimeFormatter format = new DateTimeFormatterBuilder()
+        .appendPattern("yyyy")
+        .parseDefaulting(ChronoField.MONTH_OF_YEAR, 1)
+        .parseDefaulting(ChronoField.DAY_OF_MONTH, 1)
+        .toFormatter();
+
+    final LocalDate pubdate =
+        publicationDate != null ? LocalDate.parse(publicationDate) :
+            yop != null ? LocalDate.parse(yop, format) :
+                null;
+
     log.debug("handleReport title={} match={}", counterReportTitle, onlineIssn);
     final int totalAccessCount = getTotalCount(reportItem, "Total_Item_Requests");
     final int uniqueAccessCount = getTotalCount(reportItem, "Unique_Item_Requests");
     return upsertTitleEntryCounterReport(pool, con, ctx, counterReportTitle,
         printIssn, onlineIssn, isbn, doi)
         .compose(titleEntryId -> insertTdEntry(pool, con, titleEntryId, counterReportId,
-            counterReportTitle, providerId, publicationDate, usageDateRange,
+            counterReportTitle, providerId, pubdate, usageDateRange,
             uniqueAccessCount, totalAccessCount));
   }
 
