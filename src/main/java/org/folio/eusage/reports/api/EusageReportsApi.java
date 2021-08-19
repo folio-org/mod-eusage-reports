@@ -1378,15 +1378,9 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
         .append(" FROM ").append(agreementEntriesTable(pool))
         .append(" LEFT JOIN ").append(packageEntriesTable(pool))
         .append(" USING (kbPackageId)")
-        .append(" JOIN ").append(titleEntriesTable(pool))
-        .append(" ON ")
-        .append(titleEntriesTable(pool)).append(".kbTitleId")
-        .append(" = ")
-        .append(packageEntriesTable(pool)).append(".kbTitleId")
-        .append(" OR ")
-        .append(titleEntriesTable(pool)).append(".kbTitleId")
-        .append(" = ")
-        .append(agreementEntriesTable(pool)).append(".kbTitleId");
+        .append(" JOIN ").append(titleEntriesTable(pool)).append(" ON")
+        .append(" title_entries.kbTitleId = agreement_entries.kbTitleId OR")
+        .append(" title_entries.kbTitleId = package_entries.kbTitleId");
     for (int i = 0; i < periods; i++) {
       sql.append(" LEFT JOIN (")
       .append(" SELECT titleEntryId, ")
