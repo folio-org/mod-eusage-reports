@@ -99,7 +99,7 @@ public class EusageReportsApiTest {
     when(ctx.request().params().get("agreementId")).thenReturn(UUID.randomUUID().toString());
     when(ctx.request().params().get("startDate")).thenReturn(startDate);
     when(ctx.request().params().get("endDate")).thenReturn(endDate);
-    return new EusageReportsApi().getUseOverTime(vertx, ctx)
+    return new EusageReportsApi().getUseOverTime(vertx, ctx, false)
     .map(x -> {
       ArgumentCaptor<String> argument = ArgumentCaptor.forClass(String.class);
       verify(ctx.response()).end(argument.capture());
@@ -326,6 +326,17 @@ public class EusageReportsApiTest {
                   .put("accessCountsByPeriod", new JsonArray("[ null, null ]"))
                   .encodePrettily()));
         })).onComplete(context.asyncAssertSuccess());
+  }
+
+  @Test
+  public void useOverTimeCsv(TestContext context) {
+    new EusageReportsApi().getUseOverTime(pool, true, true, false, a1, "2020-04", "2020-05", false)
+        .onComplete(context.asyncAssertSuccess(res0 -> {
+          new EusageReportsApi().getUseOverTime(pool, true, true, false, a1, "2020-04", "2020-05", true)
+              .onComplete(context.asyncAssertSuccess(res -> {
+                assertThat(res, containsString("2020-05"));
+              }));
+        }));
   }
 
   @Test
