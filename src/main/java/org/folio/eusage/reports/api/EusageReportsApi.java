@@ -1,6 +1,5 @@
 package org.folio.eusage.reports.api;
 
-import com.opencsv.CSVWriter;
 import io.vertx.core.Future;
 import io.vertx.core.Promise;
 import io.vertx.core.Vertx;
@@ -26,6 +25,7 @@ import io.vertx.sqlclient.RowStream;
 import io.vertx.sqlclient.SqlConnection;
 import io.vertx.sqlclient.SqlResult;
 import io.vertx.sqlclient.Tuple;
+import java.io.IOException;
 import java.io.StringWriter;
 import java.time.LocalDate;
 import java.time.Period;
@@ -39,6 +39,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import org.apache.commons.csv.CSVFormat;
+import org.apache.commons.csv.CSVPrinter;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.folio.okapi.common.GenericCompositeFuture;
@@ -1224,6 +1226,76 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     }
   }
 
+  static void getUseOverTime2Csv(JsonObject json, Appendable appendable) throws IOException {
+    CSVPrinter writer = new CSVPrinter(appendable, CSVFormat.EXCEL);
+    writer.print("Title");
+    writer.print("Print ISSN");
+    writer.print("Online ISSN");
+    writer.print("Access type");
+    writer.print("Metric Type");
+    writer.print("Reporing period total");
+    JsonArray accessCountPeriods = json.getJsonArray("accessCountPeriods");
+    for (int i = 0; i < accessCountPeriods.size(); i++) {
+      writer.print(accessCountPeriods.getString(i));
+    }
+    writer.println();
+
+    writer.printRecord(
+        "List all titles from agreement lines, even if no COUNTER data present;"
+            + " if title is part of a package, list it separately",
+        "Print ISSN from agreement line",
+        "Online ISSN from agreement line",
+        "Access type from COUNTER report",
+        "Metric type from COUNTER report; include both total and uniqie item requests",
+        "1. Begin with COUNTER data from usage provider associated with the agreement.\n"
+            + "2. Filter COUNTER data to only titles matching agreement lines.\n"
+            + "3. Filter COUNTER data to only publication years matching coverage dates of"
+            + " agreement lines.\n"
+            + "4. Display COUNTER data by total and unqiue item requests occurring in"
+            + " the reporting period.\n",
+        "Include COUNTER data for each month that appears in the reporting period");
+
+    writer.print("Totals - Total item requests");
+    writer.print(null);
+    writer.print(null);
+    writer.print(null);
+    writer.print(null);
+    writer.print(json.getLong("totalItemRequestsTotal"));
+    Long[] totalItemRequestsPeriod = (Long[]) json.getValue("totalItemRequestsByPeriod");
+    for (int i = 0; i < totalItemRequestsPeriod.length; i++) {
+      writer.print(totalItemRequestsPeriod[i]);
+    }
+    writer.println();
+
+    writer.print("Totals - Unique item requests");
+    writer.print(null);
+    writer.print(null);
+    writer.print(null);
+    writer.print(null);
+    writer.print(json.getLong("uniqueItemRequestsTotal"));
+    Long[] uniqueItemRequestsPeriod = (Long[]) json.getValue("uniqueItemRequestsByPeriod");
+    for (int i = 0; i < uniqueItemRequestsPeriod.length; i++) {
+      writer.print(uniqueItemRequestsPeriod[i]);
+    }
+    writer.println();
+
+    JsonArray items = json.getJsonArray("items");
+    for (int j = 0; j < items.size(); j++) {
+      JsonObject item = items.getJsonObject(j);
+      writer.print(item.getString("title"));
+      writer.print(item.getString("printISSN"));
+      writer.print(item.getString("onlineISSN"));
+      writer.print(item.getString("accessType"));
+      writer.print(item.getString("metricType"));
+      writer.print(item.getLong("accessCountTotal"));
+      JsonArray accessCountsByPeriod = item.getJsonArray("accessCountsByPeriod");
+      for (int i = 0; i < accessCountsByPeriod.size(); i++) {
+        writer.print(accessCountsByPeriod.getLong(i));
+      }
+      writer.println();
+    }
+  }
+
   Future<Void> getUseOverTime(Vertx vertx, RoutingContext ctx, boolean csv) {
     String format = ctx.request().params().get("format");
     boolean isJournal;
@@ -1267,75 +1339,17 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
                                 String start, String end, boolean csv) {
     return getUseOverTime(pool, isJournal, includeOA, groupByPublicationYear, agreementId,
         start, end)
-        .map(json -> {
+        .compose(json -> {
           if (!csv) {
-            return json.encodePrettily();
+            return Future.succeededFuture(json.encodePrettily());
           }
-          StringWriter stringWriter = new StringWriter();
-          final CSVWriter writer = new CSVWriter(stringWriter);
-
-          JsonArray accessCountPeriods = json.getJsonArray("accessCountPeriods");
-          int numberColumns = 6 + accessCountPeriods.size();
-          String [] cols = new String[numberColumns];
-          cols[0] = "Title";
-          cols[1] = "Print ISSN";
-          cols[2] = "Online ISSN";
-          cols[3] = "Access type";
-          cols[4] = "Metric Type";
-          cols[5] = "Reporing period total";
-          for (int i = 0; i < accessCountPeriods.size(); i++) {
-            cols[6 + i] = accessCountPeriods.getString(i);
+          try {
+            StringWriter stringWriter = new StringWriter();
+            getUseOverTime2Csv(json, stringWriter);
+            return Future.succeededFuture(stringWriter.toString());
+          } catch (IOException e) {
+            return Future.failedFuture(e);
           }
-          writer.writeNext(cols);
-          cols[0] = "List all titles from agreement lines, even if no COUNTER data present;"
-              + " if title is part of a package, list it separately";
-          cols[1] = "Print ISSN from agreement line";
-          cols[2] = "Online ISSN from agreement line";
-          cols[3] = "Access type from COUNTER report";
-          cols[4] = "Metric type from COUNTER report; include both total and uniqie item requests";
-          cols[5] = "1. Begin with COUNTER data from usage provider associated with the agreement."
-              + "2. Filter COUNTER data to only titles matching agreement lines."
-              + "3. Filter COUNTER data to only publication years matching coverage dates of"
-              + " agreement lines."
-              + "4. Display COUNTER data by total and unqiue item requests occurring in"
-              + " the reporting period.";
-          if (numberColumns > 6) {
-            cols[6] = "Include COUNTER data for each month that appears in the reporting period";
-          }
-          writer.writeNext(cols);
-          cols[0] = "Totals - Total item requests";
-          cols[1] = cols[2] = cols[3] = cols[4];
-          cols[5] = json.getLong("totalItemRequestsTotal").toString();
-          Long [] totalItemRequestsPeriod = (Long []) json.getValue("totalItemRequestsByPeriod");
-          for (int i = 0; i < totalItemRequestsPeriod.length; i++) {
-            cols[6 + i] = totalItemRequestsPeriod[i].toString();
-          }
-          writer.writeNext(cols);
-
-          cols[0] = "Totals - Unique item requests";
-          cols[1] = cols[2] = cols[3] = cols[4];
-          cols[5] = json.getLong("uniqueItemRequestsTotal").toString();
-          Long [] uniqueItemRequestsPeriod = (Long []) json.getValue("uniqueItemRequestsByPeriod");
-          for (int i = 0; i < uniqueItemRequestsPeriod.length; i++) {
-            cols[6 + i] = uniqueItemRequestsPeriod[i].toString();
-          }
-          writer.writeNext(cols);
-          JsonArray items = json.getJsonArray("items");
-          for (int j = 0; j < items.size(); j++) {
-            JsonObject item = items.getJsonObject(j);
-            cols[0] = item.getString("title");
-            cols[1] = item.getString("printISSN");
-            cols[2] = item.getString("onlineISSN");
-            cols[3] = item.getString("accessType");
-            cols[4] = item.getString("metricType");
-            cols[5] = getCountNull(item.getLong("accessCountTotal"));
-            JsonArray accessCountsByPeriod = item.getJsonArray("accessCountsByPeriod");
-            for (int i = 0; i < accessCountsByPeriod.size(); i++) {
-              cols[6 + i] = getCountNull(accessCountsByPeriod.getLong(i));
-            }
-            writer.writeNext(cols);
-          }
-          return stringWriter.toString();
         });
   }
 

@@ -76,9 +76,9 @@
         <version>1.13</version>
       </dependency>
       <dependency>
-        <groupId>com.opencsv</groupId>
-        <artifactId>opencsv</artifactId>
-        <version>5.5.1</version>
+        <groupId>org.apache.commons</groupId>
+        <artifactId>commons-csv</artifactId>
+        <version>1.9.0</version>
       </dependency>
       <dependency>
         <groupId>io.rest-assured</groupId>
@@ -164,8 +164,8 @@
       <version>${jackson-databind-nullable.version}</version>
     </dependency>
     <dependency>
-      <groupId>com.opencsv</groupId>
-      <artifactId>opencsv</artifactId>
+      <groupId>org.apache.commons</groupId>
+      <artifactId>commons-csv</artifactId>
     </dependency>
 
     <!-- Test dependencies -->

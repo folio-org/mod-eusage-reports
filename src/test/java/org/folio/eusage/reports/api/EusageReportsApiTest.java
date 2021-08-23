@@ -92,14 +92,14 @@ public class EusageReportsApiTest {
             context.assertTrue(x.getMessage().contains("Failed to decode agreement line:"), x.getMessage())));
   }
 
-  private Future<String> getUseOverTime(String format, String startDate, String endDate) {
+  private Future<String> getUseOverTime(String format, String startDate, String endDate, boolean csv) {
     RoutingContext ctx = mock(RoutingContext.class, RETURNS_DEEP_STUBS);
     when(ctx.request().getHeader("X-Okapi-Tenant")).thenReturn(tenant);
     when(ctx.request().params().get("format")).thenReturn(format);
     when(ctx.request().params().get("agreementId")).thenReturn(UUID.randomUUID().toString());
     when(ctx.request().params().get("startDate")).thenReturn(startDate);
     when(ctx.request().params().get("endDate")).thenReturn(endDate);
-    return new EusageReportsApi().getUseOverTime(vertx, ctx, false)
+    return new EusageReportsApi().getUseOverTime(vertx, ctx, csv)
     .map(x -> {
       ArgumentCaptor<String> argument = ArgumentCaptor.forClass(String.class);
       verify(ctx.response()).end(argument.capture());
@@ -110,33 +110,51 @@ public class EusageReportsApiTest {
   @Test
   public void useOverTimeStartDateAfterEndDateJournalMonth() {
     Throwable t = assertThrows(IllegalArgumentException.class, () ->
-    getUseOverTime("JOURNAL", "2020-04", "2020-02"));
+    getUseOverTime("JOURNAL", "2020-04", "2020-02", false));
     assertThat(t.getMessage(), is("startDate=2020-04 is after endDate=2020-02"));
   }
 
   @Test
   public void useOverTimeStartDateAfterEndDateBookYear() {
     Throwable t = assertThrows(IllegalArgumentException.class, () ->
-    getUseOverTime("BOOK", "2021", "2020"));
+    getUseOverTime("BOOK", "2021", "2020", false));
     assertThat(t.getMessage(), is("startDate=2021 is after endDate=2020"));
   }
 
   @Test
+  public void useOverTimeCsvOK(TestContext context) {
+    getUseOverTime("BOOK", "2020", "2021", true)
+        .onComplete(context.asyncAssertSuccess());
+  }
+
+  @Test
+  public void useOverTimeJsonK(TestContext context) {
+    getUseOverTime("BOOK", "2020", "2021", false)
+        .onComplete(context.asyncAssertSuccess());
+  }
+
+
+  @Test
   public void useOverTimeStartDateEndDateLengthMismatch() {
     Throwable t = assertThrows(IllegalArgumentException.class, () ->
-    getUseOverTime("JOURNAL", "2019-05", "2021"));
+    getUseOverTime("JOURNAL", "2019-05", "2021", false));
     assertThat(t.getMessage(), is("startDate and endDate must have same length: 2019-05 2021"));
   }
 
   @Test
   public void useOverTimeDatabase() {
-    assertThat(getUseOverTime("DATABASE", "2020-03-01", "2020-04-01").result(), containsString("2020-03"));
+    assertThat(getUseOverTime("DATABASE", "2020-03-01", "2020-04-01", false).result(), containsString("2020-03"));
+  }
+
+  @Test
+  public void useOverTimeDatabaseCsv() {
+    assertThat(getUseOverTime("DATABASE", "2020-03-01", "2020-04-01", true).result(), containsString("2020-03"));
   }
 
   @Test
   public void useOverTimeUnknownFormat() {
     Throwable t = assertThrows(IllegalArgumentException.class, () ->
-    getUseOverTime("FOO", "2020-04-01", "2020-02-01"));
+    getUseOverTime("FOO", "2020-04-01", "2020-02-01", false));
     assertThat(t.getMessage(), containsString("format = FOO"));
   }
 
