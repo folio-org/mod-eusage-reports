@@ -59,10 +59,6 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
 
   private WebClient webClient;
 
-  private static String getCountNull(Long v) {
-    return v != null ? v.toString() : null;
-  }
-
   static String titleEntriesTable(TenantPgPool pool) {
     return pool.getSchema() + ".title_entries";
   }
