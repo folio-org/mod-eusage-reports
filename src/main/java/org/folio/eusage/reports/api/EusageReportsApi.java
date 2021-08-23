@@ -1226,11 +1226,15 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     }
   }
 
-  static void getUseOverTime2Csv(JsonObject json, Appendable appendable) throws IOException {
+  static void getUseOverTime2Csv(JsonObject json, boolean groupByPublicationYear,
+                                 Appendable appendable) throws IOException {
     CSVPrinter writer = new CSVPrinter(appendable, CSVFormat.EXCEL);
     writer.print("Title");
     writer.print("Print ISSN");
     writer.print("Online ISSN");
+    if (groupByPublicationYear) {
+      writer.print("Year of publication");
+    }
     writer.print("Access type");
     writer.print("Metric Type");
     writer.print("Reporing period total");
@@ -1240,24 +1244,31 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     }
     writer.println();
 
-    writer.printRecord(
+    writer.print(
         "List all titles from agreement lines, even if no COUNTER data present;"
-            + " if title is part of a package, list it separately",
-        "Print ISSN from agreement line",
-        "Online ISSN from agreement line",
-        "Access type from COUNTER report",
-        "Metric type from COUNTER report; include both total and uniqie item requests",
-        "1. Begin with COUNTER data from usage provider associated with the agreement.\n"
+            + " if title is part of a package, list it separately");
+    writer.print("Print ISSN from agreement line");
+    writer.print("Online ISSN from agreement line");
+    if (groupByPublicationYear) {
+      writer.print("Year of publication from COUNTER report");
+    }
+    writer.print("Access type from COUNTER report");
+    writer.print("Metric type from COUNTER report; include both total and uniqie item requests");
+    writer.print("1. Begin with COUNTER data from usage provider associated with the agreement.\n"
             + "2. Filter COUNTER data to only titles matching agreement lines.\n"
             + "3. Filter COUNTER data to only publication years matching coverage dates of"
             + " agreement lines.\n"
             + "4. Display COUNTER data by total and unqiue item requests occurring in"
-            + " the reporting period.\n",
-        "Include COUNTER data for each month that appears in the reporting period");
+            + " the reporting period.\n");
+    writer.print("Include COUNTER data for each month that appears in the reporting period");
+    writer.println();
 
     writer.print("Totals - Total item requests");
     writer.print(null);
     writer.print(null);
+    if (groupByPublicationYear) {
+      writer.print(null);
+    }
     writer.print(null);
     writer.print(null);
     writer.print(json.getLong("totalItemRequestsTotal"));
@@ -1270,6 +1281,9 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     writer.print("Totals - Unique item requests");
     writer.print(null);
     writer.print(null);
+    if (groupByPublicationYear) {
+      writer.print(null);
+    }
     writer.print(null);
     writer.print(null);
     writer.print(json.getLong("uniqueItemRequestsTotal"));
@@ -1285,6 +1299,9 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
       writer.print(item.getString("title"));
       writer.print(item.getString("printISSN"));
       writer.print(item.getString("onlineISSN"));
+      if (groupByPublicationYear) {
+        writer.print(item.getLong("publicationYear"));
+      }
       writer.print(item.getString("accessType"));
       writer.print(item.getString("metricType"));
       writer.print(item.getLong("accessCountTotal"));
@@ -1345,7 +1362,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
           }
           try {
             StringWriter stringWriter = new StringWriter();
-            getUseOverTime2Csv(json, stringWriter);
+            getUseOverTime2Csv(json, groupByPublicationYear, stringWriter);
             return Future.succeededFuture(stringWriter.toString());
           } catch (IOException e) {
             return Future.failedFuture(e);
@@ -1506,18 +1523,18 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
         .append("(printISSN IS NULL AND onlineISSN IS NULL)");
   }
 
-  Future<Void> getReqsByDateOfUse(Vertx vertx, RoutingContext ctx) {
+  Future<Void> getReqsByDateOfUse(Vertx vertx, RoutingContext ctx, boolean csv) {
     TenantPgPool pool = TenantPgPool.pool(vertx, TenantUtil.tenant(ctx));
     String agreementId = ctx.request().params().get("agreementId");
     String start = ctx.request().params().get("startDate");
     String end = ctx.request().params().get("endDate");
     boolean includeOA = "true".equalsIgnoreCase(ctx.request().params().get("includeOA"));
 
-    return getUseOverTime(pool, true, includeOA, true, agreementId, start, end)
-        .map(json -> {
+    return getUseOverTime(pool, true, includeOA, true, agreementId, start, end, csv)
+        .map(res -> {
           ctx.response().setStatusCode(200);
-          ctx.response().putHeader("Content-Type", "application/json");
-          ctx.response().end(json.encodePrettily());
+          ctx.response().putHeader("Content-Type", csv ? "text/csv" : "application/json");
+          ctx.response().end(res);
           return null;
         });
   }
@@ -1773,7 +1790,8 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
           add(routerBuilder, "postFromAgreement", ctx -> postFromAgreement(vertx, ctx));
           add(routerBuilder, "getUseOverTime", ctx -> getUseOverTime(vertx, ctx, false));
           add(routerBuilder, "getUseOverTimeCsv", ctx -> getUseOverTime(vertx, ctx, true));
-          add(routerBuilder, "getReqsByDateOfUse", ctx -> getReqsByDateOfUse(vertx, ctx));
+          add(routerBuilder, "getReqsByDateOfUse", ctx -> getReqsByDateOfUse(vertx, ctx, false));
+          add(routerBuilder, "getReqsByDateOfUseCsv", ctx -> getReqsByDateOfUse(vertx, ctx, true));
           add(routerBuilder, "getReqsByPubYear", ctx -> getReqsByPubYear(vertx, ctx));
           return routerBuilder.createRouter();
         });

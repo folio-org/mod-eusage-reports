@@ -439,7 +439,7 @@ public class EusageReportsApiTest {
     when(routingContext.request().params().get("startDate")).thenReturn("2020-05");
     when(routingContext.request().params().get("endDate")).thenReturn("2020-06");
     when(routingContext.request().params().get("includeOA")).thenReturn("true");
-    new EusageReportsApi().getReqsByDateOfUse(vertx, routingContext)
+    new EusageReportsApi().getReqsByDateOfUse(vertx, routingContext, false)
     .onComplete(context.asyncAssertSuccess(x -> {
       ArgumentCaptor<String> body = ArgumentCaptor.forClass(String.class);
       verify(routingContext.response()).end(body.capture());
@@ -461,6 +461,26 @@ public class EusageReportsApiTest {
               .put("accessCountsByPeriod", new JsonArray("[ 40, null ]"))
               .encodePrettily()));
     }));
+  }
+
+  @Test
+  public void reqsByDateOfUseWithRoutingContextCsv(TestContext context) {
+    RoutingContext routingContext = mock(RoutingContext.class, RETURNS_DEEP_STUBS);
+    when(routingContext.request().getHeader("X-Okapi-Tenant")).thenReturn(tenant);
+    when(routingContext.request().params().get("foo")).thenReturn("bar");
+    when(routingContext.request().params().get("agreementId")).thenReturn(a2);
+    when(routingContext.request().params().get("startDate")).thenReturn("2020-05");
+    when(routingContext.request().params().get("endDate")).thenReturn("2020-06");
+    when(routingContext.request().params().get("includeOA")).thenReturn("true");
+    new EusageReportsApi().getReqsByDateOfUse(vertx, routingContext, true)
+        .onComplete(context.asyncAssertSuccess(x -> {
+          ArgumentCaptor<String> body = ArgumentCaptor.forClass(String.class);
+          verify(routingContext.response()).end(body.capture());
+          String res = body.getValue();
+          assertThat(res, containsString("02"));
+          assertThat(res, containsString("Year of publication from COUNTER report"));
+          assertThat(res, containsString("2010"));
+        }));
   }
 
   private void floorMonths(TestContext context, String date, int months, String expected) {
