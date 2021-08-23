@@ -201,7 +201,9 @@ public class ApiIT {
         when().
         get("/eusage-reports/stored-reports/reqs-by-pub-year/csv").
         then().
-        statusCode(501); // not implemented
+        statusCode(200).
+        contentType("text/csv").
+        body(containsString(",Period of use,Access type,"));
   }
 
 }

@@ -555,6 +555,14 @@ public class EusageReportsApiTest {
   }
 
   @Test
+  public void reqsByPubYearCsv(TestContext context) {
+    new EusageReportsApi().getReqsByPubYear(pool, true, a1, "2020-04", "2020-08", "6M", true)
+        .onComplete(context.asyncAssertSuccess(res -> {
+          assertThat(res, containsString(",2020-07 - 2020-12,Controlled,"));
+        }));
+  }
+
+  @Test
   public void reqsByPubYearWithoutData(TestContext context) {
     getReqsByPubPeriod(true, a1, "2999-04", "2999-05", "1Y")
     .onComplete(context.asyncAssertSuccess(json -> {

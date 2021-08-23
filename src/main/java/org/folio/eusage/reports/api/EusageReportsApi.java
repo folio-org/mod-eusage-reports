@@ -1227,11 +1227,15 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
   }
 
   static void getUseOverTime2Csv(JsonObject json, boolean groupByPublicationYear,
-                                 Appendable appendable) throws IOException {
+                                 boolean periodOfUse, Appendable appendable)
+      throws IOException {
     CSVPrinter writer = new CSVPrinter(appendable, CSVFormat.EXCEL);
     writer.print("Title");
     writer.print("Print ISSN");
     writer.print("Online ISSN");
+    if (periodOfUse) {
+      writer.print("Period of use");
+    }
     if (groupByPublicationYear) {
       writer.print("Year of publication");
     }
@@ -1240,6 +1244,8 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     writer.print("Reporing period total");
     JsonArray accessCountPeriods = json.getJsonArray("accessCountPeriods");
     for (int i = 0; i < accessCountPeriods.size(); i++) {
+      // TODO .. If year  prefix with "Published "
+      // MMMM-DD should be converted to "MON-YYYY"
       writer.print(accessCountPeriods.getString(i));
     }
     writer.println();
@@ -1249,6 +1255,9 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
             + " if title is part of a package, list it separately");
     writer.print("Print ISSN from agreement line");
     writer.print("Online ISSN from agreement line");
+    if (periodOfUse) {
+      writer.print("Include both total and unique item requests");
+    }
     if (groupByPublicationYear) {
       writer.print("Year of publication from COUNTER report");
     }
@@ -1266,6 +1275,9 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     writer.print("Totals - Total item requests");
     writer.print(null);
     writer.print(null);
+    if (periodOfUse) {
+      writer.print(null);
+    }
     if (groupByPublicationYear) {
       writer.print(null);
     }
@@ -1281,6 +1293,9 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     writer.print("Totals - Unique item requests");
     writer.print(null);
     writer.print(null);
+    if (periodOfUse) {
+      writer.print(null);
+    }
     if (groupByPublicationYear) {
       writer.print(null);
     }
@@ -1301,6 +1316,9 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
       writer.print(item.getString("onlineISSN"));
       if (groupByPublicationYear) {
         writer.print(item.getLong("publicationYear"));
+      }
+      if (periodOfUse) {
+        writer.print(item.getString("periodOfUse"));
       }
       writer.print(item.getString("accessType"));
       writer.print(item.getString("metricType"));
@@ -1362,7 +1380,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
           }
           try {
             StringWriter stringWriter = new StringWriter();
-            getUseOverTime2Csv(json, groupByPublicationYear, stringWriter);
+            getUseOverTime2Csv(json, groupByPublicationYear, false, stringWriter);
             return Future.succeededFuture(stringWriter.toString());
           } catch (IOException e) {
             return Future.failedFuture(e);
@@ -1545,7 +1563,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
         new JsonObject(ResourceUtil.load("/openapi/examples/report.json")));
   }
 
-  Future<Void> getReqsByPubYear(Vertx vertx, RoutingContext ctx) {
+  Future<Void> getReqsByPubYear(Vertx vertx, RoutingContext ctx, boolean csv) {
     TenantPgPool pool = TenantPgPool.pool(vertx, TenantUtil.tenant(ctx));
     boolean includeOA = "true".equalsIgnoreCase(ctx.request().params().get("includeOA"));
     String agreementId = ctx.request().params().get("agreementId");
@@ -1553,12 +1571,29 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     String end = ctx.request().params().get("endDate");
     String periodOfUse = ctx.request().params().get("periodOfUse");
 
-    return getReqsByPubYear(pool, includeOA, agreementId, start, end, periodOfUse)
-        .map(json -> {
+    return getReqsByPubYear(pool, includeOA, agreementId, start, end, periodOfUse, csv)
+        .map(res -> {
           ctx.response().setStatusCode(200);
-          ctx.response().putHeader("Content-Type", "application/json");
-          ctx.response().end(json.encodePrettily());
+          ctx.response().putHeader("Content-Type", csv ? "text/csv" : "application/json");
+          ctx.response().end(res);
           return null;
+        });
+  }
+
+  Future<String> getReqsByPubYear(TenantPgPool pool, boolean includeOA, String agreementId,
+                                  String start, String end, String periodOfUse, boolean csv) {
+    return getReqsByPubYear(pool, includeOA, agreementId, start, end, periodOfUse)
+        .compose(json -> {
+          if (!csv) {
+            return Future.succeededFuture(json.encodePrettily());
+          }
+          try {
+            StringWriter stringWriter = new StringWriter();
+            getUseOverTime2Csv(json, false, true, stringWriter);
+            return Future.succeededFuture(stringWriter.toString());
+          } catch (IOException e) {
+            return Future.failedFuture(e);
+          }
         });
   }
 
@@ -1792,7 +1827,8 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
           add(routerBuilder, "getUseOverTimeCsv", ctx -> getUseOverTime(vertx, ctx, true));
           add(routerBuilder, "getReqsByDateOfUse", ctx -> getReqsByDateOfUse(vertx, ctx, false));
           add(routerBuilder, "getReqsByDateOfUseCsv", ctx -> getReqsByDateOfUse(vertx, ctx, true));
-          add(routerBuilder, "getReqsByPubYear", ctx -> getReqsByPubYear(vertx, ctx));
+          add(routerBuilder, "getReqsByPubYear", ctx -> getReqsByPubYear(vertx, ctx, false));
+          add(routerBuilder, "getReqsByPubYearCsv", ctx -> getReqsByPubYear(vertx, ctx, true));
           return routerBuilder.createRouter();
         });
   }
