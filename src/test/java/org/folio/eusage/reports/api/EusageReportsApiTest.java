@@ -352,7 +352,9 @@ public class EusageReportsApiTest {
         .onComplete(context.asyncAssertSuccess(res0 -> {
           new EusageReportsApi().getUseOverTime(pool, true, true, false, a1, "2020-04", "2020-05", true)
               .onComplete(context.asyncAssertSuccess(res -> {
-                assertThat(res, containsString("2020-05"));
+                assertThat(res, containsString("Title,Print ISSN,Online ISSN,Access type,Metric Type,Reporing period total,2020-04,2020-05"));
+                assertThat(res, containsString("Totals - total item requests,,,,,56,22,34"));
+                assertThat(res, containsString("Totals - unique item requests,,,,,38,20,18"));
               }));
         }));
   }
@@ -434,7 +436,6 @@ public class EusageReportsApiTest {
   public void reqsByDateOfUseWithRoutingContext(TestContext context) {
     RoutingContext routingContext = mock(RoutingContext.class, RETURNS_DEEP_STUBS);
     when(routingContext.request().getHeader("X-Okapi-Tenant")).thenReturn(tenant);
-    when(routingContext.request().params().get("foo")).thenReturn("bar");
     when(routingContext.request().params().get("agreementId")).thenReturn(a2);
     when(routingContext.request().params().get("startDate")).thenReturn("2020-05");
     when(routingContext.request().params().get("endDate")).thenReturn("2020-06");
@@ -467,7 +468,6 @@ public class EusageReportsApiTest {
   public void reqsByDateOfUseWithRoutingContextCsv(TestContext context) {
     RoutingContext routingContext = mock(RoutingContext.class, RETURNS_DEEP_STUBS);
     when(routingContext.request().getHeader("X-Okapi-Tenant")).thenReturn(tenant);
-    when(routingContext.request().params().get("foo")).thenReturn("bar");
     when(routingContext.request().params().get("agreementId")).thenReturn(a2);
     when(routingContext.request().params().get("startDate")).thenReturn("2020-05");
     when(routingContext.request().params().get("endDate")).thenReturn("2020-06");
@@ -514,6 +514,45 @@ public class EusageReportsApiTest {
       String start, String end, String periodOfUse) {
 
     return new EusageReportsApi().getReqsByPubYear(pool, includeOA, agreementId, start, end, periodOfUse);
+  }
+
+  @Test
+  public void reqsByPubYearWithRoutingContext(TestContext context) {
+    RoutingContext routingContext = mock(RoutingContext.class, RETURNS_DEEP_STUBS);
+    when(routingContext.request().getHeader("X-Okapi-Tenant")).thenReturn(tenant);
+    when(routingContext.request().params().get("agreementId")).thenReturn(a1);
+    when(routingContext.request().params().get("startDate")).thenReturn("2020-04");
+    when(routingContext.request().params().get("endDate")).thenReturn("2020-08");
+    when(routingContext.request().params().get("periodOfUse")).thenReturn("6M");
+    when(routingContext.request().params().get("includeOA")).thenReturn("true");
+    new EusageReportsApi().getReqsByPubYear(vertx, routingContext, false)
+        .onComplete(context.asyncAssertSuccess(x -> {
+          ArgumentCaptor<String> body = ArgumentCaptor.forClass(String.class);
+          verify(routingContext.response()).end(body.capture());
+          JsonObject json = new JsonObject(body.getValue());
+          assertThat(json.getLong("totalItemRequestsTotal"), is(70L));
+          assertThat(json.getLong("uniqueItemRequestsTotal"), is(50L));
+          assertThat(json.getJsonArray("totalItemRequestsByPeriod"), contains(5, 15, 50));
+          assertThat(json.getJsonArray("uniqueItemRequestsByPeriod"), contains(3, 7, 40));
+        }));
+  }
+
+  @Test
+  public void reqsByPubYearWithRoutingContextCsv(TestContext context) {
+    RoutingContext routingContext = mock(RoutingContext.class, RETURNS_DEEP_STUBS);
+    when(routingContext.request().getHeader("X-Okapi-Tenant")).thenReturn(tenant);
+    when(routingContext.request().params().get("agreementId")).thenReturn(a1);
+    when(routingContext.request().params().get("startDate")).thenReturn("2020-04");
+    when(routingContext.request().params().get("endDate")).thenReturn("2020-08");
+    when(routingContext.request().params().get("periodOfUse")).thenReturn("6M");
+    when(routingContext.request().params().get("includeOA")).thenReturn("true");
+    new EusageReportsApi().getReqsByPubYear(vertx, routingContext, true)
+        .onComplete(context.asyncAssertSuccess(x -> {
+          ArgumentCaptor<String> body = ArgumentCaptor.forClass(String.class);
+          verify(routingContext.response()).end(body.capture());
+          String res = body.getValue();
+          assertThat(res, containsString(",2020-07 - 2020-12,Controlled,"));
+        }));
   }
 
   @Test

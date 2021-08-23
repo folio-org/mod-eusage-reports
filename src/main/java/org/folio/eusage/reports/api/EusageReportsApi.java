@@ -1226,6 +1226,28 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     }
   }
 
+  static void getUseTotalsCsv(JsonObject json, boolean groupByPublicationYear,
+                              boolean periodOfUse, CSVPrinter writer,
+                              String lead) throws IOException {
+    writer.print("Totals - " + lead + " item requests");
+    writer.print(null);
+    writer.print(null);
+    if (periodOfUse) {
+      writer.print(null);
+    }
+    if (groupByPublicationYear) {
+      writer.print(null);
+    }
+    writer.print(null);
+    writer.print(null);
+    writer.print(json.getLong(lead + "ItemRequestsTotal"));
+    Long[] totalItemRequestsPeriod = (Long[]) json.getValue(lead + "ItemRequestsByPeriod");
+    for (int i = 0; i < totalItemRequestsPeriod.length; i++) {
+      writer.print(totalItemRequestsPeriod[i]);
+    }
+    writer.println();
+  }
+
   static void getUseOverTime2Csv(JsonObject json, boolean groupByPublicationYear,
                                  boolean periodOfUse, Appendable appendable)
       throws IOException {
@@ -1272,41 +1294,8 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     writer.print("Include COUNTER data for each month that appears in the reporting period");
     writer.println();
 
-    writer.print("Totals - Total item requests");
-    writer.print(null);
-    writer.print(null);
-    if (periodOfUse) {
-      writer.print(null);
-    }
-    if (groupByPublicationYear) {
-      writer.print(null);
-    }
-    writer.print(null);
-    writer.print(null);
-    writer.print(json.getLong("totalItemRequestsTotal"));
-    Long[] totalItemRequestsPeriod = (Long[]) json.getValue("totalItemRequestsByPeriod");
-    for (int i = 0; i < totalItemRequestsPeriod.length; i++) {
-      writer.print(totalItemRequestsPeriod[i]);
-    }
-    writer.println();
-
-    writer.print("Totals - Unique item requests");
-    writer.print(null);
-    writer.print(null);
-    if (periodOfUse) {
-      writer.print(null);
-    }
-    if (groupByPublicationYear) {
-      writer.print(null);
-    }
-    writer.print(null);
-    writer.print(null);
-    writer.print(json.getLong("uniqueItemRequestsTotal"));
-    Long[] uniqueItemRequestsPeriod = (Long[]) json.getValue("uniqueItemRequestsByPeriod");
-    for (int i = 0; i < uniqueItemRequestsPeriod.length; i++) {
-      writer.print(uniqueItemRequestsPeriod[i]);
-    }
-    writer.println();
+    getUseTotalsCsv(json, groupByPublicationYear, periodOfUse, writer, "total");
+    getUseTotalsCsv(json, groupByPublicationYear, periodOfUse, writer, "unique");
 
     JsonArray items = json.getJsonArray("items");
     for (int j = 0; j < items.size(); j++) {
