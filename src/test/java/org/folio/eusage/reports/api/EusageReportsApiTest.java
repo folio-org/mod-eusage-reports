@@ -477,9 +477,9 @@ public class EusageReportsApiTest {
           ArgumentCaptor<String> body = ArgumentCaptor.forClass(String.class);
           verify(routingContext.response()).end(body.capture());
           String res = body.getValue();
-          assertThat(res, containsString("02"));
-          assertThat(res, containsString("Year of publication from COUNTER report"));
-          assertThat(res, containsString("2010"));
+          assertThat(res, containsString("Title,Print ISSN,Online ISSN,Year of publication,Access type,Metric Type,Reporing period total,2020-05,2020-06"));
+          assertThat(res, containsString("Totals - total item requests,,,,,,42,40,2"));
+          assertThat(res, containsString("Title 21,2121-1111,,2010,Controlled,Unique_Item_Requests,20,20,"));
         }));
   }
 

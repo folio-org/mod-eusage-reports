@@ -1266,28 +1266,6 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     }
     writer.println();
 
-    writer.print(
-        "List all titles from agreement lines, even if no COUNTER data present;"
-            + " if title is part of a package, list it separately");
-    writer.print("Print ISSN from agreement line");
-    writer.print("Online ISSN from agreement line");
-    if (periodOfUse) {
-      writer.print("Include both total and unique item requests");
-    }
-    if (groupByPublicationYear) {
-      writer.print("Year of publication from COUNTER report");
-    }
-    writer.print("Access type from COUNTER report");
-    writer.print("Metric type from COUNTER report; include both total and uniqie item requests");
-    writer.print("1. Begin with COUNTER data from usage provider associated with the agreement.\n"
-            + "2. Filter COUNTER data to only titles matching agreement lines.\n"
-            + "3. Filter COUNTER data to only publication years matching coverage dates of"
-            + " agreement lines.\n"
-            + "4. Display COUNTER data by total and unqiue item requests occurring in"
-            + " the reporting period.\n");
-    writer.print("Include COUNTER data for each month that appears in the reporting period");
-    writer.println();
-
     getUseTotalsCsv(json, groupByPublicationYear, periodOfUse, writer, "total");
     getUseTotalsCsv(json, groupByPublicationYear, periodOfUse, writer, "unique");
 
