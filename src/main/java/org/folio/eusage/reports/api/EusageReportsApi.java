@@ -124,7 +124,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
                                    String query, String cnt,
                                    String property, Function<Row, JsonObject> handler) {
     return sqlConnection.prepare(query)
-        .<Void>compose(pq ->
+        .compose(pq ->
             sqlConnection.begin().compose(tx -> {
               ctx.response().setChunked(true);
               ctx.response().putHeader("Content-Type", "application/json");
@@ -138,18 +138,16 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
                 JsonObject response = handler.apply(row);
                 ctx.response().write(copyWithoutNulls(response).encode());
               });
-              stream.endHandler(end -> {
-                sqlConnection.query(cnt).execute()
-                    .onSuccess(cntRes -> {
-                      Integer count = cntRes.iterator().next().getInteger(0);
-                      resultFooter(ctx, count, null);
-                    })
-                    .onFailure(f -> {
-                      log.error(f.getMessage(), f);
-                      resultFooter(ctx, 0, f.getMessage());
-                    })
-                    .eventually(x -> tx.commit().compose(y -> sqlConnection.close()));
-              });
+              stream.endHandler(end -> sqlConnection.query(cnt).execute()
+                  .onSuccess(cntRes -> {
+                    Integer count = cntRes.iterator().next().getInteger(0);
+                    resultFooter(ctx, count, null);
+                  })
+                  .onFailure(f -> {
+                    log.error(f.getMessage(), f);
+                    resultFooter(ctx, 0, f.getMessage());
+                  })
+                  .eventually(x -> tx.commit().compose(y -> sqlConnection.close())));
               stream.exceptionHandler(e -> {
                 log.error("stream error {}", e.getMessage(), e);
                 resultFooter(ctx, 0, e.getMessage());
@@ -834,7 +832,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
    * @param poLine po line object.
    * @param ctx routing context.
    * @param result JSON object with "orderType" is being set.
-   * @return
+   * @return future result.
    */
   Future<Void> getOrderType(JsonObject poLine, RoutingContext ctx, JsonObject result) {
     String purchaseOrderId = poLine.getString("purchaseOrderId");
@@ -923,7 +921,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
   Future<JsonObject> lookupFiscalYear(UUID id, RoutingContext ctx) {
     String uri = "/finance-storage/fiscal-years/" + id;
     return getRequestSend(ctx, uri)
-        .map(res -> res.bodyAsJsonObject());
+        .map(HttpResponse::bodyAsJsonObject);
   }
 
   Future<Void> getFiscalYear(JsonObject poLine, RoutingContext ctx, JsonObject result) {
@@ -1238,8 +1236,8 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     writer.print(null);
     writer.print(json.getLong(lead + "ItemRequestsTotal"));
     Long[] totalItemRequestsPeriod = (Long[]) json.getValue(lead + "ItemRequestsByPeriod");
-    for (int i = 0; i < totalItemRequestsPeriod.length; i++) {
-      writer.print(totalItemRequestsPeriod[i]);
+    for (Long requestsPeriod : totalItemRequestsPeriod) {
+      writer.print(requestsPeriod);
     }
     writer.println();
   }
@@ -1623,7 +1621,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
           } while (date.isBefore(usePeriods.endDate));
           tuple.addLocalDate(usePeriods.endDate);
 
-          System.out.println(sql.toString());
+          System.out.println(sql);
           System.out.println(tuple.deepToString());
           return pool.preparedQuery(sql.toString()).execute(tuple).map(rowSet -> {
             JsonArray items = new JsonArray();
@@ -1756,7 +1754,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     sql
         .append(" FROM ").append(agreementEntriesTable(pool))
         .append(" LEFT JOIN ").append(packageEntriesTable(pool)).append(" USING (kbPackageId)")
-        .append(" JOIN " + titleEntriesTable(pool) + " ON")
+        .append(" JOIN ").append(titleEntriesTable(pool)).append(" ON")
         .append(" title_entries.kbTitleId = agreement_entries.kbTitleId OR")
         .append(" title_entries.kbTitleId = package_entries.kbTitleId");
     for (int i = 0; i < publicationPeriods; i++) {
