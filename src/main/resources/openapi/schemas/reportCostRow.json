@@ -72,9 +72,11 @@
       }
     },
     "totalItemRequests" : {
+      "description" : "total item requests",
       "type": "integer"
     },
     "uniqueItemRequests" : {
+      "description" : "unique item requests",
       "type": "integer"
     },
     "costPerTotalRequest" : {
