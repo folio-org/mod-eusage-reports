@@ -2,6 +2,7 @@ package org.folio.tlib.api;
 
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.nullValue;
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.collection.IsIterableContainingInOrder.contains;
 import static io.restassured.RestAssured.given;
@@ -128,6 +129,51 @@ public class ApiIT {
   }
 
   @Test
+  public void useOverTimeCsv() {
+    postTenant();
+    given().
+        param("agreementId", "10000000-0000-4000-8000-000000000000").
+        param("startDate", "2020-03").
+        param("endDate", "2020-04").
+        param("format", "JOURNAL").
+        when().
+        get("/eusage-reports/stored-reports/use-over-time/csv").
+        then().
+        statusCode(200).
+        contentType("text/csv").
+        body(containsString("2020-03,2020-04"));
+  }
+
+  @Test
+  public void reqsByDateOfUse() {
+    postTenant();
+    given().
+        param("agreementId", "10000000-0000-4000-8000-000000000000").
+        param("startDate", "2020-03").
+        param("endDate", "2020-04").
+        when().
+        get("/eusage-reports/stored-reports/reqs-by-date-of-use").
+        then().
+        statusCode(200).
+        body("accessCountPeriods", contains("2020-03", "2020-04"));
+  }
+
+  @Test
+  public void reqsByDateOfUseCsv() {
+    postTenant();
+    given().
+        param("agreementId", "10000000-0000-4000-8000-000000000000").
+        param("startDate", "2020-03").
+        param("endDate", "2020-04").
+        when().
+        get("/eusage-reports/stored-reports/reqs-by-date-of-use/csv").
+        then().
+        statusCode(200).
+        contentType("text/csv").
+        body(containsString("2020-03,2020-04"));
+  }
+
+  @Test
   public void reqsByPubYear() {
     postTenant();
     given().
@@ -142,6 +188,22 @@ public class ApiIT {
       body("agreementId", is("10000000-0000-4000-8000-000000000000")).
       body("totalItemRequestsTotal", is(nullValue())).
       body("accessCountPeriods", is(empty()));
+  }
+
+  @Test
+  public void reqsByPubYearCsv() {
+    postTenant();
+    given().
+        param("agreementId", "10000000-0000-4000-8000-000000000000").
+        param("startDate", "2020-03").
+        param("endDate", "2020-04").
+        param("periodOfUse", "1Y").
+        when().
+        get("/eusage-reports/stored-reports/reqs-by-pub-year/csv").
+        then().
+        statusCode(200).
+        contentType("text/csv").
+        body(containsString(",Period of use,Access type,"));
   }
 
 }
