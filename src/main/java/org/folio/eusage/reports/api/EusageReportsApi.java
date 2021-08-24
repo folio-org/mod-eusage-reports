@@ -1860,7 +1860,8 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
             + ")",
         "CREATE INDEX IF NOT EXISTS agreement_entries_agreementId ON "
             + agreementEntriesTable(pool) + " USING btree(agreementId)",
-        "CREATE OR REPLACE FUNCTION floor_months(date, integer) RETURNS date AS $$\n"
+        "CREATE OR REPLACE FUNCTION " + pool.getSchema() + ".floor_months(date, integer)"
+            + " RETURNS date AS $$\n"
             + "-- floor_months(date, n) returns the start of the period date belongs to,\n"
             + "-- periods are n months long. Examples:\n"
             + "-- Begin of quarter (3 months): floor_months('2019-05-17', 3) = '2019-04-01'.\n"

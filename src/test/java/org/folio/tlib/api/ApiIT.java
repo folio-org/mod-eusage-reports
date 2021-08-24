@@ -189,4 +189,21 @@ public class ApiIT {
       body("totalItemRequestsTotal", is(nullValue())).
       body("accessCountPeriods", is(empty()));
   }
+
+  @Test
+  public void reqsByPubYearCsv() {
+    postTenant();
+    given().
+        param("agreementId", "10000000-0000-4000-8000-000000000000").
+        param("startDate", "2020-03").
+        param("endDate", "2020-04").
+        param("periodOfUse", "1Y").
+        when().
+        get("/eusage-reports/stored-reports/reqs-by-pub-year/csv").
+        then().
+        statusCode(200).
+        contentType("text/csv").
+        body(containsString(",Period of use,Access type,"));
+  }
+
 }
