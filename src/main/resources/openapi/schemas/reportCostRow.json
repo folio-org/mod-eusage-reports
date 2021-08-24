@@ -1,0 +1,94 @@
+{
+  "description": "Single row of cost report data",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string",
+      "description": "Title if the item"
+    },
+    "derivedTitle": {
+      "type": "boolean",
+      "description": "Indicate whether the the resource is derived from an agreement line"
+    },
+    "printISSN": {
+      "type": "string",
+      "description": "ISSN for print instance"
+    },
+    "onlineISSN": {
+      "type": "string",
+      "description": "ISSN for online instance"
+    },
+    "orderType": {
+      "type": "string",
+      "enum": ["ONGOING", "ONTIME"],
+      "description": "Order type from agreement - defaults to ONGOING"
+    },
+    "poLineIDs" : {
+      "type": "array",
+      "items" : {
+        "type": "string",
+        "description" : "PO line ID"
+      }
+    },
+    "invoiceNumbers" : {
+      "type": "array",
+      "items" : {
+        "type": "string",
+        "description" : "Invoice number"
+      }
+    },
+    "fiscalDateStart" : {
+      "type": "string",
+      "description" : "Fiscal date start, YYYY-MM-DD"
+    },
+    "fiscalDateEnd" : {
+      "type": "string",
+      "description" : "Fiscal date end, YYYY-MM-DD"
+    },
+    "subscriptionDateStart" : {
+      "type": "string",
+      "description" : "Subscription date start, YYYY-MM-DD"
+    },
+    "subscriptionDateEnd" : {
+      "type": "string",
+      "description" : "Subscription date end, YYYY-MM-DD"
+    },
+    "amountEncumbered" : {
+      "type": "array",
+      "items" : {
+        "type": "number",
+        "description" : "Encumbered amount for PO line"
+      }
+    },
+    "amountPaid" : {
+      "type": "array",
+      "items" : {
+        "type": "number",
+        "description" : "Paid amount for invoice"
+      }
+    },
+    "totalItemRequests" : {
+      "type": "integer"
+    },
+    "uniqueItemRequests" : {
+      "type": "integer"
+    },
+    "costPerTotalRequest" : {
+      "type": "array",
+      "items" : {
+        "type": "number",
+        "description" : "Cost per total request",
+        "nullable": true
+      }
+    },
+    "costPerUniqueRequest" : {
+      "type": "array",
+      "items" : {
+        "type": "number",
+        "description" : "Cost per unique request",
+        "nullable": true
+      }
+    }
+  },
+  "additionalProperties": false
+}

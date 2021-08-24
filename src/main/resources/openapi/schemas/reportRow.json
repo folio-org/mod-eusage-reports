@@ -1,5 +1,5 @@
 {
-  "description": "Single row of report data",
+  "description": "Single row of usage report data",
   "type": "object",
   "properties": {
     "kbId": {
