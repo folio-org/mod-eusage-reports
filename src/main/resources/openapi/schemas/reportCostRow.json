@@ -25,6 +25,7 @@
     },
     "poLineIDs" : {
       "type": "array",
+      "description" : "PO line IDs",
       "items" : {
         "type": "string",
         "description" : "PO line ID"
@@ -32,6 +33,7 @@
     },
     "invoiceNumbers" : {
       "type": "array",
+      "description": "Invoice numbers",
       "items" : {
         "type": "string",
         "description" : "Invoice number"
@@ -55,12 +57,14 @@
     },
     "amountEncumbered" : {
       "type": "array",
+      "description" : "Encumbered amounts for PO lines",
       "items" : {
         "type": "number",
         "description" : "Encumbered amount for PO line"
       }
     },
     "amountPaid" : {
+      "description" : "Paid amount for each invoice",
       "type": "array",
       "items" : {
         "type": "number",
@@ -75,17 +79,19 @@
     },
     "costPerTotalRequest" : {
       "type": "array",
+      "description" : "Cost per total request for invoices",
       "items" : {
         "type": "number",
-        "description" : "Cost per total request",
+        "description" : "Cost per total request for invoice",
         "nullable": true
       }
     },
     "costPerUniqueRequest" : {
       "type": "array",
+      "description" : "Cost per unique request for invoices",
       "items" : {
         "type": "number",
-        "description" : "Cost per unique request",
+        "description" : "Cost per unique request for invoice",
         "nullable": true
       }
     }
