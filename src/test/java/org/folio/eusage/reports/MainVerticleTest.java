@@ -37,6 +37,7 @@ public class MainVerticleTest {
   static Vertx vertx;
   static final int MODULE_PORT = 9230;
   static final int MOCK_PORT = 9231;
+  static final String POLINE_NUMBER_SAMPLE = "121x-219";
   static final String pubDateSample = "1998-05-01";
   static final String pubYearSample = "1999";
   static final UUID goodKbTitleId = UUID.randomUUID();
@@ -490,6 +491,7 @@ public class MainVerticleTest {
         ctx.response().putHeader("Content-Type", "application/json");
         JsonObject orderLine = new JsonObject();
         orderLine.put("id", id);
+        orderLine.put("poLineNumber", POLINE_NUMBER_SAMPLE);
         String currency = i < orderLinesCurrencies.size() ? orderLinesCurrencies.get(i) : "USD";
         orderLine.put("cost", new JsonObject()
             .put("currency", currency)
@@ -1483,6 +1485,7 @@ public class MainVerticleTest {
         context.assertEquals("One-Time", item.getString("orderType"));
         String invoiceNumber = item.getString("invoiceNumber");
         context.assertTrue("0".equals(invoiceNumber) || "1".equals(invoiceNumber));
+        context.assertEquals(POLINE_NUMBER_SAMPLE, item.getString("poLineNumber"));
       }
     }
     context.assertEquals(1, noPackages);

@@ -799,6 +799,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
               .put("coverageDateRanges", row.getString(11))
               .put("orderType", row.getString(12))
               .put("invoiceNumber", row.getString(13))
+              .put("poLineNumber", row.getString(14))
       );
     } catch (Exception e) {
       log.error(e.getMessage(), e);
@@ -961,6 +962,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     for (int i = 0; i < poLinesAr.size(); i++) {
       UUID poLineId = UUID.fromString(poLinesAr.getJsonObject(i).getString("poLineId"));
       futures.add(lookupOrderLine(poLineId, ctx).compose(poLine -> {
+        result.put("poLineNumber", poLine.getString("poLineNumber"));
         JsonObject cost = poLine.getJsonObject("cost");
         String currency = result.getString("currency");
         String newCurrency = cost.getString("currency");
@@ -1059,16 +1061,17 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
                 Number invoicedCost = poResult.getDouble("invoicedCost");
                 String subScriptionDateRange = poResult.getString("subscriptionDateRange");
                 String fiscalYearRange = poResult.getString("fiscalYear");
+                String poLineNumber = poResult.getString("poLineNumber");
                 return con.preparedQuery("INSERT INTO " + agreementEntriesTable(pool)
                     + "(id, kbTitleId, kbPackageId, type,"
                     + " agreementId, agreementLineId, poLineId, encumberedCost, invoicedCost,"
                     + " fiscalYearRange, subscriptionDateRange, coverageDateRanges, orderType,"
-                    + " invoiceNumber)"
-                    + " VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)")
+                    + " invoiceNumber,poLineNumber)"
+                    + " VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)")
                     .execute(Tuple.of(id, kbTitleId, kbPackageId, type,
                         agreementId, agreementLineId, poLineId, encumberedCost, invoicedCost,
                         fiscalYearRange, subScriptionDateRange, coverageDateRanges, orderType,
-                        invoiceNumber))
+                        invoiceNumber, poLineNumber))
                     .mapEmpty();
               })
           );
@@ -1921,7 +1924,8 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
             + "subscriptionDateRange daterange, "
             + "coverageDateRanges daterange,"
             + "orderType text,"
-            + "invoiceNumber text"
+            + "invoiceNumber text,"
+            + "poLineNumber text"
             + ")",
         "CREATE INDEX IF NOT EXISTS agreement_entries_agreementId ON "
             + agreementEntriesTable(pool) + " USING btree(agreementId)",
