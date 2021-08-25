@@ -1758,6 +1758,69 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
         .append("   AND (printISSN IS NOT NULL OR onlineISSN IS NOT NULL)");
   }
 
+  static void getCostPerUse2Csv(JsonObject json, Appendable appendable)
+      throws IOException {
+    CSVPrinter writer = new CSVPrinter(appendable, CSVFormat.EXCEL);
+    writer.print("Agreement line");
+    writer.print("Publication Type");
+    writer.print("Print ISSN");
+    writer.print("Online ISSN");
+    writer.print("ISBN");
+    writer.print("Order type");
+    writer.print("Purchase order line");
+    writer.print("Invoice number");
+    writer.print("Fiscal start");
+    writer.print("Fiscal end");
+    writer.print("Subscription start");
+    writer.print("Subscription end");
+    writer.print("Reporting period");
+    writer.print("Amount encumbered");
+    writer.print("Amount paid");
+    writer.print("Total item requests");
+    writer.print("Unique item requests");
+    writer.print("Cost per request - total");
+    writer.print("Cost per request - unique");
+    writer.println();
+  }
+
+  Future<JsonObject> getCostPerUse(TenantPgPool pool, boolean includeOA, String agreementId,
+                                   String start, String end) {
+    return Future.succeededFuture(new JsonObject());
+  }
+
+  Future<String> getCostPerUse(TenantPgPool pool, boolean includeOA, String agreementId,
+                               String start, String end, boolean csv) {
+    return getCostPerUse(pool, includeOA, agreementId, start, end)
+        .compose(json -> {
+          if (!csv) {
+            return Future.succeededFuture(json.encodePrettily());
+          }
+          try {
+            StringWriter stringWriter = new StringWriter();
+            getCostPerUse2Csv(json, stringWriter);
+            return Future.succeededFuture(stringWriter.toString());
+          } catch (IOException e) {
+            return Future.failedFuture(e);
+          }
+        });
+  }
+
+  Future<Void> getCostPerUse(Vertx vertx, RoutingContext ctx, boolean csv) {
+    TenantPgPool pool = TenantPgPool.pool(vertx, TenantUtil.tenant(ctx));
+    boolean includeOA = "true".equalsIgnoreCase(ctx.request().params().get("includeOA"));
+    String agreementId = ctx.request().params().get("agreementId");
+    String start = ctx.request().params().get("startDate");
+    String end = ctx.request().params().get("endDate");
+
+    return getCostPerUse(pool, includeOA, agreementId, start, end, csv)
+        .map(res -> {
+          ctx.response().setStatusCode(200);
+          ctx.response().putHeader("Content-Type", csv ? "text/csv" : "application/json");
+          ctx.response().end(res);
+          return null;
+        });
+  }
+
   private void add(RouterBuilder routerBuilder,
       String operationId, Function<RoutingContext, Future<Void>> function) {
 
@@ -1790,6 +1853,8 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
           add(routerBuilder, "getReqsByDateOfUseCsv", ctx -> getReqsByDateOfUse(vertx, ctx, true));
           add(routerBuilder, "getReqsByPubYear", ctx -> getReqsByPubYear(vertx, ctx, false));
           add(routerBuilder, "getReqsByPubYearCsv", ctx -> getReqsByPubYear(vertx, ctx, true));
+          add(routerBuilder, "getCostPerUse", ctx -> getCostPerUse(vertx, ctx, false));
+          add(routerBuilder, "getCostPerUseCsv", ctx -> getCostPerUse(vertx, ctx, true));
           return routerBuilder.createRouter();
         });
   }

@@ -206,4 +206,32 @@ public class ApiIT {
         body(containsString(",Period of use,Access type,"));
   }
 
+  @Test
+  public void costPerUse() {
+    postTenant();
+    given().
+        param("agreementId", "10000000-0000-4000-8000-000000000000").
+        param("startDate", "2020-03").
+        param("endDate", "2020-04").
+        when().
+        get("/eusage-reports/stored-reports/cost-per-use").
+        then().
+        statusCode(200);
+  }
+
+  @Test
+  public void costPerUseCsv() {
+    postTenant();
+    given().
+        param("agreementId", "10000000-0000-4000-8000-000000000000").
+        param("startDate", "2020-03").
+        param("endDate", "2020-04").
+        when().
+        get("/eusage-reports/stored-reports/cost-per-use/csv").
+        then().
+        statusCode(200).
+        contentType("text/csv").
+        body(containsString("Agreement line,"));
+  }
+
 }
