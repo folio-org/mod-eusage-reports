@@ -1786,14 +1786,53 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     writer.println();
   }
 
-  Future<JsonObject> getCostPerUse(TenantPgPool pool, boolean includeOA, String agreementId,
-                                   String start, String end) {
-    return Future.succeededFuture(new JsonObject());
+  private static void costPerUse(StringBuilder sql, TenantPgPool pool,
+                                  boolean openAccess, boolean unique) {
+    sql
+        .append("SELECT title_entries.kbTitleId AS kbId, kbTitleName AS title,")
+        .append(" printISSN, onlineISSN, ISBN, orderType, poLineNumber, invoiceNumber,")
+        .append(" fiscalYearRange, subscriptionDateRange,")
+        .append(" encumberedCost, invoicedCost")
+        .append(" totalAccessCount,uniqueAccessCount")
+        .append(" FROM ").append(agreementEntriesTable(pool))
+        .append(" LEFT JOIN ").append(packageEntriesTable(pool))
+        .append(" USING (kbPackageId)")
+        .append(" JOIN ").append(titleEntriesTable(pool)).append(" ON")
+        .append(" title_entries.kbTitleId = agreement_entries.kbTitleId OR")
+        .append(" title_entries.kbTitleId = package_entries.kbTitleId")
+        .append(" JOIN ").append(titleDataTable(pool)).append(" ON title_entries.id = titleEntryId")
+     ;
+    sql.append(" WHERE agreementId = $1");
+  }
+
+  Future<JsonObject> costPerUse(TenantPgPool pool, boolean includeOA, String agreementId,
+                                String start, String end) {
+
+
+    StringBuilder sql = new StringBuilder();
+    if (includeOA) {
+      costPerUse(sql, pool, true, true);
+      sql.append(" UNION ");
+      costPerUse(sql, pool, true, false);
+      sql.append(" UNION ");
+    }
+    costPerUse(sql, pool, false, true);
+    sql.append(" UNION ");
+    costPerUse(sql, pool, false, false);
+    sql.append(" ORDER BY title");
+    log.info("AD: costPerUse SQL={}", sql.toString());
+    Tuple tuple = Tuple.of(agreementId);
+    return pool.preparedQuery(sql.toString()).execute(tuple).map(rowSet -> {
+      rowSet.forEach(row -> {
+        log.info("AD: row={}", row.deepToString());
+      });
+      return new JsonObject();
+    });
   }
 
   Future<String> getCostPerUse(TenantPgPool pool, boolean includeOA, String agreementId,
                                String start, String end, boolean csv) {
-    return getCostPerUse(pool, includeOA, agreementId, start, end)
+    return costPerUse(pool, includeOA, agreementId, start, end)
         .compose(json -> {
           if (!csv) {
             return Future.succeededFuture(json.encodePrettily());

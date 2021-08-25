@@ -179,10 +179,15 @@ public class EusageReportsApiTest {
   static String te31 = "3100000e-0000-4000-8000-000000000000";
   static String te32 = "3200000e-0000-4000-8000-000000000000";
 
-  private static Future<RowSet<Row>> insertAgreement(String agreementId, String titleId, String packageId) {
+  private static Future<RowSet<Row>> insertAgreement(String agreementId, String titleId, String packageId,
+                                                     String orderType,
+                                                     String poLineNumber, String invoiceNumber,
+                                                     Double encumberedCost, Double invoicedCost) {
     return pool.preparedQuery("INSERT INTO " + agreementEntriesTable(pool)
-        + "(id, agreementId, kbTitleId, kbPackageId) VALUES ($1, $2, $3, $4)")
-    .execute(Tuple.of(UUID.randomUUID(), agreementId, titleId, packageId));
+            + "(id, agreementId, kbTitleId, kbPackageId, orderType, poLineNumber, invoiceNumber, encumberedCost, invoicedCost)"
+            + " VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)")
+        .execute(Tuple.of(UUID.randomUUID(), agreementId, titleId, packageId, orderType,
+            poLineNumber, invoiceNumber, encumberedCost, invoicedCost));
   }
 
   private static Future<RowSet<Row>> insertPackageEntry(String packageId, String packageName, String titleId) {
@@ -217,13 +222,13 @@ public class EusageReportsApiTest {
   }
 
   private static Future<Void> loadSampleData() {
-    return insertAgreement(a1, t11, null)
-        .compose(x -> insertAgreement(a1, t12, null))
-        .compose(x -> insertAgreement(a2, t21, null))
-        .compose(x -> insertAgreement(a2, t22, null))
-        .compose(x -> insertAgreement(a2, t31, null))
-        .compose(x -> insertAgreement(a2, t32, null))
-        .compose(x -> insertAgreement(a3, null, p11))
+    return insertAgreement(a1, t11, null, "Ongoing", "p1", "i1", 101.25, 101.75)
+        .compose(x -> insertAgreement(a1, t12, null, "Ongoing", "p1", "i1", 101.25, 101.75))
+        .compose(x -> insertAgreement(a2, t21, null, "One-Time", "p2", "i2", 201.25, 202.75))
+        .compose(x -> insertAgreement(a2, t22, null, "One-Time", "p2", "i2", 201.25, 202.75))
+        .compose(x -> insertAgreement(a2, t31, null, "Ont-Time", "p2", "i2", 201.25, 202.75))
+        .compose(x -> insertAgreement(a2, t32, null, "One-Time", "p2", "i2", 201.25, 202.75))
+        .compose(x -> insertAgreement(a3, null, p11, "Ongoing", "p3", "i3", 301.25, 303.75))
         .compose(x -> insertPackageEntry(p11, "Package 11", t11))
         .compose(x -> insertPackageEntry(p11, "Package 11", t12))
         .compose(x -> insertTitleEntry(te11, t11, "Title 11", "1111-1111", "1111-2222"))
