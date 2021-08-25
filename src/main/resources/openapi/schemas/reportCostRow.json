@@ -20,8 +20,8 @@
     },
     "orderType": {
       "type": "string",
-      "enum": ["ONGOING", "ONTIME"],
-      "description": "Order type from agreement - defaults to ONGOING"
+      "enum": ["One-Time", "Ongoing"],
+      "description": "Order type from agreement - defaults to Ongoing"
     },
     "poLineIDs" : {
       "type": "array",
