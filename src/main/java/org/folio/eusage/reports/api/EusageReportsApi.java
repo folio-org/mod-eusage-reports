@@ -1798,48 +1798,73 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
   }
 
   private static void costPerUse(StringBuilder sql, TenantPgPool pool,
-                                  boolean openAccess, boolean unique) {
+                                  boolean openAccess, int periods) {
     sql
         .append("SELECT title_entries.kbTitleId AS kbId, kbTitleName AS title,")
         .append(" printISSN, onlineISSN, ISBN, orderType, poLineNumber, invoiceNumber,")
         .append(" fiscalYearRange, subscriptionDateRange,")
-        .append(" encumberedCost, invoicedCost,")
-        .append(" totalAccessCount,uniqueAccessCount")
+        .append(" encumberedCost, invoicedCost");
+
+    for (int i = 0; i < periods; i++) {
+      sql.append(", total").append(i);
+    }
+    for (int i = 0; i < periods; i++) {
+      sql.append(", unique").append(i);
+    }
+    sql
         .append(" FROM ").append(agreementEntriesTable(pool))
         .append(" LEFT JOIN ").append(packageEntriesTable(pool))
         .append(" USING (kbPackageId)")
         .append(" JOIN ").append(titleEntriesTable(pool)).append(" ON")
         .append(" title_entries.kbTitleId = agreement_entries.kbTitleId OR")
-        .append(" title_entries.kbTitleId = package_entries.kbTitleId")
-        .append(" JOIN ").append(titleDataTable(pool)).append(" ON title_entries.id = titleEntryId")
-     ;
+        .append(" title_entries.kbTitleId = package_entries.kbTitleId");
+    for (int i = 0; i < periods; i++) {
+      sql.append(" LEFT JOIN (")
+          .append(" SELECT titleEntryId")
+          .append(", totalAccessCount as total").append(i)
+          .append(", uniqueAccessCount as unique").append(i)
+          .append(" FROM ").append(titleDataTable(pool))
+          .append(" WHERE daterange($").append(2 + i).append(", $").append(2 + i + 1)
+          .append(") @> lower(usageDateRange)")
+          .append(openAccess ? " AND openAccess" : " AND NOT openAccess")
+          .append(" ) t").append(i).append(" ON t").append(i).append(".titleEntryId = ")
+          .append(titleEntriesTable(pool)).append(".id");
+    }
     sql.append(" WHERE agreementId = $1");
   }
 
   Future<JsonObject> costPerUse(TenantPgPool pool, boolean includeOA, String agreementId,
                                 String start, String end) {
 
+    Periods periods = new Periods(start, end, null);
+    Tuple tuple = Tuple.of(agreementId);
+    periods.addStartDates(tuple);
+    tuple.addLocalDate(periods.endDate);
+
+    log.info("tuple size={} {}", tuple.size(), tuple.deepToString());
+
     StringBuilder sql = new StringBuilder();
     if (includeOA) {
-      costPerUse(sql, pool, true, true);
-      sql.append(" UNION ");
-      costPerUse(sql, pool, true, false);
+      costPerUse(sql, pool, true, periods.size());
       sql.append(" UNION ");
     }
-    costPerUse(sql, pool, false, true);
-    sql.append(" UNION ");
-    costPerUse(sql, pool, false, false);
+    costPerUse(sql, pool, false, periods.size());
     sql.append(" ORDER BY title");
     log.info("AD: costPerUse SQL={}", sql.toString());
-    Tuple tuple = Tuple.of(agreementId);
 
     return pool.preparedQuery(sql.toString()).execute(tuple).map(rowSet -> {
-      JsonObject json = new JsonObject();
-      json.put("accessCountPeriods", new JsonArray());
-      json.put("totalItemCostsPerRequestsByPeriod", new JsonArray());
-      json.put("uniqueItemCostsPerRequestsByPeriod", new JsonArray());
-      json.put("titleCountByPeriod", new JsonArray());
+      JsonArray paidByPeriod = new JsonArray();
+      JsonArray totalRequests = new JsonArray();
+      JsonArray uniqueRequests = new JsonArray();
+      JsonArray titleCountByPeriod = new JsonArray();
+      for (int i = 0; i < periods.size(); i++) {
+        paidByPeriod.add(0.0);
+        totalRequests.add(0L);
+        uniqueRequests.add(0L);
+        titleCountByPeriod.add(0L);
+      }
       JsonArray items = new JsonArray();
+
       rowSet.forEach(row -> {
         log.info("AD: row={}", row.deepToString());
         JsonObject item = new JsonObject()
@@ -1876,22 +1901,52 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
         if (amountPaid != null) {
           item.put("amountPaid", formatCost(amountPaid));
         }
-        Long totalAccessCount = row.getLong(12);
-        item.put("totalItemRequests", totalAccessCount);
-        Long uniqueAccessCount = row.getLong(13);
-        item.put("uniqueItemRequests", uniqueAccessCount);
-        if (amountPaid != null) {
-          if (totalAccessCount > 0) {
-            Number costPerTotalRequest = amountPaid.doubleValue() / totalAccessCount;
-            item.put("costPerTotalRequest", formatCost(costPerTotalRequest));
-          }
-          if (uniqueAccessCount > 0) {
-            Number costPerUniqueRequest = amountPaid.doubleValue() / uniqueAccessCount;
-            item.put("costPerUniqueRequest", formatCost(costPerUniqueRequest));
+        for (int i = 0; i < periods.size(); i++) {
+          Long totalAccessCount = row.getLong(12 + i * 2);
+          Long uniqueAccessCount = row.getLong(13 + i * 2);
+          if (totalAccessCount != null && uniqueAccessCount != null) {
+            titleCountByPeriod.set(i, titleCountByPeriod.getLong(i) + 1);
+            item.put("totalItemRequests", totalAccessCount);
+            item.put("uniqueItemRequests", uniqueAccessCount);
+            totalRequests.set(i, totalRequests.getLong(i) + totalAccessCount);
+            uniqueRequests.set(i, uniqueRequests.getLong(i) + uniqueAccessCount);
+
+            if (amountPaid != null) {
+              paidByPeriod.set(i, paidByPeriod.getDouble(i) + amountPaid.doubleValue());
+              if (totalAccessCount > 0) {
+                Double costPerTotalRequest = amountPaid.doubleValue() / totalAccessCount;
+                item.put("costPerTotalRequest", formatCost(costPerTotalRequest));
+              }
+              if (uniqueAccessCount > 0) {
+                Double costPerUniqueRequest = amountPaid.doubleValue() / uniqueAccessCount;
+                item.put("costPerUniqueRequest", formatCost(costPerUniqueRequest));
+              }
+              items.add(item);
+            }
           }
         }
-        items.add(item);
       });
+      JsonArray totalItemCostsPerRequestsByPeriod = new JsonArray();
+      JsonArray uniqueItemCostsPerRequestsByPeriod = new JsonArray();
+      for (int i = 0; i < periods.size(); i++) {
+        Long n = totalRequests.getLong(i);
+        if (n > 0) {
+          totalItemCostsPerRequestsByPeriod.add(paidByPeriod.getDouble(i) / n);
+        } else {
+          totalItemCostsPerRequestsByPeriod.addNull();
+        }
+        n = uniqueRequests.getLong(i);
+        if (n > 0) {
+          uniqueItemCostsPerRequestsByPeriod.add(paidByPeriod.getDouble(i) / n);
+        } else {
+          totalItemCostsPerRequestsByPeriod.addNull();
+        }
+      }
+      JsonObject json = new JsonObject();
+      json.put("accessCountPeriods", periods.accessCountPeriods);
+      json.put("totalItemCostsPerRequestsByPeriod", totalItemCostsPerRequestsByPeriod);
+      json.put("uniqueItemCostsPerRequestsByPeriod", uniqueItemCostsPerRequestsByPeriod);
+      json.put("titleCountByPeriod", titleCountByPeriod);
       json.put("items", items);
       return json;
     });
