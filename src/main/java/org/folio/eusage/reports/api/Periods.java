@@ -83,11 +83,11 @@ public class Periods {
       return startStr.substring(0, startStr.length() - 6);
     }
     if (periodInMonths % 12 == 0) {
-      String endStr = date.plusMonths(periodInMonths - 1).toString();
+      String endStr = date.plusMonths(periodInMonths - 1L).toString();
       return startStr.substring(0, startStr.length() - 6) + " - "
           + endStr.subSequence(0, endStr.length() - 6);
     }
-    String endStr = date.plusMonths(periodInMonths - 1).toString();
+    String endStr = date.plusMonths(periodInMonths - 1L).toString();
     return startStr.substring(0, startStr.length() - 3) + " - "
         + endStr.subSequence(0, endStr.length() - 3);
   }
