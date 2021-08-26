@@ -54,6 +54,7 @@ import org.folio.tlib.postgres.TenantPgPool;
 import org.folio.tlib.util.LongAdder;
 import org.folio.tlib.util.ResourceUtil;
 import org.folio.tlib.util.TenantUtil;
+import org.joda.time.DateTime;
 
 public class EusageReportsApi implements RouterCreator, TenantInitHooks {
   private static final Logger log = LogManager.getLogger(EusageReportsApi.class);
@@ -1132,100 +1133,6 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
         });
   }
 
-  static class Periods {
-    private final Period period;
-    private final int periodInMonths;
-    private final JsonArray accessCountPeriods = new JsonArray();
-    private final LocalDate startDate;
-    /** End date (exclusive): the first day after the last period. */
-    private final LocalDate endDate;
-
-    public Periods(String start, String end, String periodOfUse) {
-      if (start.length() != end.length()) {
-        throw new IllegalArgumentException(
-            "startDate and endDate must have same length: " + start + " " + end);
-      }
-      if (start.compareTo(end) > 0) {
-        throw new IllegalArgumentException("startDate=" + start + " is after endDate=" + end);
-      }
-      boolean isYear = start.length() == 4;
-      if (periodOfUse == null) {
-        periodOfUse = isYear ? "1Y" : "1M";
-      }
-      periodInMonths = getPeriodInMonths(periodOfUse);
-      period = Period.ofMonths(periodInMonths);
-      start += isYear ? "-01-01" : "-01";
-      end   += isYear ? "-01-01" : "-01";
-      startDate = floorMonths(LocalDate.parse(start), periodInMonths);
-      endDate   = floorMonths(LocalDate.parse(end), periodInMonths).plus(period);
-
-      if (Period.between(startDate, endDate).getYears() > 10) {
-        throw new IllegalArgumentException(
-            "Must no exceed 10 years: startDate=" + start + ", endDate= " + end);
-      }
-
-      LocalDate date = startDate;
-      do {
-        accessCountPeriods.add(periodLabel(date));
-        date = date.plus(period);
-      } while (date.isBefore(endDate));
-    }
-
-    /**
-     * Convert month string or year string to number of months: 6M -> 6, 2Y -> 24.
-     */
-    private static int getPeriodInMonths(String period) {
-      int months = Integer.parseUnsignedInt(period, 0, period.length() - 1, 10);
-      if (period.endsWith("Y")) {
-        months *= 12;
-      }
-      return months;
-    }
-
-    /**
-     * Start of the period date belongs to, periods are n months long. Examples:
-     * <br>Begin of quarter (3 months): floorMonths("2019-05-17", 3) = "2019-04-01".
-     * <br>Begin of decade (10 years): floorMonths("2019-05-17", 120) = "2010-01-01".
-     */
-    static LocalDate floorMonths(LocalDate date, int months) {
-      int m = ((12 * date.getYear() + date.getMonthValue() - 1) / months) * months;
-      return LocalDate.of(m / 12, m % 12 + 1, 1);
-    }
-
-    /**
-     * Label like "2021" or "2020 - 2024" or "2021-05" or "2021-04 - 2021-06".
-     */
-    public String periodLabel(LocalDate date) {
-      String startStr = date.toString();
-      if (periodInMonths == 1) {
-        return startStr.substring(0, startStr.length() - 3);
-      }
-      if (periodInMonths == 12) {
-        return startStr.substring(0, startStr.length() - 6);
-      }
-      if (periodInMonths % 12 == 0) {
-        String endStr = date.plusMonths(periodInMonths - 1).toString();
-        return startStr.substring(0, startStr.length() - 6) + " - "
-          + endStr.subSequence(0, endStr.length() - 6);
-      }
-      String endStr = date.plusMonths(periodInMonths - 1).toString();
-      return startStr.substring(0, startStr.length() - 3) + " - "
-          + endStr.subSequence(0, endStr.length() - 3);
-    }
-
-    public int size() {
-      return accessCountPeriods.size();
-    }
-
-    public void addStartDates(Tuple tuple) {
-      LocalDate date = startDate;
-      do {
-        tuple.addLocalDate(date);
-        date = date.plus(period);
-      } while (date.isBefore(endDate));
-    }
-  }
-
   static void getUseTotalsCsv(JsonObject json, boolean groupByPublicationYear,
                               boolean periodOfUse, CSVPrinter writer,
                               String lead) throws IOException {
@@ -1362,7 +1269,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     Periods periods = new Periods(start, end, null);
     Tuple tuple = Tuple.of(agreementId);
     periods.addStartDates(tuple);
-    tuple.addLocalDate(periods.endDate);
+    periods.addEnd(tuple);
 
     StringBuilder sql = new StringBuilder();
     if (includeOA) {
@@ -1423,7 +1330,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
       });
       return new JsonObject()
           .put("agreementId", agreementId)
-          .put("accessCountPeriods", periods.accessCountPeriods)
+          .put("accessCountPeriods", periods.getAccessCountPeriods())
           .put("totalItemRequestsTotal", LongAdder.sum(totalItemRequestsByPeriod))
           .put("totalItemRequestsByPeriod", LongAdder.longArray(totalItemRequestsByPeriod))
           .put("uniqueItemRequestsTotal", LongAdder.sum(uniqueItemRequestsByPeriod))
@@ -1603,7 +1510,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
             tuple.addString(usePeriods.periodLabel(date));
             date = date.plus(usePeriods.period);
           } while (date.isBefore(usePeriods.endDate));
-          tuple.addLocalDate(usePeriods.endDate);
+          usePeriods.addEnd(tuple);
 
           System.out.println(sql);
           System.out.println(tuple.deepToString());
@@ -1839,9 +1746,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     Periods periods = new Periods(start, end, null);
     Tuple tuple = Tuple.of(agreementId);
     periods.addStartDates(tuple);
-    tuple.addLocalDate(periods.endDate);
-
-    log.info("tuple size={} {}", tuple.size(), tuple.deepToString());
+    periods.addEnd(tuple);
 
     StringBuilder sql = new StringBuilder();
     if (includeOA) {
@@ -1893,6 +1798,18 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
         if (invoiceNumbers != null) {
           item.put("invoiceNumbers", new JsonArray().add(invoiceNumbers));
         }
+        String fiscalYearRange = row.getString(8);
+        if (fiscalYearRange != null) {
+          DateRange dateRange = new DateRange(fiscalYearRange);
+          item.put("fiscalDateStart", dateRange.getStart());
+          item.put("fiscalDateEnd", dateRange.getEnd());
+        }
+        String subscriptionDateRange = row.getString(9);
+        if (subscriptionDateRange != null) {
+          DateRange dateRange = new DateRange(subscriptionDateRange);
+          item.put("subscriptionDateStart", dateRange.getStart());
+          item.put("subscriptionDateEnd", dateRange.getEnd());
+        }
         Number encumberedCost = row.getNumeric(10);
         if (encumberedCost != null) {
           item.put("amountEncumbered", formatCost(encumberedCost));
@@ -1943,7 +1860,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
         }
       }
       JsonObject json = new JsonObject();
-      json.put("accessCountPeriods", periods.accessCountPeriods);
+      json.put("accessCountPeriods", periods.getAccessCountPeriods());
       json.put("totalItemCostsPerRequestsByPeriod", totalItemCostsPerRequestsByPeriod);
       json.put("uniqueItemCostsPerRequestsByPeriod", uniqueItemCostsPerRequestsByPeriod);
       json.put("titleCountByPeriod", titleCountByPeriod);

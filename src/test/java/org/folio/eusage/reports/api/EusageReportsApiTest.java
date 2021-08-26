@@ -507,7 +507,7 @@ public class EusageReportsApiTest {
   }
 
   private void floorMonths(TestContext context, String date, int months, String expected) {
-    assertThat(EusageReportsApi.Periods.floorMonths(LocalDate.parse(date), months).toString(), is(expected));
+    assertThat(Periods.floorMonths(LocalDate.parse(date), months).toString(), is(expected));
     String sql = "SELECT " + pool.getSchema() + ".floor_months('" + date + "'::date, " + months + ")";
     pool.query(sql).execute().onComplete(context.asyncAssertSuccess(res -> {
       assertThat(sql, res.iterator().next().getLocalDate(0).toString(), is(expected));
