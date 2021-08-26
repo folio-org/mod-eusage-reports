@@ -1845,11 +1845,21 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
         JsonObject item = new JsonObject()
             .put("kbId", row.getUUID(0))
             .put("title", row.getString(1))
-            .put("derivedTitle", false)
-            .put("printISSN", row.getString(2))
-            .put("onlineISSN", row.getString(3))
-            .put("ISBN", row.getString(4))
-            .put("orderType", row.getString(5));
+            .put("derivedTitle", false);
+        String printIssn = row.getString(2);
+        if (printIssn != null) {
+          item.put("printISSN", printIssn);
+        }
+        String onlineIssn = row.getString(3);
+        if (onlineIssn != null) {
+          item.put("onlineISSN", onlineIssn);
+        }
+        String isbn = row.getString(4);
+        if (isbn != null) {
+          item.put("ISBN", isbn);
+        }
+        String orderType = row.getString(5);
+        item.put("orderType", orderType != null ? orderType : "Ongoing");
         String poLineNumber = row.getString(6);
         if (poLineNumber != null) {
           item.put("poLineIDs", new JsonArray().add(poLineNumber));
@@ -1867,19 +1877,15 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
           item.put("amountPaid", formatCost(amountPaid));
         }
         Long totalAccessCount = row.getLong(12);
-        if (totalAccessCount != null) {
-          item.put("totalItemRequests", totalAccessCount);
-        }
+        item.put("totalItemRequests", totalAccessCount);
         Long uniqueAccessCount = row.getLong(13);
-        if (uniqueAccessCount != null) {
-          item.put("uniqueItemRequests", uniqueAccessCount);
-        }
+        item.put("uniqueItemRequests", uniqueAccessCount);
         if (amountPaid != null) {
-          if (totalAccessCount != null && totalAccessCount > 0) {
+          if (totalAccessCount > 0) {
             Number costPerTotalRequest = amountPaid.doubleValue() / totalAccessCount;
             item.put("costPerTotalRequest", formatCost(costPerTotalRequest));
           }
-          if (totalAccessCount != null && uniqueAccessCount > 0) {
+          if (uniqueAccessCount > 0) {
             Number costPerUniqueRequest = amountPaid.doubleValue() / uniqueAccessCount;
             item.put("costPerUniqueRequest", formatCost(costPerUniqueRequest));
           }
