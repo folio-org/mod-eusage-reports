@@ -162,6 +162,7 @@ public class EusageReportsApiTest {
   static String a1  = "10000000-0000-4000-8000-000000000000";
   static String a2  = "20000000-0000-4000-8000-000000000000";
   static String a3  = "30000000-0000-4000-8000-000000000000";
+  static String a4  = "40000000-0000-4000-8000-000000000000";
   // kbTitleId
   static String t11 = "11000000-0000-4000-8000-000000000000";
   static String t12 = "12000000-0000-4000-8000-000000000000";
@@ -245,6 +246,7 @@ public class EusageReportsApiTest {
             + " coverageDateRanges='[2020-01-01,2021-01-01]',"
             + " encumberedCost = 300, invoicedCost = 310"
         ))
+        .compose(x -> insertAgreement(a4, null, p11))
         .compose(x -> insertPackageEntry(p11, "Package 11", t11))
         .compose(x -> insertPackageEntry(p11, "Package 11", t12))
         .compose(x -> insertTitleEntry(te11, t11, "Title 11", "1111-1111", "1111-2222"))
@@ -647,11 +649,29 @@ public class EusageReportsApiTest {
           System.out.println(json.encodePrettily());
         }));
   }
+
   @Test
   public void costPerUseWithRoutingContext3(TestContext context) {
     RoutingContext routingContext = mock(RoutingContext.class, RETURNS_DEEP_STUBS);
     when(routingContext.request().getHeader("X-Okapi-Tenant")).thenReturn(tenant);
     when(routingContext.request().params().get("agreementId")).thenReturn(a3);
+    when(routingContext.request().params().get("startDate")).thenReturn("2020-04");
+    when(routingContext.request().params().get("endDate")).thenReturn("2020-08");
+    when(routingContext.request().params().get("includeOA")).thenReturn("true");
+    new EusageReportsApi().getCostPerUse(vertx, routingContext, false)
+        .onComplete(context.asyncAssertSuccess(x -> {
+          ArgumentCaptor<String> body = ArgumentCaptor.forClass(String.class);
+          verify(routingContext.response()).end(body.capture());
+          JsonObject json = new JsonObject(body.getValue());
+          System.out.println(json.encodePrettily());
+        }));
+  }
+
+  @Test
+  public void costPerUseWithRoutingContext4(TestContext context) {
+    RoutingContext routingContext = mock(RoutingContext.class, RETURNS_DEEP_STUBS);
+    when(routingContext.request().getHeader("X-Okapi-Tenant")).thenReturn(tenant);
+    when(routingContext.request().params().get("agreementId")).thenReturn(a4);
     when(routingContext.request().params().get("startDate")).thenReturn("2020-04");
     when(routingContext.request().params().get("endDate")).thenReturn("2020-08");
     when(routingContext.request().params().get("includeOA")).thenReturn("true");
