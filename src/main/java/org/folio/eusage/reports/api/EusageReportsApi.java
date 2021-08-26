@@ -27,6 +27,7 @@ import io.vertx.sqlclient.SqlResult;
 import io.vertx.sqlclient.Tuple;
 import java.io.IOException;
 import java.io.StringWriter;
+import java.text.DecimalFormat;
 import java.time.LocalDate;
 import java.time.Period;
 import java.time.format.DateTimeFormatter;
@@ -58,6 +59,8 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
   private static final Logger log = LogManager.getLogger(EusageReportsApi.class);
 
   private WebClient webClient;
+
+  static DecimalFormat costDecimalFormat = new DecimalFormat("#.00");
 
   static String titleEntriesTable(TenantPgPool pool) {
     return pool.getSchema() + ".title_entries";
@@ -1761,6 +1764,14 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
         .append("   AND (printISSN IS NOT NULL OR onlineISSN IS NOT NULL)");
   }
 
+  static Number formatCost(Number n) {
+    return formatCost(n.doubleValue());
+  }
+
+  static Number formatCost(Double n) {
+    return Double.parseDouble(costDecimalFormat.format(n));
+  }
+
   static void getCostPerUse2Csv(JsonObject json, Appendable appendable)
       throws IOException {
     CSVPrinter writer = new CSVPrinter(appendable, CSVFormat.EXCEL);
@@ -1792,7 +1803,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
         .append("SELECT title_entries.kbTitleId AS kbId, kbTitleName AS title,")
         .append(" printISSN, onlineISSN, ISBN, orderType, poLineNumber, invoiceNumber,")
         .append(" fiscalYearRange, subscriptionDateRange,")
-        .append(" encumberedCost, invoicedCost")
+        .append(" encumberedCost, invoicedCost,")
         .append(" totalAccessCount,uniqueAccessCount")
         .append(" FROM ").append(agreementEntriesTable(pool))
         .append(" LEFT JOIN ").append(packageEntriesTable(pool))
@@ -1808,7 +1819,6 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
   Future<JsonObject> costPerUse(TenantPgPool pool, boolean includeOA, String agreementId,
                                 String start, String end) {
 
-
     StringBuilder sql = new StringBuilder();
     if (includeOA) {
       costPerUse(sql, pool, true, true);
@@ -1822,11 +1832,62 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     sql.append(" ORDER BY title");
     log.info("AD: costPerUse SQL={}", sql.toString());
     Tuple tuple = Tuple.of(agreementId);
+
     return pool.preparedQuery(sql.toString()).execute(tuple).map(rowSet -> {
+      JsonObject json = new JsonObject();
+      json.put("accessCountPeriods", new JsonArray());
+      json.put("totalItemCostsPerRequestsByPeriod", new JsonArray());
+      json.put("uniqueItemCostsPerRequestsByPeriod", new JsonArray());
+      json.put("titleCountByPeriod", new JsonArray());
+      JsonArray items = new JsonArray();
       rowSet.forEach(row -> {
         log.info("AD: row={}", row.deepToString());
+        JsonObject item = new JsonObject()
+            .put("kbId", row.getUUID(0))
+            .put("title", row.getString(1))
+            .put("derivedTitle", false)
+            .put("printISSN", row.getString(2))
+            .put("onlineISSN", row.getString(3))
+            .put("ISBN", row.getString(4))
+            .put("orderType", row.getString(5));
+        String poLineNumber = row.getString(6);
+        if (poLineNumber != null) {
+          item.put("poLineIDs", new JsonArray().add(poLineNumber));
+        }
+        String invoiceNumbers = row.getString(7);
+        if (invoiceNumbers != null) {
+          item.put("invoiceNumbers", new JsonArray().add(invoiceNumbers));
+        }
+        Number encumberedCost = row.getNumeric(10);
+        if (encumberedCost != null) {
+          item.put("amountEncumbered", formatCost(encumberedCost));
+        }
+        Number amountPaid = row.getNumeric(11);
+        if (amountPaid != null) {
+          item.put("amountPaid", formatCost(amountPaid));
+        }
+        Long totalAccessCount = row.getLong(12);
+        if (totalAccessCount != null) {
+          item.put("totalItemRequests", totalAccessCount);
+        }
+        Long uniqueAccessCount = row.getLong(13);
+        if (uniqueAccessCount != null) {
+          item.put("uniqueItemRequests", uniqueAccessCount);
+        }
+        if (amountPaid != null) {
+          if (totalAccessCount != null && totalAccessCount > 0) {
+            Number costPerTotalRequest = amountPaid.doubleValue() / totalAccessCount;
+            item.put("costPerTotalRequest", formatCost(costPerTotalRequest));
+          }
+          if (totalAccessCount != null && uniqueAccessCount > 0) {
+            Number costPerUniqueRequest = amountPaid.doubleValue() / uniqueAccessCount;
+            item.put("costPerUniqueRequest", formatCost(costPerUniqueRequest));
+          }
+        }
+        items.add(item);
       });
-      return new JsonObject();
+      json.put("items", items);
+      return json;
     });
   }
 

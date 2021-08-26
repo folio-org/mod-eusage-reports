@@ -2,6 +2,10 @@
   "description": "Single row of cost report data",
   "type": "object",
   "properties": {
+    "kbId": {
+      "type": "string",
+      "description": "KB identifier"
+    },
     "title": {
       "type": "string",
       "description": "Title if the item"
@@ -17,6 +21,10 @@
     "onlineISSN": {
       "type": "string",
       "description": "ISSN for online instance"
+    },
+    "ISBN": {
+      "type": "string",
+      "description": "ISBN for instance"
     },
     "orderType": {
       "type": "string",
@@ -56,20 +64,12 @@
       "description" : "Subscription date end, YYYY-MM-DD"
     },
     "amountEncumbered" : {
-      "type": "array",
-      "description" : "Encumbered amounts for PO lines",
-      "items" : {
-        "type": "number",
-        "description" : "Encumbered amount for PO line"
-      }
+      "type": "number",
+      "description" : "Encumbered amount for PO lines"
     },
     "amountPaid" : {
-      "description" : "Paid amount for each invoice",
-      "type": "array",
-      "items" : {
-        "type": "number",
-        "description" : "Paid amount for invoice"
-      }
+      "description" : "Paid amount for invoices",
+      "type": "number"
     },
     "totalItemRequests" : {
       "description" : "total item requests",
@@ -80,22 +80,12 @@
       "type": "integer"
     },
     "costPerTotalRequest" : {
-      "type": "array",
-      "description" : "Cost per total request for invoices",
-      "items" : {
-        "type": "number",
-        "description" : "Cost per total request for invoice",
-        "nullable": true
-      }
+      "type": "number",
+      "description" : "Cost per total request for invoices"
     },
     "costPerUniqueRequest" : {
-      "type": "array",
-      "description" : "Cost per unique request for invoices",
-      "items" : {
-        "type": "number",
-        "description" : "Cost per unique request for invoice",
-        "nullable": true
-      }
+      "type": "number",
+      "description" : "Cost per unique request for invoices"
     }
   },
   "additionalProperties": false

@@ -179,15 +179,16 @@ public class EusageReportsApiTest {
   static String te31 = "3100000e-0000-4000-8000-000000000000";
   static String te32 = "3200000e-0000-4000-8000-000000000000";
 
-  private static Future<RowSet<Row>> insertAgreement(String agreementId, String titleId, String packageId,
-                                                     String orderType,
-                                                     String poLineNumber, String invoiceNumber,
-                                                     Double encumberedCost, Double invoicedCost) {
+  private static Future<RowSet<Row>> insertAgreement(String agreementId, String titleId, String packageId) {
     return pool.preparedQuery("INSERT INTO " + agreementEntriesTable(pool)
-            + "(id, agreementId, kbTitleId, kbPackageId, orderType, poLineNumber, invoiceNumber, encumberedCost, invoicedCost)"
-            + " VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)")
-        .execute(Tuple.of(UUID.randomUUID(), agreementId, titleId, packageId, orderType,
-            poLineNumber, invoiceNumber, encumberedCost, invoicedCost));
+            + "(id, agreementId, kbTitleId, kbPackageId)"
+            + " VALUES ($1, $2, $3, $4)")
+        .execute(Tuple.of(UUID.randomUUID(), agreementId, titleId, packageId));
+  }
+
+  private static Future<RowSet<Row>> updateAgreement(String agreementId, String set) {
+    return pool.preparedQuery("UPDATE " + agreementEntriesTable(pool) + " SET " + set
+        + " WHERE agreementId = $1").execute(Tuple.of(UUID.fromString(agreementId)));
   }
 
   private static Future<RowSet<Row>> insertPackageEntry(String packageId, String packageName, String titleId) {
@@ -221,14 +222,29 @@ public class EusageReportsApiTest {
         openAccess, uniqueAccessCount, totalAccessCount));
   }
 
-  private static Future<Void> loadSampleData() {
-    return insertAgreement(a1, t11, null, "Ongoing", "p1", "i1", 101.25, 101.75)
-        .compose(x -> insertAgreement(a1, t12, null, "Ongoing", "p1", "i1", 101.25, 101.75))
-        .compose(x -> insertAgreement(a2, t21, null, "One-Time", "p2", "i2", 201.25, 202.75))
-        .compose(x -> insertAgreement(a2, t22, null, "One-Time", "p2", "i2", 201.25, 202.75))
-        .compose(x -> insertAgreement(a2, t31, null, "Ont-Time", "p2", "i2", 201.25, 202.75))
-        .compose(x -> insertAgreement(a2, t32, null, "One-Time", "p2", "i2", 201.25, 202.75))
-        .compose(x -> insertAgreement(a3, null, p11, "Ongoing", "p3", "i3", 301.25, 303.75))
+   private static Future<Void> loadSampleData() {
+    return insertAgreement(a1, t11, null)
+        .compose(x -> insertAgreement(a1, t12, null))
+        .compose(x -> updateAgreement(a1, "orderType = 'Ongoing', poLineNumber = 'p1', invoiceNumber = 'i1',"
+            + " subscriptionDateRange = '[2020-03-03, 2021-01-15]', fiscalYearRange='[2020-01-01,2021-01-01)',"
+            + " coverageDateRanges='[2020-01-01,2021-01-01]',"
+            + " encumberedCost = 100, invoicedCost = 110"
+        ))
+        .compose(x -> insertAgreement(a2, t21, null))
+        .compose(x -> insertAgreement(a2, t22, null))
+        .compose(x -> insertAgreement(a2, t31, null))
+        .compose(x -> insertAgreement(a2, t32, null))
+        .compose(x -> updateAgreement(a2, "orderType = 'One-Time', poLineNumber = 'p2', invoiceNumber = 'i2',"
+            + " subscriptionDateRange = '[2020-03-03, 2021-01-15]', fiscalYearRange='[2020-01-01,2021-01-01)',"
+            + " coverageDateRanges='[2020-01-01,2021-01-01]',"
+            + " encumberedCost = 200, invoicedCost = 210"
+        ))
+        .compose(x -> insertAgreement(a3, null, p11))
+        .compose(x -> updateAgreement(a3, "orderType = 'Ongoing', poLineNumber = 'p3', invoiceNumber = 'i3',"
+            + " subscriptionDateRange = '[2020-03-03, 2021-01-15]', fiscalYearRange='[2020-01-01,2021-01-01)',"
+            + " coverageDateRanges='[2020-01-01,2021-01-01]',"
+            + " encumberedCost = 300, invoicedCost = 310"
+        ))
         .compose(x -> insertPackageEntry(p11, "Package 11", t11))
         .compose(x -> insertPackageEntry(p11, "Package 11", t12))
         .compose(x -> insertTitleEntry(te11, t11, "Title 11", "1111-1111", "1111-2222"))
@@ -599,7 +615,7 @@ public class EusageReportsApiTest {
   }
 
   @Test
-  public void costPerUseWithRoutingContext(TestContext context) {
+  public void costPerUseWithRoutingContext1(TestContext context) {
     RoutingContext routingContext = mock(RoutingContext.class, RETURNS_DEEP_STUBS);
     when(routingContext.request().getHeader("X-Okapi-Tenant")).thenReturn(tenant);
     when(routingContext.request().params().get("agreementId")).thenReturn(a1);
@@ -611,7 +627,40 @@ public class EusageReportsApiTest {
           ArgumentCaptor<String> body = ArgumentCaptor.forClass(String.class);
           verify(routingContext.response()).end(body.capture());
           JsonObject json = new JsonObject(body.getValue());
-          assertThat(json, is(new JsonObject()));
+          System.out.println(json.encodePrettily());
+        }));
+  }
+
+  @Test
+  public void costPerUseWithRoutingContext2(TestContext context) {
+    RoutingContext routingContext = mock(RoutingContext.class, RETURNS_DEEP_STUBS);
+    when(routingContext.request().getHeader("X-Okapi-Tenant")).thenReturn(tenant);
+    when(routingContext.request().params().get("agreementId")).thenReturn(a2);
+    when(routingContext.request().params().get("startDate")).thenReturn("2020-04");
+    when(routingContext.request().params().get("endDate")).thenReturn("2020-08");
+    when(routingContext.request().params().get("includeOA")).thenReturn("true");
+    new EusageReportsApi().getCostPerUse(vertx, routingContext, false)
+        .onComplete(context.asyncAssertSuccess(x -> {
+          ArgumentCaptor<String> body = ArgumentCaptor.forClass(String.class);
+          verify(routingContext.response()).end(body.capture());
+          JsonObject json = new JsonObject(body.getValue());
+          System.out.println(json.encodePrettily());
+        }));
+  }
+  @Test
+  public void costPerUseWithRoutingContext3(TestContext context) {
+    RoutingContext routingContext = mock(RoutingContext.class, RETURNS_DEEP_STUBS);
+    when(routingContext.request().getHeader("X-Okapi-Tenant")).thenReturn(tenant);
+    when(routingContext.request().params().get("agreementId")).thenReturn(a3);
+    when(routingContext.request().params().get("startDate")).thenReturn("2020-04");
+    when(routingContext.request().params().get("endDate")).thenReturn("2020-08");
+    when(routingContext.request().params().get("includeOA")).thenReturn("true");
+    new EusageReportsApi().getCostPerUse(vertx, routingContext, false)
+        .onComplete(context.asyncAssertSuccess(x -> {
+          ArgumentCaptor<String> body = ArgumentCaptor.forClass(String.class);
+          verify(routingContext.response()).end(body.capture());
+          JsonObject json = new JsonObject(body.getValue());
+          System.out.println(json.encodePrettily());
         }));
   }
 

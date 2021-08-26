@@ -18,6 +18,10 @@
       "type": "string",
       "description": "ISSN for online instance"
     },
+    "ISBN": {
+      "type": "string",
+      "description": "ISBN for instance"
+    },
     "periodOfUse": {
       "type": "string",
       "description": "The usage period of this publication year report row, either one month like 2018-03 or one year like 2018 or a month range like 2018-03 - 2018-05 or a year range like 2018-2019"
