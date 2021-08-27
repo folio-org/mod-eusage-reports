@@ -1857,7 +1857,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
         if (n > 0) {
           uniqueItemCostsPerRequestsByPeriod.add(paidByPeriod.getDouble(i) / n);
         } else {
-          totalItemCostsPerRequestsByPeriod.addNull();
+          uniqueItemCostsPerRequestsByPeriod.addNull();
         }
       }
       JsonObject json = new JsonObject();
