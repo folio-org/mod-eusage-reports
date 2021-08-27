@@ -228,7 +228,7 @@ public class EusageReportsApiTest {
         .compose(x -> insertAgreement(a1, t12, null))
         .compose(x -> updateAgreement(a1, "orderType = 'Ongoing', poLineNumber = 'p1', invoiceNumber = 'i1',"
             + " subscriptionDateRange = '[2020-03-03, 2021-01-15]', fiscalYearRange='[2020-01-01,2021-01-01)',"
-            + " coverageDateRanges='[2020-01-01,2021-01-01]',"
+            + " coverageDateRanges='[1998-01-01,2020-01-01]',"
             + " encumberedCost = 100, invoicedCost = 110"
         ))
         .compose(x -> insertAgreement(a2, t21, null))
@@ -237,13 +237,13 @@ public class EusageReportsApiTest {
         .compose(x -> insertAgreement(a2, t32, null))
         .compose(x -> updateAgreement(a2, "orderType = 'One-Time', poLineNumber = 'p2', invoiceNumber = 'i2',"
             + " subscriptionDateRange = '[2020-03-03, 2021-01-15]', fiscalYearRange='[2020-01-01,2021-01-01)',"
-            + " coverageDateRanges='[2020-01-01,2021-01-01]',"
+            + " coverageDateRanges='[1998-01-01,2021-01-01]',"
             + " encumberedCost = 200, invoicedCost = 210"
         ))
         .compose(x -> insertAgreement(a3, null, p11))
         .compose(x -> updateAgreement(a3, "orderType = 'Ongoing', poLineNumber = 'p3', invoiceNumber = 'i3',"
             + " subscriptionDateRange = '[2020-03-03, 2021-01-15]', fiscalYearRange='[2020-01-01,2021-01-01)',"
-            + " coverageDateRanges='[2020-01-01,2021-01-01]',"
+            + " coverageDateRanges='[1998-01-01,2021-01-01]',"
             + " encumberedCost = 300, invoicedCost = 310"
         ))
         .compose(x -> insertAgreement(a4, null, p11))

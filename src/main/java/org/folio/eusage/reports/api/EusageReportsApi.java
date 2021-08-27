@@ -29,7 +29,6 @@ import java.io.IOException;
 import java.io.StringWriter;
 import java.text.DecimalFormat;
 import java.time.LocalDate;
-import java.time.Period;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
 import java.time.temporal.ChronoField;
@@ -1705,7 +1704,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
   }
 
   private static void costPerUse(StringBuilder sql, TenantPgPool pool,
-                                  boolean openAccess, int periods) {
+                                 boolean openAccess, int periods) {
     sql
         .append("SELECT title_entries.kbTitleId AS kbId, kbTitleName AS title,")
         .append(" printISSN, onlineISSN, ISBN, orderType, poLineNumber, invoiceNumber,")
@@ -1728,6 +1727,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     for (int i = 0; i < periods; i++) {
       sql.append(" LEFT JOIN (")
           .append(" SELECT titleEntryId")
+          .append(", usageDateRange, publicationDate")
           .append(", totalAccessCount as total").append(i)
           .append(", uniqueAccessCount as unique").append(i)
           .append(" FROM ").append(titleDataTable(pool))
@@ -1735,7 +1735,10 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
           .append(") @> lower(usageDateRange)")
           .append(openAccess ? " AND openAccess" : " AND NOT openAccess")
           .append(" ) t").append(i).append(" ON t").append(i).append(".titleEntryId = ")
-          .append(titleEntriesTable(pool)).append(".id");
+          .append(titleEntriesTable(pool)).append(".id")
+          .append(" AND subscriptionDateRange @> lower(t").append(i).append(".usageDateRange)")
+          .append(" AND coverageDateRanges @> t").append(i).append(".publicationDate")
+      ;
     }
     sql.append(" WHERE agreementId = $1");
   }
