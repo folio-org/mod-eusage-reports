@@ -1713,8 +1713,6 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
 
     for (int i = 0; i < periods; i++) {
       sql.append(", total").append(i);
-    }
-    for (int i = 0; i < periods; i++) {
       sql.append(", unique").append(i);
     }
     sql
