@@ -16,8 +16,8 @@ public class Periods {
   /**
    * Construct Periods with start, end and optional period-of-use.
    * @param start starting date (YYYY-MM-DD or YYYY)
-   * @param end end date (YYYY-MM-DD or YYYY)
-   * @param periodOfUse NY or NM for period in months or years; may be null for no period.
+   * @param end end date (YYYY-MM-DD or YYYY) - including the month or year
+   * @param periodOfUse NY or NM for period in N months or N years; may be null for no period.
    */
   public Periods(String start, String end, String periodOfUse) {
     if (start.length() != end.length()) {
