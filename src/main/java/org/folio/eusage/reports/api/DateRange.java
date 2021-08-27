@@ -1,7 +1,6 @@
 package org.folio.eusage.reports.api;
 
 import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
 
 public class DateRange {
 
@@ -36,10 +35,10 @@ public class DateRange {
   }
 
   String getStart() {
-    return start.format(DateTimeFormatter.ISO_LOCAL_DATE);
+    return start.toString();
   }
 
   String getEnd() {
-    return end.format(DateTimeFormatter.ISO_LOCAL_DATE);
+    return end.toString();
   }
 }
