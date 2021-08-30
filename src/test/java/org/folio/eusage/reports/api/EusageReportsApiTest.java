@@ -647,15 +647,19 @@ public class EusageReportsApiTest {
           assertThat((List<?>) json.getJsonArray("accessCountPeriods").getList(),
               contains("2020-04", "2020-05", "2020-06", "2020-07", "2020-08"));
           assertThat((List<?>) json.getJsonArray("totalItemCostsPerRequestsByPeriod").getList(),
-              contains(10.0, 6.47, null, null, null));
+              contains(2.5, 1.62, null, null, null));
           assertThat((List<?>) json.getJsonArray("uniqueItemCostsPerRequestsByPeriod").getList(),
-              contains(11.0, 12.22, null, null, null));
+              contains(2.75, 3.06, null, null, null));
           assertThat((List<?>) json.getJsonArray("titleCountByPeriod").getList(),
               contains(2, 2, 0, 0, 0));
           assertThat(json.getJsonArray("items").size(), is(4));
           assertThat(json.getJsonArray("items").getJsonObject(0).getString("kbId"), is(t11));
           assertThat(json.getJsonArray("items").getJsonObject(0).getLong("totalItemRequests"), is(6L));
           assertThat(json.getJsonArray("items").getJsonObject(0).getLong("uniqueItemRequests"), is(5L));
+          assertThat(json.getJsonArray("items").getJsonObject(0).getDouble("amountEncumbered"), is(25.0));
+          assertThat(json.getJsonArray("items").getJsonObject(0).getDouble("amountPaid"), is(27.5));
+          assertThat(json.getJsonArray("items").getJsonObject(0).getDouble("costPerTotalRequest"), is(4.58));
+          assertThat(json.getJsonArray("items").getJsonObject(0).getDouble("costPerUniqueRequest"), is(5.5));
           assertThat(json.getJsonArray("items").getJsonObject(1).getString("kbId"), is(t11));
           assertThat(json.getJsonArray("items").getJsonObject(1).getLong("totalItemRequests"), is(12L));
           assertThat(json.getJsonArray("items").getJsonObject(1).getLong("uniqueItemRequests"), is(4L));

@@ -37,6 +37,7 @@ import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.apache.commons.csv.CSVFormat;
@@ -53,7 +54,6 @@ import org.folio.tlib.postgres.TenantPgPool;
 import org.folio.tlib.util.LongAdder;
 import org.folio.tlib.util.ResourceUtil;
 import org.folio.tlib.util.TenantUtil;
-import org.joda.time.DateTime;
 
 public class EusageReportsApi implements RouterCreator, TenantInitHooks {
   private static final Logger log = LogManager.getLogger(EusageReportsApi.class);
@@ -1670,10 +1670,6 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
         .append("   AND (printISSN IS NOT NULL OR onlineISSN IS NOT NULL)");
   }
 
-  static Number formatCost(Number n) {
-    return formatCost(n.doubleValue());
-  }
-
   static Number formatCost(Double n) {
     return Double.parseDouble(costDecimalFormat.format(n));
   }
@@ -1772,10 +1768,8 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
         uniqueRequests.add(0L);
         titleCountByPeriod.add(0L);
       }
-      JsonArray items = new JsonArray();
-
+      AtomicLong totalTitles = new AtomicLong();
       rowSet.forEach(row -> {
-        log.info("AD: row={}", row.deepToString());
         for (int i = 0; i < periods.size(); i++) {
           Long totalAccessCount = row.getLong(12 + i * 2);
           Long uniqueAccessCount = row.getLong(13 + i * 2);
@@ -1784,7 +1778,19 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
           if (totalAccessCount == null || uniqueAccessCount == null) {
             continue;
           }
-          titleCountByPeriod.set(i, titleCountByPeriod.getLong(i) + 1);
+          titleCountByPeriod.set(i, titleCountByPeriod.getLong(i) + 1L);
+          totalTitles.incrementAndGet();
+        }
+      });
+      JsonArray items = new JsonArray();
+      rowSet.forEach(row -> {
+        log.info("AD: row={}", row.deepToString());
+        for (int i = 0; i < periods.size(); i++) {
+          Long totalAccessCount = row.getLong(12 + i * 2);
+          Long uniqueAccessCount = row.getLong(13 + i * 2);
+          if (totalAccessCount == null || uniqueAccessCount == null) {
+            continue;
+          }
           JsonObject item = new JsonObject()
               .put("kbId", row.getUUID(0))
               .put("title", row.getString(1))
@@ -1825,11 +1831,13 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
           }
           Number encumberedCost = row.getNumeric(10);
           if (encumberedCost != null) {
-            item.put("amountEncumbered", formatCost(encumberedCost));
+            item.put("amountEncumbered", formatCost(
+                encumberedCost.doubleValue() / totalTitles.get()));
           }
           Number amountPaid = row.getNumeric(11);
           if (amountPaid != null) {
-            item.put("amountPaid", formatCost(amountPaid));
+            item.put("amountPaid", formatCost(
+                amountPaid.doubleValue() / totalTitles.get()));
           }
           item.put("totalItemRequests", totalAccessCount);
           item.put("uniqueItemRequests", uniqueAccessCount);
@@ -1837,13 +1845,15 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
           uniqueRequests.set(i, uniqueRequests.getLong(i) + uniqueAccessCount);
 
           if (amountPaid != null) {
-            paidByPeriod.set(i, paidByPeriod.getDouble(i) + amountPaid.doubleValue());
+            paidByPeriod.set(i, amountPaid.doubleValue());
             if (totalAccessCount > 0) {
-              Double costPerTotalRequest = amountPaid.doubleValue() / totalAccessCount;
+              Double costPerTotalRequest = amountPaid.doubleValue()
+                  / (totalAccessCount * totalTitles.get());
               item.put("costPerTotalRequest", formatCost(costPerTotalRequest));
             }
             if (uniqueAccessCount > 0) {
-              Double costPerUniqueRequest = amountPaid.doubleValue() / uniqueAccessCount;
+              Double costPerUniqueRequest = amountPaid.doubleValue()
+                  / (uniqueAccessCount * totalTitles.get());
               item.put("costPerUniqueRequest", formatCost(costPerUniqueRequest));
             }
             items.add(item);
@@ -1854,14 +1864,15 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
       JsonArray uniqueItemCostsPerRequestsByPeriod = new JsonArray();
       for (int i = 0; i < periods.size(); i++) {
         Long n = totalRequests.getLong(i);
+        long c = titleCountByPeriod.getLong(i);
         if (n > 0) {
-          totalItemCostsPerRequestsByPeriod.add(formatCost(paidByPeriod.getDouble(i) / n));
+          totalItemCostsPerRequestsByPeriod.add(formatCost(paidByPeriod.getDouble(i) / (n * c)));
         } else {
           totalItemCostsPerRequestsByPeriod.addNull();
         }
         n = uniqueRequests.getLong(i);
         if (n > 0) {
-          uniqueItemCostsPerRequestsByPeriod.add(formatCost(paidByPeriod.getDouble(i) / n));
+          uniqueItemCostsPerRequestsByPeriod.add(formatCost(paidByPeriod.getDouble(i) / (n * c)));
         } else {
           uniqueItemCostsPerRequestsByPeriod.addNull();
         }
