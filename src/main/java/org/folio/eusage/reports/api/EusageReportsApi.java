@@ -1700,7 +1700,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
   }
 
   private static void costPerUse(StringBuilder sql, TenantPgPool pool,
-                                 boolean openAccess, int periods) {
+                                 boolean includeOA, int periods) {
     sql
         .append("SELECT title_entries.kbTitleId AS kbId, kbTitleName AS title,")
         .append(" printISSN, onlineISSN, ISBN, orderType, poLineNumber, invoiceNumber,")
@@ -1726,7 +1726,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
           .append(" FROM ").append(titleDataTable(pool))
           .append(" WHERE daterange($").append(2 + i).append(", $").append(2 + i + 1)
           .append(") @> lower(usageDateRange)")
-          .append(openAccess ? " AND openAccess" : " AND NOT openAccess")
+          .append(includeOA ? "" : " AND NOT openAccess")
           .append(" GROUP BY 1")
           .append(" ) t").append(i).append(" ON t").append(i).append(".titleEntryId = ")
           .append(titleEntriesTable(pool)).append(".id")
@@ -1749,11 +1749,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     periods.addEnd(tuple);
 
     StringBuilder sql = new StringBuilder();
-    if (includeOA) {
-      costPerUse(sql, pool, true, periods.size());
-      sql.append(" UNION ");
-    }
-    costPerUse(sql, pool, false, periods.size());
+    costPerUse(sql, pool, includeOA, periods.size());
     sql.append(" ORDER BY title");
     log.info("AD: costPerUse SQL={}", sql.toString());
 

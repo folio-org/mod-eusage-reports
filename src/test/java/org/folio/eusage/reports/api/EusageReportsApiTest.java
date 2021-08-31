@@ -686,6 +686,27 @@ public class EusageReportsApiTest {
           verify(routingContext.response()).end(body.capture());
           JsonObject json = new JsonObject(body.getValue());
           System.out.println(json.encodePrettily());
+          assertThat((List<?>) json.getJsonArray("titleCountByPeriod").getList(),
+              contains(0, 2, 2, 0, 0));
+        }));
+  }
+
+  @Test
+  public void costPerUseWithRoutingContext2NoOA(TestContext context) {
+    RoutingContext routingContext = mock(RoutingContext.class, RETURNS_DEEP_STUBS);
+    when(routingContext.request().getHeader("X-Okapi-Tenant")).thenReturn(tenant);
+    when(routingContext.request().params().get("agreementId")).thenReturn(a2);
+    when(routingContext.request().params().get("startDate")).thenReturn("2020-04");
+    when(routingContext.request().params().get("endDate")).thenReturn("2020-08");
+    when(routingContext.request().params().get("includeOA")).thenReturn("false");
+    new EusageReportsApi().getCostPerUse(vertx, routingContext, false)
+        .onComplete(context.asyncAssertSuccess(x -> {
+          ArgumentCaptor<String> body = ArgumentCaptor.forClass(String.class);
+          verify(routingContext.response()).end(body.capture());
+          JsonObject json = new JsonObject(body.getValue());
+          System.out.println(json.encodePrettily());
+          assertThat((List<?>) json.getJsonArray("titleCountByPeriod").getList(),
+              contains(0, 2, 0, 0, 0));
         }));
   }
 
