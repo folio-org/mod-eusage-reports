@@ -264,6 +264,7 @@ public class EusageReportsApiTest {
         .compose(x -> insertTitleData(te11, "2020-04-01", "2020-04-15", 1999, false, 2, 3))
         .compose(x -> insertTitleData(te11, "2020-04-15", "2020-05-01", 2000, false, 3, 3))
         .compose(x -> insertTitleData(te11, "2020-05-01", "2020-06-01", 2000, false, 4, 12))
+        .compose(x -> insertTitleData(te11, "2020-06-01", "2020-07-01", 2000, false, 9, 29))
         .compose(x -> insertTitleData(te12, "2020-03-01", "2020-04-01", 2010, false, 11, 12))
         .compose(x -> insertTitleData(te12, "2020-04-01", "2020-05-01", 2010, false, 15, 16))
         .compose(x -> insertTitleData(te12, "2020-05-01", "2020-06-01", 2010, false, 14, 22))
@@ -567,10 +568,10 @@ public class EusageReportsApiTest {
           ArgumentCaptor<String> body = ArgumentCaptor.forClass(String.class);
           verify(routingContext.response()).end(body.capture());
           JsonObject json = new JsonObject(body.getValue());
-          assertThat(json.getLong("totalItemRequestsTotal"), is(70L));
-          assertThat(json.getLong("uniqueItemRequestsTotal"), is(50L));
-          assertThat(json.getJsonArray("totalItemRequestsByPeriod"), contains(5, 15, 50));
-          assertThat(json.getJsonArray("uniqueItemRequestsByPeriod"), contains(3, 7, 40));
+          assertThat(json.getLong("totalItemRequestsTotal"), is(99L));
+          assertThat(json.getLong("uniqueItemRequestsTotal"), is(59L));
+          assertThat(json.getJsonArray("totalItemRequestsByPeriod"), contains(5, 44, 50));
+          assertThat(json.getJsonArray("uniqueItemRequestsByPeriod"), contains(3, 16, 40));
         }));
   }
 
@@ -597,11 +598,11 @@ public class EusageReportsApiTest {
     getReqsByPubPeriod(true, a1, "2020-04", "2020-08", "6M")
     .onComplete(context.asyncAssertSuccess(json -> {
       System.out.println(json.encodePrettily());
-      assertThat(json.getInteger("totalItemRequestsTotal"), is(70));
-      assertThat(json.getInteger("uniqueItemRequestsTotal"), is(50));
+      assertThat(json.getInteger("totalItemRequestsTotal"), is(99));
+      assertThat(json.getInteger("uniqueItemRequestsTotal"), is(59));
       assertThat((List<?>) json.getJsonArray("accessCountPeriods").getList(), contains("1999", "2000", "2010"));
-      assertThat((Long []) json.getValue("totalItemRequestsByPeriod"), is(arrayContaining(5L, 15L, 50L)));
-      assertThat((Long []) json.getValue("uniqueItemRequestsByPeriod"), is(arrayContaining(3L, 7L, 40L)));
+      assertThat((Long []) json.getValue("totalItemRequestsByPeriod"), is(arrayContaining(5L, 44L, 50L)));
+      assertThat((Long []) json.getValue("uniqueItemRequestsByPeriod"), is(arrayContaining(3L, 16L, 40L)));
       assertThat(json.getJsonArray("items").size(), is(16));
       assertThat(json.getJsonArray("items").getJsonObject(0).encodePrettily(),
           is(new JsonObject()
@@ -612,8 +613,8 @@ public class EusageReportsApiTest {
               .put("periodOfUse", "2020-01 - 2020-06")
               .put("accessType", "Controlled")
               .put("metricType", "Total_Item_Requests")
-              .put("accessCountTotal", 20)
-              .put("accessCountsByPeriod", new JsonArray("[ 5, 15, null ]"))
+              .put("accessCountTotal", 49)
+              .put("accessCountsByPeriod", new JsonArray("[ 5, 44, null ]"))
               .encodePrettily()));
       assertThat(json.getJsonArray("items").getJsonObject(2).encodePrettily(),
           is(new JsonObject()
@@ -647,28 +648,31 @@ public class EusageReportsApiTest {
           assertThat((List<?>) json.getJsonArray("accessCountPeriods").getList(),
               contains("2020-04", "2020-05", "2020-06", "2020-07", "2020-08"));
           assertThat((List<?>) json.getJsonArray("totalItemCostsPerRequestsByPeriod").getList(),
-              contains(2.5, 1.62, null, null, null));
+              contains(2.0, 1.29, 0.76, null, null));
           assertThat((List<?>) json.getJsonArray("uniqueItemCostsPerRequestsByPeriod").getList(),
-              contains(2.75, 3.06, null, null, null));
+              contains(2.2, 2.44, 2.44, null, null));
           assertThat((List<?>) json.getJsonArray("titleCountByPeriod").getList(),
-              contains(2, 2, 0, 0, 0));
-          assertThat(json.getJsonArray("items").size(), is(4));
+              contains(2, 2, 1, 0, 0));
+          assertThat(json.getJsonArray("items").size(), is(5));
           assertThat(json.getJsonArray("items").getJsonObject(0).getString("kbId"), is(t11));
           assertThat(json.getJsonArray("items").getJsonObject(0).getLong("totalItemRequests"), is(6L));
           assertThat(json.getJsonArray("items").getJsonObject(0).getLong("uniqueItemRequests"), is(5L));
-          assertThat(json.getJsonArray("items").getJsonObject(0).getDouble("amountEncumbered"), is(25.0));
-          assertThat(json.getJsonArray("items").getJsonObject(0).getDouble("amountPaid"), is(27.5));
-          assertThat(json.getJsonArray("items").getJsonObject(0).getDouble("costPerTotalRequest"), is(4.58));
-          assertThat(json.getJsonArray("items").getJsonObject(0).getDouble("costPerUniqueRequest"), is(5.5));
+          assertThat(json.getJsonArray("items").getJsonObject(0).getDouble("amountEncumbered"), is(20.0));
+          assertThat(json.getJsonArray("items").getJsonObject(0).getDouble("amountPaid"), is(22.0));
+          assertThat(json.getJsonArray("items").getJsonObject(0).getDouble("costPerTotalRequest"), is(3.67));
+          assertThat(json.getJsonArray("items").getJsonObject(0).getDouble("costPerUniqueRequest"), is(4.4));
           assertThat(json.getJsonArray("items").getJsonObject(1).getString("kbId"), is(t11));
           assertThat(json.getJsonArray("items").getJsonObject(1).getLong("totalItemRequests"), is(12L));
           assertThat(json.getJsonArray("items").getJsonObject(1).getLong("uniqueItemRequests"), is(4L));
-          assertThat(json.getJsonArray("items").getJsonObject(2).getString("kbId"), is(t12));
-          assertThat(json.getJsonArray("items").getJsonObject(2).getLong("totalItemRequests"), is(16L));
-          assertThat(json.getJsonArray("items").getJsonObject(2).getLong("uniqueItemRequests"), is(15L));
+          assertThat(json.getJsonArray("items").getJsonObject(2).getString("kbId"), is(t11));
+          assertThat(json.getJsonArray("items").getJsonObject(2).getLong("totalItemRequests"), is(29L));
+          assertThat(json.getJsonArray("items").getJsonObject(2).getLong("uniqueItemRequests"), is(9L));
           assertThat(json.getJsonArray("items").getJsonObject(3).getString("kbId"), is(t12));
-          assertThat(json.getJsonArray("items").getJsonObject(3).getLong("totalItemRequests"), is(22L));
-          assertThat(json.getJsonArray("items").getJsonObject(3).getLong("uniqueItemRequests"), is(14L));
+          assertThat(json.getJsonArray("items").getJsonObject(3).getLong("totalItemRequests"), is(16L));
+          assertThat(json.getJsonArray("items").getJsonObject(3).getLong("uniqueItemRequests"), is(15L));
+          assertThat(json.getJsonArray("items").getJsonObject(4).getString("kbId"), is(t12));
+          assertThat(json.getJsonArray("items").getJsonObject(4).getLong("totalItemRequests"), is(22L));
+          assertThat(json.getJsonArray("items").getJsonObject(4).getLong("uniqueItemRequests"), is(14L));
         }));
   }
 

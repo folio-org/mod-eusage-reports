@@ -346,6 +346,9 @@ paths:
       - $ref: parameters/include-oa.yaml
     get:
       description: Return cost per where usageDateRange falls within startDate, endDate.
+        The report is structured in periods, typically months, and the cost-per-use in a period is
+        invoiced amount divided by download count (unique or total) and further divided in number of
+        periods where any title has downloads.
       operationId: getCostPerUseCsv
       responses:
         "200":
