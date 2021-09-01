@@ -1730,8 +1730,9 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
           .append(" GROUP BY 1")
           .append(" ) t").append(i).append(" ON t").append(i).append(".titleEntryId = ")
           .append(titleEntriesTable(pool)).append(".id")
-          .append(" AND subscriptionDateRange @> daterange($").append(2 + i)
-          .append(", $").append(2 + i + 1).append(")")
+          .append(" AND (subscriptionDateRange IS NULL")
+          .append(" OR subscriptionDateRange @> daterange($")
+          .append(2 + i).append(", $").append(2 + i + 1).append("))")
       ;
 
       // TODO  .append(" AND coverageDateRanges @> t").append(i).append(".publicationDate")
