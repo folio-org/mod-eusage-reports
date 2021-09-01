@@ -321,6 +321,15 @@ paths:
       - $ref: parameters/include-oa.yaml
     get:
       description: Return cost per where usageDateRange falls within startDate, endDate.
+        The report is structured in periods, typically months, and the cost-per-use in a period is
+        invoiced amount divided by download count (unique or total) and further divided in number of
+        periods where any title has downloads. The cost for a title in a period is evently divided.
+        Example: agreement has two titles, titleA andtitleB where titleB has
+        downloads in May and June. titleB has downloads in June only. In May, the title count is 1.
+        In June, the title count is 2. The total periods where any title occurs is p = 2+1 = 3.
+        Cost per download for titleA in May is (paidAmount/p) / downloads(TitleA,May) and in
+        June (paidAmount/p) / downloads(TitleA,June).
+        Cost per download for titleB in June is paidAmount/p / downloads(TitleB,June).
       operationId: getCostPerUse
       responses:
         "200":
@@ -345,10 +354,7 @@ paths:
       - $ref: parameters/end-date.yaml
       - $ref: parameters/include-oa.yaml
     get:
-      description: Return cost per where usageDateRange falls within startDate, endDate.
-        The report is structured in periods, typically months, and the cost-per-use in a period is
-        invoiced amount divided by download count (unique or total) and further divided in number of
-        periods where any title has downloads.
+      description: Same as /cost-per-use, but returns CSV format.
       operationId: getCostPerUseCsv
       responses:
         "200":
