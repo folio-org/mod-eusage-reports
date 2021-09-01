@@ -324,7 +324,7 @@ paths:
         The report is structured in periods, typically months, and the cost-per-use in a period is
         invoiced amount divided by download count (unique or total) and further divided in number of
         periods where any title has downloads. The cost for a title in a period is evently divided.
-        Example: agreement has two titles, titleA andtitleB where titleB has
+        Consider agreement that has two titles, titleA and titleB where titleB has
         downloads in May and June. titleB has downloads in June only. In May, the title count is 1.
         In June, the title count is 2. The total periods where any title occurs is p = 2+1 = 3.
         Cost per download for titleA in May is (paidAmount/p) / downloads(TitleA,May) and in
