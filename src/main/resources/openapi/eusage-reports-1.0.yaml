@@ -323,7 +323,8 @@ paths:
       description: Return cost per where usageDateRange falls within startDate, endDate.
         The report is structured in periods, typically months, and the cost-per-use in a period is
         invoiced amount divided by download count (unique or total) and further divided in number of
-        periods where any title has downloads. This way the cost for download is divided into periods (with non-zero use) and then evenly divided across titles within those periods.
+        periods where any title has downloads. This way the cost for download is divided into periods
+        (with non-zero use) and then evenly divided across titles within those periods.
         Consider agreement that has two titles, titleA and titleB where titleA has
         downloads in May and June. titleB has downloads in June only. In May, the title count is 1.
         In June, the title count is 2. The total periods where any title occurs is p = 2+1 = 3.
