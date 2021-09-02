@@ -276,22 +276,13 @@ public class EusageReportsApiTest {
         .mapEmpty();
   }
 
-  private Future<JsonObject> getUseOverTime(boolean isJournal, boolean includeOA, String agreementId, String start, String end) {
-    return new EusageReportsApi().getUseOverTime(pool, isJournal, includeOA, false, agreementId, start, end);
-  }
-
-  @Test
-  public void useOverTime1(TestContext context) {
-    getUseOverTime(true, true, a1, "2020-04", "2020-05")
-        .onComplete(context.asyncAssertSuccess(json -> {
-          assertThat(json.getString("agreementId"), is(a1));
-          System.out.printf("AD: useovertime=" + json.encodePrettily());
-        }));
+  private Future<JsonObject> getUseOverTime(boolean isJournal, boolean includeOA, String agreementId, String accessCountPeriod, String start, String end) {
+    return new EusageReportsApi().getUseOverTime(pool, isJournal, includeOA, false, agreementId, accessCountPeriod, start, end);
   }
 
   @Test
   public void useOverTime(TestContext context) {
-    getUseOverTime(true, true, a1, "2020-04", "2020-05")
+    getUseOverTime(true, true, a1, null, "2020-04", "2020-05")
     .onComplete(context.asyncAssertSuccess(json -> {
       assertThat(json.getString("agreementId"), is(a1));
       assertThat((List<?>) json.getJsonArray("accessCountPeriods").getList(), contains("2020-04", "2020-05"));
@@ -339,7 +330,7 @@ public class EusageReportsApiTest {
   @Test
   public void useOverTimePackage(TestContext context) {
     // similar to useOverTime test since a3 has same titles as a1.
-    getUseOverTime(true, true, a3, "2020-04", "2020-05")
+    getUseOverTime(true, true, a3, "auto", "2020-04", "2020-05")
         .onComplete(context.asyncAssertSuccess(json -> {
           assertThat(json.getString("agreementId"), is(a3));
           assertThat((List<?>) json.getJsonArray("accessCountPeriods").getList(), contains("2020-04", "2020-05"));
@@ -386,9 +377,9 @@ public class EusageReportsApiTest {
 
   @Test
   public void useOverTimeCsv(TestContext context) {
-    new EusageReportsApi().getUseOverTime(pool, true, true, false, a1, "2020-04", "2020-05", false)
+    new EusageReportsApi().getUseOverTime(pool, true, true, false, a1, null, "2020-04", "2020-05", false)
         .onComplete(context.asyncAssertSuccess(res0 -> {
-          new EusageReportsApi().getUseOverTime(pool, true, true, false, a1, "2020-04", "2020-05", true)
+          new EusageReportsApi().getUseOverTime(pool, true, true, false, a1, null,"2020-04", "2020-05", true)
               .onComplete(context.asyncAssertSuccess(res -> {
                 assertThat(res, containsString("Title,Print ISSN,Online ISSN,Access type,Metric Type,Reporing period total,2020-04,2020-05"));
                 assertThat(res, containsString("Totals - total item requests,,,,,56,22,34"));
@@ -399,7 +390,7 @@ public class EusageReportsApiTest {
 
   @Test
   public void useOverTimeOpenAccess(TestContext context) {
-    getUseOverTime(true, true, a2, "2020-06", "2020-06")
+    getUseOverTime(true, true, a2, null, "2020-06", "2020-06")
     .onComplete(context.asyncAssertSuccess(json -> {
       assertThat(json.getLong("totalItemRequestsTotal"), is(2L));
       assertThat(json.getLong("uniqueItemRequestsTotal"), is(1L));
@@ -415,9 +406,25 @@ public class EusageReportsApiTest {
   }
 
   @Test
+  public void useOverTimeAccessCountPeriod(TestContext context) {
+    getUseOverTime(true, true, a2, "4M", "2020", "2021")
+        .onComplete(context.asyncAssertSuccess(json -> {
+          System.out.println(json.encodePrettily());
+
+          assertThat((List<?>) json.getJsonArray("accessCountPeriods").getList(),
+              contains("2020-01 - 2020-04", "2020-05 - 2020-08", "2020-09 - 2020-12", "2021-01 - 2021-04"));
+          assertThat(json.getLong("totalItemRequestsTotal"), is(42L));
+          assertThat(json.getLong("uniqueItemRequestsTotal"), is(21L));
+          assertThat((Long []) json.getValue("totalItemRequestsByPeriod"), is(arrayContaining(0L, 42L, null, null)));
+          assertThat((Long []) json.getValue("uniqueItemRequestsByPeriod"), is(arrayContaining(0L, 21L, null, null)));
+          assertThat(json.getJsonArray("items").size(), is(8));
+        }));
+  }
+
+  @Test
   public void useOverTimeNoData(TestContext context) {
     // time periods without any data, totals should be null
-    getUseOverTime(true, true, a2, "1999", "1999")
+    getUseOverTime(true, true, a2, null, "1999", "1999")
     .onComplete(context.asyncAssertSuccess(json -> {
       assertThat(json.getLong("totalItemRequestsTotal"), is(nullValue()));
       assertThat(json.getLong("uniqueItemRequestsTotal"), is(nullValue()));
@@ -428,7 +435,7 @@ public class EusageReportsApiTest {
 
   @Test
   public void useOverTimeBook(TestContext context) {
-    getUseOverTime(/* journal = */ false, true, a2, "2020-05", "2020-06")
+    getUseOverTime(/* journal = */ false, true, a2, null, "2020-05", "2020-06")
     .onComplete(context.asyncAssertSuccess(json -> {
       assertThat(json.getLong("totalItemRequestsTotal"), is(42L));
       assertThat(json.getLong("uniqueItemRequestsTotal"), is(21L));
@@ -449,7 +456,7 @@ public class EusageReportsApiTest {
 
   @Test
   public void reqsByDateOfUse(TestContext context) {
-    new EusageReportsApi().getUseOverTime(pool, true, true, true, a2, "2020-05", "2020-06")
+    new EusageReportsApi().getUseOverTime(pool, true, true, true, a2, null, "2020-05", "2020-06")
     .onComplete(context.asyncAssertSuccess(json -> {
       assertThat(json.getLong("totalItemRequestsTotal"), is(42L));
       assertThat(json.getLong("uniqueItemRequestsTotal"), is(21L));
@@ -549,9 +556,9 @@ public class EusageReportsApiTest {
   }
 
   private Future<JsonObject> getReqsByPubPeriod(boolean includeOA, String agreementId,
-      String start, String end, String periodOfUse) {
+      String accessCountPeriod, String start, String end, String periodOfUse) {
 
-    return new EusageReportsApi().getReqsByPubYear(pool, includeOA, agreementId, start, end, periodOfUse);
+    return new EusageReportsApi().getReqsByPubYear(pool, includeOA, agreementId, accessCountPeriod, start, end, periodOfUse);
   }
 
   @Test
@@ -595,7 +602,7 @@ public class EusageReportsApiTest {
 
   @Test
   public void reqsByPubYear(TestContext context) {
-    getReqsByPubPeriod(true, a1, "2020-04", "2020-08", "6M")
+    getReqsByPubPeriod(true, a1, null, "2020-04", "2020-08", "6M")
     .onComplete(context.asyncAssertSuccess(json -> {
       System.out.println(json.encodePrettily());
       assertThat(json.getInteger("totalItemRequestsTotal"), is(99));
@@ -795,7 +802,7 @@ public class EusageReportsApiTest {
 
   @Test
   public void reqsByPubYearCsv(TestContext context) {
-    new EusageReportsApi().getReqsByPubYear(pool, true, a1, "2020-04", "2020-08", "6M", true)
+    new EusageReportsApi().getReqsByPubYear(pool, true, a1, null, "2020-04", "2020-08", "6M", true)
         .onComplete(context.asyncAssertSuccess(res -> {
           assertThat(res, containsString(",2020-07 - 2020-12,Controlled,"));
         }));
@@ -803,7 +810,7 @@ public class EusageReportsApiTest {
 
   @Test
   public void reqsByPubYearWithoutData(TestContext context) {
-    getReqsByPubPeriod(true, a1, "2999-04", "2999-05", "1Y")
+    getReqsByPubPeriod(true, a1, null, "2999-04", "2999-05", "1Y")
     .onComplete(context.asyncAssertSuccess(json -> {
       assertThat(json.getJsonArray("accessCountPeriods").encode(), is("[]"));
     }));

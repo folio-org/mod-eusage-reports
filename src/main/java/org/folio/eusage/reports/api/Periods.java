@@ -17,7 +17,9 @@ public class Periods {
    * Construct Periods with start, end and optional period-of-use.
    * @param start starting date (YYYY-MM-DD or YYYY)
    * @param end end date (YYYY-MM-DD or YYYY) - including the month or year
-   * @param periodOfUse NY or NM for period in N months or N years; may be null for no period.
+   * @param periodOfUse NY or NM for period in N months or N years; null or
+   *                    "auto" for automatically selecting year (start is YYYY format) or month if
+   *                    start is YYYY-MM-DD format.
    */
   public Periods(String start, String end, String periodOfUse) {
     if (start.length() != end.length()) {
@@ -28,7 +30,7 @@ public class Periods {
       throw new IllegalArgumentException("startDate=" + start + " is after endDate=" + end);
     }
     boolean isYear = start.length() == 4;
-    if (periodOfUse == null) {
+    if (periodOfUse == null || "auto".equals(periodOfUse)) {
       periodOfUse = isYear ? "1Y" : "1M";
     }
     periodInMonths = getPeriodInMonths(periodOfUse);
@@ -53,7 +55,7 @@ public class Periods {
   /**
    * Convert month string or year string to number of months: 6M -> 6, 2Y -> 24.
    */
-  private static int getPeriodInMonths(String period) {
+  public static int getPeriodInMonths(String period) {
     int months = Integer.parseUnsignedInt(period, 0, period.length() - 1, 10);
     if (period.endsWith("Y")) {
       months *= 12;
