@@ -409,8 +409,6 @@ public class EusageReportsApiTest {
   public void useOverTimeAccessCountPeriod(TestContext context) {
     getUseOverTime(true, true, a2, "4M", "2020", "2021")
         .onComplete(context.asyncAssertSuccess(json -> {
-          System.out.println(json.encodePrettily());
-
           assertThat((List<?>) json.getJsonArray("accessCountPeriods").getList(),
               contains("2020-01 - 2020-04", "2020-05 - 2020-08", "2020-09 - 2020-12", "2021-01 - 2021-04"));
           assertThat(json.getLong("totalItemRequestsTotal"), is(42L));
@@ -575,12 +573,37 @@ public class EusageReportsApiTest {
           ArgumentCaptor<String> body = ArgumentCaptor.forClass(String.class);
           verify(routingContext.response()).end(body.capture());
           JsonObject json = new JsonObject(body.getValue());
+          assertThat((List<?>) json.getJsonArray("accessCountPeriods").getList(), contains("1999", "2000", "2010"));
           assertThat(json.getLong("totalItemRequestsTotal"), is(99L));
           assertThat(json.getLong("uniqueItemRequestsTotal"), is(59L));
           assertThat(json.getJsonArray("totalItemRequestsByPeriod"), contains(5, 44, 50));
           assertThat(json.getJsonArray("uniqueItemRequestsByPeriod"), contains(3, 16, 40));
         }));
   }
+
+  @Test
+  public void reqsByPubYearAccessCountPeriod(TestContext context) {
+    RoutingContext routingContext = mock(RoutingContext.class, RETURNS_DEEP_STUBS);
+    when(routingContext.request().getHeader("X-Okapi-Tenant")).thenReturn(tenant);
+    when(routingContext.request().params().get("agreementId")).thenReturn(a1);
+    when(routingContext.request().params().get("accessCountPeriod")).thenReturn("2Y");
+    when(routingContext.request().params().get("startDate")).thenReturn("2020-04");
+    when(routingContext.request().params().get("endDate")).thenReturn("2020-08");
+    when(routingContext.request().params().get("periodOfUse")).thenReturn("6M");
+    when(routingContext.request().params().get("includeOA")).thenReturn("true");
+    new EusageReportsApi().getReqsByPubYear(vertx, routingContext, false)
+        .onComplete(context.asyncAssertSuccess(x -> {
+          ArgumentCaptor<String> body = ArgumentCaptor.forClass(String.class);
+          verify(routingContext.response()).end(body.capture());
+          JsonObject json = new JsonObject(body.getValue());
+          assertThat((List<?>) json.getJsonArray("accessCountPeriods").getList(), contains("1998", "2000", "2010"));
+          assertThat(json.getLong("totalItemRequestsTotal"), is(99L));
+          assertThat(json.getLong("uniqueItemRequestsTotal"), is(59L));
+          assertThat(json.getJsonArray("totalItemRequestsByPeriod"), contains(5, 44, 50));
+          assertThat(json.getJsonArray("uniqueItemRequestsByPeriod"), contains(3, 16, 40));
+        }));
+  }
+
 
   @Test
   public void reqsByPubYearWithRoutingContextCsv(TestContext context) {

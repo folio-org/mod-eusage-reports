@@ -1508,7 +1508,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
           if (! pubYears.isEmpty()) {
             pubYears.forEach(year -> {
               tuple.addLocalDate(year);
-              tuple.addLocalDate(year.plusYears(1));
+              tuple.addLocalDate(year.plusMonths(pubPeriodsInMonths));
             });
           }
 
