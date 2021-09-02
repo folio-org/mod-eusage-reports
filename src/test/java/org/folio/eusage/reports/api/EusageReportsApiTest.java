@@ -597,7 +597,7 @@ public class EusageReportsApiTest {
           ArgumentCaptor<String> body = ArgumentCaptor.forClass(String.class);
           verify(routingContext.response()).end(body.capture());
           JsonObject json = new JsonObject(body.getValue());
-          assertThat((List<?>) json.getJsonArray("accessCountPeriods").getList(), contains("1998", "2000", "2010"));
+          assertThat((List<?>) json.getJsonArray("accessCountPeriods").getList(), contains("1998 - 1999", "2000 - 2001", "2010 - 2011"));
           assertThat(json.getLong("totalItemRequestsTotal"), is(99L));
           assertThat(json.getLong("uniqueItemRequestsTotal"), is(59L));
           assertThat(json.getJsonArray("totalItemRequestsByPeriod"), contains(5, 44, 50));

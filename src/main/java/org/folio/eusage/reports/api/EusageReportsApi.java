@@ -1504,14 +1504,31 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
           }
           sql.append(" ORDER BY title, kbId, accessType, periodOfUse, metricType");
 
+          JsonArray pubYearStrings = new JsonArray();
           Tuple tuple = Tuple.of(agreementId);
           if (! pubYears.isEmpty()) {
             pubYears.forEach(year -> {
               tuple.addLocalDate(year);
               tuple.addLocalDate(year.plusMonths(pubPeriodsInMonths));
+              String s1 = year.toString();
+              if (s1.endsWith("-01-01")) {
+                s1 = s1.substring(0, 4);
+              } else {
+                s1 = s1.substring(0, 7);
+              }
+              String s2 = year.plusMonths(pubPeriodsInMonths - 1).toString();
+              if (s2.endsWith("-12-01")) {
+                s2 = s2.substring(0, 4);
+              } else {
+                s2 = s2.substring(0, 7);
+              }
+              if (s1.equals(s2)) {
+                pubYearStrings.add(s1);
+              } else {
+                pubYearStrings.add(s1 + " - " + s2);
+              }
             });
           }
-
           LocalDate date = usePeriods.startDate;
           do {
             tuple.addLocalDate(date);
@@ -1554,8 +1571,6 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
               items.add(json);
             });
 
-            JsonArray pubYearStrings = new JsonArray();
-            pubYears.forEach(pubYear -> pubYearStrings.add("" + pubYear.getYear()));
             return new JsonObject()
                 .put("agreementId", agreementId)
                 .put("accessCountPeriods", pubYearStrings)
