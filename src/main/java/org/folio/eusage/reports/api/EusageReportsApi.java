@@ -1519,7 +1519,11 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
                 s1 = s1.substring(0, 7);
                 s2 = s2.substring(0, 7);
               }
-              pubYearStrings.add(s1 + "-" + s2);
+              if (s1.equals(s2)) {
+                pubYearStrings.add(s1);
+              } else {
+                pubYearStrings.add(s1 + "-" + s2);
+              }
             });
           }
           LocalDate date = usePeriods.startDate;
