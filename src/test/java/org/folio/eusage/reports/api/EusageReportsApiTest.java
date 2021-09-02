@@ -560,10 +560,11 @@ public class EusageReportsApiTest {
   }
 
   @Test
-  public void reqsByPubYearWithRoutingContext(TestContext context) {
+  public void reqsByPubYearAccessCountPeriodAuto(TestContext context) {
     RoutingContext routingContext = mock(RoutingContext.class, RETURNS_DEEP_STUBS);
     when(routingContext.request().getHeader("X-Okapi-Tenant")).thenReturn(tenant);
     when(routingContext.request().params().get("agreementId")).thenReturn(a1);
+    when(routingContext.request().params().get("accessCountPeriod")).thenReturn("auto");
     when(routingContext.request().params().get("startDate")).thenReturn("2020-04");
     when(routingContext.request().params().get("endDate")).thenReturn("2020-08");
     when(routingContext.request().params().get("periodOfUse")).thenReturn("6M");
@@ -582,7 +583,7 @@ public class EusageReportsApiTest {
   }
 
   @Test
-  public void reqsByPubYearAccessCountPeriod(TestContext context) {
+  public void reqsByPubYearAccessCountPeriod2Y(TestContext context) {
     RoutingContext routingContext = mock(RoutingContext.class, RETURNS_DEEP_STUBS);
     when(routingContext.request().getHeader("X-Okapi-Tenant")).thenReturn(tenant);
     when(routingContext.request().params().get("agreementId")).thenReturn(a1);
