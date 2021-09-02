@@ -597,7 +597,8 @@ public class EusageReportsApiTest {
           ArgumentCaptor<String> body = ArgumentCaptor.forClass(String.class);
           verify(routingContext.response()).end(body.capture());
           JsonObject json = new JsonObject(body.getValue());
-          assertThat((List<?>) json.getJsonArray("accessCountPeriods").getList(), contains("1998 - 1999", "2000 - 2001", "2010 - 2011"));
+          assertThat((List<?>) json.getJsonArray("accessCountPeriods").getList(),
+              contains("1998-1999", "2000-2001", "2010-2011"));
           assertThat(json.getLong("totalItemRequestsTotal"), is(99L));
           assertThat(json.getLong("uniqueItemRequestsTotal"), is(59L));
           assertThat(json.getJsonArray("totalItemRequestsByPeriod"), contains(5, 44, 50));
@@ -605,6 +606,29 @@ public class EusageReportsApiTest {
         }));
   }
 
+  @Test
+  public void reqsByPubYearAccessCountPeriod3M(TestContext context) {
+    RoutingContext routingContext = mock(RoutingContext.class, RETURNS_DEEP_STUBS);
+    when(routingContext.request().getHeader("X-Okapi-Tenant")).thenReturn(tenant);
+    when(routingContext.request().params().get("agreementId")).thenReturn(a1);
+    when(routingContext.request().params().get("accessCountPeriod")).thenReturn("3M");
+    when(routingContext.request().params().get("startDate")).thenReturn("2020-04");
+    when(routingContext.request().params().get("endDate")).thenReturn("2020-08");
+    when(routingContext.request().params().get("periodOfUse")).thenReturn("6M");
+    when(routingContext.request().params().get("includeOA")).thenReturn("true");
+    new EusageReportsApi().getReqsByPubYear(vertx, routingContext, false)
+        .onComplete(context.asyncAssertSuccess(x -> {
+          ArgumentCaptor<String> body = ArgumentCaptor.forClass(String.class);
+          verify(routingContext.response()).end(body.capture());
+          JsonObject json = new JsonObject(body.getValue());
+          assertThat((List<?>) json.getJsonArray("accessCountPeriods").getList(),
+              contains("1999-01-1999-03", "2000-01-2000-03", "2010-01-2010-03"));
+          assertThat(json.getLong("totalItemRequestsTotal"), is(99L));
+          assertThat(json.getLong("uniqueItemRequestsTotal"), is(59L));
+          assertThat(json.getJsonArray("totalItemRequestsByPeriod"), contains(5, 44, 50));
+          assertThat(json.getJsonArray("uniqueItemRequestsByPeriod"), contains(3, 16, 40));
+        }));
+  }
 
   @Test
   public void reqsByPubYearWithRoutingContextCsv(TestContext context) {

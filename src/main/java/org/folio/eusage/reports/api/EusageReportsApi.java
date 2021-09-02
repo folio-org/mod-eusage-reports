@@ -1511,22 +1511,15 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
               tuple.addLocalDate(year);
               tuple.addLocalDate(year.plusMonths(pubPeriodsInMonths));
               String s1 = year.toString();
-              if (s1.endsWith("-01-01")) {
-                s1 = s1.substring(0, 4);
-              } else {
-                s1 = s1.substring(0, 7);
-              }
               String s2 = year.plusMonths(pubPeriodsInMonths - 1).toString();
-              if (s2.endsWith("-12-01")) {
+              if (s1.endsWith("-01-01") && s2.endsWith("-12-01")) {
+                s1 = s1.substring(0, 4);
                 s2 = s2.substring(0, 4);
               } else {
+                s1 = s1.substring(0, 7);
                 s2 = s2.substring(0, 7);
               }
-              if (s1.equals(s2)) {
-                pubYearStrings.add(s1);
-              } else {
-                pubYearStrings.add(s1 + " - " + s2);
-              }
+              pubYearStrings.add(s1 + "-" + s2);
             });
           }
           LocalDate date = usePeriods.startDate;
