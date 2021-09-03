@@ -1230,11 +1230,13 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
 
     TenantPgPool pool = TenantPgPool.pool(vertx, TenantUtil.tenant(ctx));
     String agreementId = ctx.request().params().get("agreementId");
+    String accessCountPeriod = ctx.request().params().get("accessCountPeriod");
     String start = ctx.request().params().get("startDate");
     String end = ctx.request().params().get("endDate");
     boolean includeOA = "true".equalsIgnoreCase(ctx.request().params().get("includeOA"));
 
-    return getUseOverTime(pool, isJournal, includeOA, false, agreementId, start, end, csv)
+    return getUseOverTime(pool, isJournal, includeOA, false, agreementId,
+        accessCountPeriod, start, end, csv)
         .map(res -> {
           ctx.response().setStatusCode(200);
           ctx.response().putHeader("Content-Type", csv ? "text/csv" : "application/json");
@@ -1245,9 +1247,9 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
 
   Future<String> getUseOverTime(TenantPgPool pool, boolean isJournal, boolean includeOA,
                                 boolean groupByPublicationYear, String agreementId,
-                                String start, String end, boolean csv) {
+                                String accessCountPeriod, String start, String end, boolean csv) {
     return getUseOverTime(pool, isJournal, includeOA, groupByPublicationYear, agreementId,
-        start, end)
+        accessCountPeriod, start, end)
         .compose(json -> {
           if (!csv) {
             return Future.succeededFuture(json.encodePrettily());
@@ -1264,9 +1266,9 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
 
   Future<JsonObject> getUseOverTime(TenantPgPool pool,
       boolean isJournal, boolean includeOA, boolean groupByPublicationYear,
-      String agreementId, String start, String end) {
+      String agreementId, String accessCountPeriod, String start, String end) {
 
-    Periods periods = new Periods(start, end, null);
+    Periods periods = new Periods(start, end, accessCountPeriod);
     Tuple tuple = Tuple.of(agreementId);
     periods.addStartDates(tuple);
     periods.addEnd(tuple);
@@ -1419,11 +1421,13 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     TenantPgPool pool = TenantPgPool.pool(vertx, TenantUtil.tenant(ctx));
     boolean csv = "true".equalsIgnoreCase(ctx.request().params().get("csv"));
     String agreementId = ctx.request().params().get("agreementId");
+    String accessCountPeriod = ctx.request().params().get("accessCountPeriod");
     String start = ctx.request().params().get("startDate");
     String end = ctx.request().params().get("endDate");
     boolean includeOA = "true".equalsIgnoreCase(ctx.request().params().get("includeOA"));
 
-    return getUseOverTime(pool, true, includeOA, true, agreementId, start, end, csv)
+    return getUseOverTime(pool, true, includeOA, true, agreementId,
+        accessCountPeriod, start, end, csv)
         .map(res -> {
           ctx.response().setStatusCode(200);
           ctx.response().putHeader("Content-Type", csv ? "text/csv" : "application/json");
@@ -1443,11 +1447,13 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     boolean csv = "true".equalsIgnoreCase(ctx.request().params().get("csv"));
     boolean includeOA = "true".equalsIgnoreCase(ctx.request().params().get("includeOA"));
     String agreementId = ctx.request().params().get("agreementId");
+    String accessCountPeriod = ctx.request().params().get("accessCountPeriod");
     String start = ctx.request().params().get("startDate");
     String end = ctx.request().params().get("endDate");
     String periodOfUse = ctx.request().params().get("periodOfUse");
 
-    return getReqsByPubYear(pool, includeOA, agreementId, start, end, periodOfUse, csv)
+    return getReqsByPubYear(pool, includeOA, agreementId,
+        accessCountPeriod, start, end, periodOfUse, csv)
         .map(res -> {
           ctx.response().setStatusCode(200);
           ctx.response().putHeader("Content-Type", csv ? "text/csv" : "application/json");
@@ -1457,8 +1463,10 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
   }
 
   Future<String> getReqsByPubYear(TenantPgPool pool, boolean includeOA, String agreementId,
-                                  String start, String end, String periodOfUse, boolean csv) {
-    return getReqsByPubYear(pool, includeOA, agreementId, start, end, periodOfUse)
+                                  String accessCountPeriod, String start, String end,
+                                  String periodOfUse, boolean csv) {
+    return getReqsByPubYear(pool, includeOA, agreementId,
+        accessCountPeriod, start, end, periodOfUse)
         .compose(json -> {
           if (!csv) {
             return Future.succeededFuture(json.encodePrettily());
@@ -1474,11 +1482,12 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
   }
 
   Future<JsonObject> getReqsByPubYear(TenantPgPool pool, boolean includeOA, String agreementId,
-      String start, String end, String periodOfUse) {
+      String accessCountPeriod, String start, String end, String periodOfUse) {
 
     Periods usePeriods = new Periods(start, end, periodOfUse);
-
-    return getPubPeriods(pool, agreementId, usePeriods, 12)
+    int pubPeriodsInMonths = accessCountPeriod == null || "auto".equals(accessCountPeriod)
+        ? 12 : Periods.getPeriodInMonths(accessCountPeriod);
+    return getPubPeriods(pool, agreementId, usePeriods, pubPeriodsInMonths)
         .compose(pubYears -> {
           StringBuilder sql = new StringBuilder();
 
@@ -1498,14 +1507,28 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
           }
           sql.append(" ORDER BY title, kbId, accessType, periodOfUse, metricType");
 
+          JsonArray pubYearStrings = new JsonArray();
           Tuple tuple = Tuple.of(agreementId);
           if (! pubYears.isEmpty()) {
             pubYears.forEach(year -> {
               tuple.addLocalDate(year);
-              tuple.addLocalDate(year.plusYears(1));
+              tuple.addLocalDate(year.plusMonths(pubPeriodsInMonths));
+              String s1 = year.toString();
+              String s2 = year.plusMonths(pubPeriodsInMonths - 1).toString();
+              if (s1.endsWith("-01-01") && s2.endsWith("-12-01")) {
+                s1 = s1.substring(0, 4);
+                s2 = s2.substring(0, 4);
+              } else {
+                s1 = s1.substring(0, 7);
+                s2 = s2.substring(0, 7);
+              }
+              if (s1.equals(s2)) {
+                pubYearStrings.add(s1);
+              } else {
+                pubYearStrings.add(s1 + "-" + s2);
+              }
             });
           }
-
           LocalDate date = usePeriods.startDate;
           do {
             tuple.addLocalDate(date);
@@ -1548,8 +1571,6 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
               items.add(json);
             });
 
-            JsonArray pubYearStrings = new JsonArray();
-            pubYears.forEach(pubYear -> pubYearStrings.add("" + pubYear.getYear()));
             return new JsonObject()
                 .put("agreementId", agreementId)
                 .put("accessCountPeriods", pubYearStrings)
@@ -1745,9 +1766,9 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
   }
 
   Future<JsonObject> costPerUse(TenantPgPool pool, boolean includeOA, String agreementId,
-                                String start, String end) {
+                                String accessCountPeriod, String start, String end) {
 
-    Periods periods = new Periods(start, end, null);
+    Periods periods = new Periods(start, end, accessCountPeriod);
     Tuple tuple = Tuple.of(agreementId);
     periods.addStartDates(tuple);
     periods.addEnd(tuple);
@@ -1896,8 +1917,8 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
   }
 
   Future<String> getCostPerUse(TenantPgPool pool, boolean includeOA, String agreementId,
-                               String start, String end, boolean csv) {
-    return costPerUse(pool, includeOA, agreementId, start, end)
+                               String accessCountPeriod, String start, String end, boolean csv) {
+    return costPerUse(pool, includeOA, agreementId, accessCountPeriod, start, end)
         .compose(json -> {
           if (!csv) {
             return Future.succeededFuture(json.encodePrettily());
@@ -1917,10 +1938,11 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     boolean csv = "true".equalsIgnoreCase(ctx.request().params().get("csv"));
     boolean includeOA = "true".equalsIgnoreCase(ctx.request().params().get("includeOA"));
     String agreementId = ctx.request().params().get("agreementId");
+    String accessCountPeriod = ctx.request().params().get("accessCountPeriod");
     String start = ctx.request().params().get("startDate");
     String end = ctx.request().params().get("endDate");
 
-    return getCostPerUse(pool, includeOA, agreementId, start, end, csv)
+    return getCostPerUse(pool, includeOA, agreementId, accessCountPeriod, start, end, csv)
         .map(res -> {
           ctx.response().setStatusCode(200);
           ctx.response().putHeader("Content-Type", csv ? "text/csv" : "application/json");
