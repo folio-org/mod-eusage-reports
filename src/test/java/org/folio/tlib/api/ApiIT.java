@@ -133,11 +133,12 @@ public class ApiIT {
     postTenant();
     given().
         param("agreementId", "10000000-0000-4000-8000-000000000000").
+        param("csv", "true").
         param("startDate", "2020-03").
         param("endDate", "2020-04").
         param("format", "JOURNAL").
         when().
-        get("/eusage-reports/stored-reports/use-over-time/csv").
+        get("/eusage-reports/stored-reports/use-over-time").
         then().
         statusCode(200).
         contentType("text/csv").
@@ -163,10 +164,11 @@ public class ApiIT {
     postTenant();
     given().
         param("agreementId", "10000000-0000-4000-8000-000000000000").
+        param("csv", "true").
         param("startDate", "2020-03").
         param("endDate", "2020-04").
         when().
-        get("/eusage-reports/stored-reports/reqs-by-date-of-use/csv").
+        get("/eusage-reports/stored-reports/reqs-by-date-of-use").
         then().
         statusCode(200).
         contentType("text/csv").
@@ -195,11 +197,12 @@ public class ApiIT {
     postTenant();
     given().
         param("agreementId", "10000000-0000-4000-8000-000000000000").
+        param("csv", "true").
         param("startDate", "2020-03").
         param("endDate", "2020-04").
         param("periodOfUse", "1Y").
         when().
-        get("/eusage-reports/stored-reports/reqs-by-pub-year/csv").
+        get("/eusage-reports/stored-reports/reqs-by-pub-year").
         then().
         statusCode(200).
         contentType("text/csv").
@@ -224,10 +227,11 @@ public class ApiIT {
     postTenant();
     given().
         param("agreementId", "10000000-0000-4000-8000-000000000000").
+        param("csv", "true").
         param("startDate", "2020-03").
         param("endDate", "2020-04").
         when().
-        get("/eusage-reports/stored-reports/cost-per-use/csv").
+        get("/eusage-reports/stored-reports/cost-per-use").
         then().
         statusCode(200).
         contentType("text/csv").

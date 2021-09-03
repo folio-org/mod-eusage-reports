@@ -1204,10 +1204,11 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     }
   }
 
-  Future<Void> getUseOverTime(Vertx vertx, RoutingContext ctx, boolean csv) {
+  Future<Void> getUseOverTime(Vertx vertx, RoutingContext ctx) {
     String format = ctx.request().params().get("format");
     boolean isJournal;
 
+    boolean csv = "true".equalsIgnoreCase(ctx.request().params().get("csv"));
     switch (format) {
       case "JOURNAL":
         isJournal = true;
@@ -1416,8 +1417,9 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
         .append("(printISSN IS NULL AND onlineISSN IS NULL)");
   }
 
-  Future<Void> getReqsByDateOfUse(Vertx vertx, RoutingContext ctx, boolean csv) {
+  Future<Void> getReqsByDateOfUse(Vertx vertx, RoutingContext ctx) {
     TenantPgPool pool = TenantPgPool.pool(vertx, TenantUtil.tenant(ctx));
+    boolean csv = "true".equalsIgnoreCase(ctx.request().params().get("csv"));
     String agreementId = ctx.request().params().get("agreementId");
     String accessCountPeriod = ctx.request().params().get("accessCountPeriod");
     String start = ctx.request().params().get("startDate");
@@ -1440,8 +1442,9 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
         new JsonObject(ResourceUtil.load("/openapi/examples/report.json")));
   }
 
-  Future<Void> getReqsByPubYear(Vertx vertx, RoutingContext ctx, boolean csv) {
+  Future<Void> getReqsByPubYear(Vertx vertx, RoutingContext ctx) {
     TenantPgPool pool = TenantPgPool.pool(vertx, TenantUtil.tenant(ctx));
+    boolean csv = "true".equalsIgnoreCase(ctx.request().params().get("csv"));
     boolean includeOA = "true".equalsIgnoreCase(ctx.request().params().get("includeOA"));
     String agreementId = ctx.request().params().get("agreementId");
     String accessCountPeriod = ctx.request().params().get("accessCountPeriod");
@@ -1930,8 +1933,9 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
         });
   }
 
-  Future<Void> getCostPerUse(Vertx vertx, RoutingContext ctx, boolean csv) {
+  Future<Void> getCostPerUse(Vertx vertx, RoutingContext ctx) {
     TenantPgPool pool = TenantPgPool.pool(vertx, TenantUtil.tenant(ctx));
+    boolean csv = "true".equalsIgnoreCase(ctx.request().params().get("csv"));
     boolean includeOA = "true".equalsIgnoreCase(ctx.request().params().get("includeOA"));
     String agreementId = ctx.request().params().get("agreementId");
     String accessCountPeriod = ctx.request().params().get("accessCountPeriod");
@@ -1973,14 +1977,10 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
           add(routerBuilder, "getTitleData", ctx -> getTitleData(vertx, ctx));
           add(routerBuilder, "getReportData", ctx -> getReportData(vertx, ctx));
           add(routerBuilder, "postFromAgreement", ctx -> postFromAgreement(vertx, ctx));
-          add(routerBuilder, "getUseOverTime", ctx -> getUseOverTime(vertx, ctx, false));
-          add(routerBuilder, "getUseOverTimeCsv", ctx -> getUseOverTime(vertx, ctx, true));
-          add(routerBuilder, "getReqsByDateOfUse", ctx -> getReqsByDateOfUse(vertx, ctx, false));
-          add(routerBuilder, "getReqsByDateOfUseCsv", ctx -> getReqsByDateOfUse(vertx, ctx, true));
-          add(routerBuilder, "getReqsByPubYear", ctx -> getReqsByPubYear(vertx, ctx, false));
-          add(routerBuilder, "getReqsByPubYearCsv", ctx -> getReqsByPubYear(vertx, ctx, true));
-          add(routerBuilder, "getCostPerUse", ctx -> getCostPerUse(vertx, ctx, false));
-          add(routerBuilder, "getCostPerUseCsv", ctx -> getCostPerUse(vertx, ctx, true));
+          add(routerBuilder, "getUseOverTime", ctx -> getUseOverTime(vertx, ctx));
+          add(routerBuilder, "getReqsByDateOfUse", ctx -> getReqsByDateOfUse(vertx, ctx));
+          add(routerBuilder, "getReqsByPubYear", ctx -> getReqsByPubYear(vertx, ctx));
+          add(routerBuilder, "getCostPerUse", ctx -> getCostPerUse(vertx, ctx));
           return routerBuilder.createRouter();
         });
   }

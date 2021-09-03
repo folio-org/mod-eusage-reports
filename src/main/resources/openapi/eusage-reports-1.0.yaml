@@ -155,6 +155,7 @@ paths:
       - $ref: headers/okapi-url.yaml
       - $ref: parameters/access-count-period.yaml
       - $ref: parameters/agreement-id.yaml
+      - $ref: parameters/csv.yaml
       - $ref: parameters/start-date.yaml
       - $ref: parameters/end-date.yaml
       - $ref: parameters/format.yaml
@@ -211,6 +212,7 @@ paths:
       - $ref: headers/okapi-url.yaml
       - $ref: parameters/access-count-period.yaml
       - $ref: parameters/agreement-id.yaml
+      - $ref: parameters/csv.yaml
       - $ref: parameters/start-date.yaml
       - $ref: parameters/end-date.yaml
       - $ref: parameters/include-oa.yaml
@@ -263,6 +265,7 @@ paths:
       - $ref: headers/okapi-url.yaml
       - $ref: parameters/access-count-period.yaml
       - $ref: parameters/agreement-id.yaml
+      - $ref: parameters/csv.yaml
       - $ref: parameters/start-date.yaml
       - $ref: parameters/end-date.yaml
       - $ref: parameters/include-oa.yaml
@@ -323,6 +326,7 @@ paths:
       - $ref: headers/okapi-url.yaml
       - $ref: parameters/access-count-period.yaml
       - $ref: parameters/agreement-id.yaml
+      - $ref: parameters/csv.yaml
       - $ref: parameters/start-date.yaml
       - $ref: parameters/end-date.yaml
       - $ref: parameters/include-oa.yaml
