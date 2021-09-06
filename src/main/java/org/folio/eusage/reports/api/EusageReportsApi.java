@@ -1795,9 +1795,6 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
           Long uniqueAccessCount = row.getLong(13 + i * 2);
           log.debug("Inspecting i={} totalAccessCount={} uniqueAccessCount={}",
               i, totalAccessCount, uniqueAccessCount);
-          if (totalAccessCount == null || uniqueAccessCount == null) {
-            continue;
-          }
           titleCountByPeriod.set(i, titleCountByPeriod.getLong(i) + 1L);
         }
       });
