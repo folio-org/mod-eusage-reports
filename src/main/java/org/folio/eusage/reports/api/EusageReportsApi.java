@@ -1216,14 +1216,6 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
       case "BOOK":
         isJournal = false;
         break;
-      case "DATABASE":
-        return getUseOverTimeDatabase(vertx, ctx)
-            .map(json -> {
-              ctx.response().setStatusCode(200);
-              ctx.response().putHeader("Content-Type", csv ? "text/csv" : "application/json");
-              ctx.response().end(json.encodePrettily());
-              return null;
-            });
       default:
         throw new IllegalArgumentException("format = " + format);
     }
@@ -1434,12 +1426,6 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
           ctx.response().end(res);
           return null;
         });
-  }
-
-  Future<JsonObject> getUseOverTimeDatabase(Vertx vertx, RoutingContext ctx) {
-    // Work in Progress (WIP), hardcoded example JSON
-    return Future.succeededFuture(
-        new JsonObject(ResourceUtil.load("/openapi/examples/report.json")));
   }
 
   Future<Void> getReqsByPubYear(Vertx vertx, RoutingContext ctx) {
