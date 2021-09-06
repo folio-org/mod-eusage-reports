@@ -372,8 +372,10 @@ public class EusageReportsApiTest {
   public void useOverTimeCsv(TestContext context) {
     new EusageReportsApi().getUseOverTime(pool, true, true, false, a1, null, "2020-04", "2020-05", false)
         .onComplete(context.asyncAssertSuccess(res0 -> {
+          System.out.println(res0);
           new EusageReportsApi().getUseOverTime(pool, true, true, false, a1, null,"2020-04", "2020-05", true)
               .onComplete(context.asyncAssertSuccess(res -> {
+                System.out.println(res);
                 assertThat(res, containsString("Title,Print ISSN,Online ISSN,Access type,Metric Type,Reporing period total,2020-04,2020-05"));
                 assertThat(res, containsString("Totals - total item requests,,,,,56,22,34"));
                 assertThat(res, containsString("Totals - unique item requests,,,,,38,20,18"));
@@ -840,6 +842,7 @@ public class EusageReportsApiTest {
           ArgumentCaptor<String> body = ArgumentCaptor.forClass(String.class);
           verify(routingContext.response()).end(body.capture());
           String res = body.getValue();
+          System.out.println(res);
           assertThat(res, containsString("Agreement line,Publication Type,Print ISSN,Online ISSN,"));
         }));
   }

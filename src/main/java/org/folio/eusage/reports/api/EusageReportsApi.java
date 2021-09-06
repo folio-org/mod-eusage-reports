@@ -1684,6 +1684,14 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     return Double.parseDouble(costDecimalFormat.format(n));
   }
 
+  static long getTotalInLongArray(JsonArray ar, String key) {
+    long n = 0;
+    for (int i = 0; i < ar.size(); i++) {
+      n += ar.getJsonObject(i).getLong(key);
+    }
+    return n;
+  }
+
   static void getCostPerUse2Csv(JsonObject json, Appendable appendable)
       throws IOException {
     CSVPrinter writer = new CSVPrinter(appendable, CSVFormat.EXCEL);
@@ -1707,6 +1715,54 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     writer.print("Cost per request - total");
     writer.print("Cost per request - unique");
     writer.println();
+
+    writer.print("Totals"); // agreement line
+    writer.print(null); // publication type
+    writer.print(null); // print issn
+    writer.print(null); // online ISSN
+    writer.print(null); // ISBN
+    writer.print(null); // Order type
+    writer.print(null); // Purchase order line
+    writer.print(null); // Invoice number
+    writer.print(null);  // fiscal year start
+    writer.print(null);  // fiscal year end
+    writer.print(null);  // subscription date start
+    writer.print(null);  // subscription date end
+    writer.print(null); // Reporting period
+    writer.print(json.getDouble("amountEncumberedTotal"));
+    Double amountPaidTotal = json.getDouble("amountPaidTotal");
+    writer.print(formatCost(amountPaidTotal));
+    JsonArray items = json.getJsonArray("items");
+    long totalItemRequests = getTotalInLongArray(items, "totalItemRequests");
+    writer.print(totalItemRequests);
+    long uniqueItemRequests = getTotalInLongArray(items, "uniqueItemRequests");
+    writer.print(uniqueItemRequests);
+    writer.print(totalItemRequests == 0 ? null : formatCost(amountPaidTotal / totalItemRequests));
+    writer.print(uniqueItemRequests == 0 ? null : formatCost(amountPaidTotal / uniqueItemRequests));
+    writer.println();
+
+    for (int i = 0; i < items.size(); i++) {
+      JsonObject item = items.getJsonObject(i);
+      writer.print(item.getString("title"));
+      writer.print(item.getBoolean("derivedTitle") ? "Y" : "N");
+      writer.print(item.getString("printISSN"));
+      writer.print(item.getString("onlineISSN"));
+      writer.print(item.getString("ISBN"));
+      writer.print(item.getString("orderType"));
+      writer.print(item.getString("poLineIDs"));
+      writer.print(item.getString("invoiceNumbers"));
+      writer.print(item.getString("fiscalDateStart"));
+      writer.print(item.getString("fiscalDateEnd"));
+      writer.print(item.getString("subscriptionDateStart"));
+      writer.print(item.getString("subscriptionDateEnd"));
+      writer.print(item.getString("amountEncumbered"));
+      writer.print(item.getString("amountPaid"));
+      writer.print(item.getLong("totalItemRequests"));
+      writer.print(item.getLong("uniqueItemRequests"));
+      writer.print(item.getLong("costPerTotalRequest"));
+      writer.print(item.getLong("costPerUniqueRequest"));
+      writer.println();
+    }
   }
 
   private static void costPerUse(StringBuilder sql, TenantPgPool pool,
@@ -1791,6 +1847,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
       for (int i = 0; i < periods.size(); i++) {
         totalTitles.addAndGet(titleCountByPeriod.getLong(i));
       }
+      JsonObject json = new JsonObject();
       JsonArray items = new JsonArray();
       rowSet.forEach(row -> {
         log.info("AD: row={}", row.deepToString());
@@ -1842,11 +1899,13 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
           if (encumberedCost != null) {
             item.put("amountEncumbered", formatCost(
                 encumberedCost.doubleValue() / totalTitles.get()));
+            json.put("amountEncumberedTotal", encumberedCost);
           }
           Number amountPaid = row.getNumeric(11);
           if (amountPaid != null) {
             item.put("amountPaid", formatCost(
                 amountPaid.doubleValue() / totalTitles.get()));
+            json.put("amountPaidTotal", amountPaid);
           }
           item.put("totalItemRequests", totalAccessCount);
           item.put("uniqueItemRequests", uniqueAccessCount);
@@ -1892,7 +1951,6 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
           uniqueItemCostsPerRequestsByPeriod.addNull();
         }
       }
-      JsonObject json = new JsonObject();
       json.put("accessCountPeriods", periods.getAccessCountPeriods());
       json.put("totalItemCostsPerRequestsByPeriod", totalItemCostsPerRequestsByPeriod);
       json.put("uniqueItemCostsPerRequestsByPeriod", uniqueItemCostsPerRequestsByPeriod);
