@@ -145,16 +145,6 @@ public class EusageReportsApiTest {
   }
 
   @Test
-  public void useOverTimeDatabase() {
-    assertThat(getUseOverTime("DATABASE", "2020-03-01", "2020-04-01", false).result(), containsString("2020-03"));
-  }
-
-  @Test
-  public void useOverTimeDatabaseCsv() {
-    assertThat(getUseOverTime("DATABASE", "2020-03-01", "2020-04-01", true).result(), containsString("2020-03"));
-  }
-
-  @Test
   public void useOverTimeUnknownFormat() {
     Throwable t = assertThrows(IllegalArgumentException.class, () ->
     getUseOverTime("FOO", "2020-04-01", "2020-02-01", false));
