@@ -246,6 +246,7 @@ paths:
       - $ref: parameters/csv.yaml
       - $ref: parameters/start-date.yaml
       - $ref: parameters/end-date.yaml
+      - $ref: parameters/format.yaml
       - $ref: parameters/include-oa.yaml
     get:
       description: Return cost per where usageDateRange falls within startDate, endDate.
@@ -274,6 +275,7 @@ paths:
         "500":
           $ref: "#/components/responses/trait_500"
 components:
+
   responses:
     trait_400:
       description: Bad request

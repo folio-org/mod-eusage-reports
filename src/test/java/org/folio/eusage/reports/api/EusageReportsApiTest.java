@@ -882,13 +882,70 @@ public class EusageReportsApiTest {
   }
 
   @Test
-  public void costPerUseWithRoutingContextCsv(TestContext context) {
+  public void costPerFormatAllCsv(TestContext context) {
     RoutingContext routingContext = mock(RoutingContext.class, RETURNS_DEEP_STUBS);
     when(routingContext.request().getHeader("X-Okapi-Tenant")).thenReturn(tenant);
-    when(routingContext.request().params().get("agreementId")).thenReturn(a1);
+    when(routingContext.request().params().get("agreementId")).thenReturn(a2);
     when(routingContext.request().params().get("csv")).thenReturn("true");
-    when(routingContext.request().params().get("startDate")).thenReturn("2020-04");
-    when(routingContext.request().params().get("endDate")).thenReturn("2020-08");
+    when(routingContext.request().params().get("startDate")).thenReturn("2020-05");
+    when(routingContext.request().params().get("endDate")).thenReturn("2020-06");
+    when(routingContext.request().params().get("includeOA")).thenReturn("true");
+    new EusageReportsApi().getCostPerUse(vertx, routingContext)
+        .onComplete(context.asyncAssertSuccess(x -> {
+          ArgumentCaptor<String> body = ArgumentCaptor.forClass(String.class);
+          verify(routingContext.response()).end(body.capture());
+          String res = body.getValue();
+          System.out.println(res);
+          StringReader reader = new StringReader(res);
+          try {
+            CSVParser parser = new CSVParser(reader, EusageReportsApi.CSV_FORMAT);
+            List<CSVRecord> records = parser.getRecords();
+            CSVRecord header = records.get(0);
+            CSVRecord totals = records.get(1);
+            context.assertEquals("Agreement line", header.get(0));
+            context.assertEquals("Print ISSN", header.get(2));
+            context.assertEquals("Online ISSN", header.get(3));
+            context.assertEquals("ISBN", header.get(4));
+            context.assertEquals("Order type", header.get(5));
+            context.assertEquals("Totals", totals.get(0));
+            context.assertEquals(6, records.size());
+            context.assertEquals("Title 21", records.get(2).get(0));
+            context.assertEquals("Title 22", records.get(3).get(0));
+            context.assertEquals("Title 31", records.get(4).get(0));
+            context.assertEquals("Title 32", records.get(5).get(0));
+            context.assertEquals("Purchase order line", header.get(6));
+            context.assertEquals("p2", records.get(2).get(6));
+            context.assertEquals("p2", records.get(3).get(6));
+            context.assertEquals("Invoice number", header.get(7));
+            context.assertEquals("i2", records.get(2).get(7));
+            context.assertEquals("i2", records.get(3).get(7));
+            context.assertEquals("Cost per request - total", header.get(16));
+            context.assertEquals("0.42", totals.get(16));
+            context.assertEquals("1.25", records.get(2).get(16));
+            context.assertEquals("", records.get(3).get(16));
+            context.assertEquals("1.31", records.get(4).get(16));
+            context.assertEquals("26.25", records.get(5).get(16));
+            context.assertEquals("Cost per request - unique", header.get(17));
+            context.assertEquals("0.83", totals.get(17));
+            context.assertEquals("2.5", records.get(2).get(17));
+            context.assertEquals("", records.get(3).get(17));
+            context.assertEquals("2.62", records.get(4).get(17));
+            context.assertEquals("52.5", records.get(5).get(17));
+          } catch (IOException e) {
+            context.fail(e);
+          }
+        }));
+  }
+
+  @Test
+  public void costPerUseFormatBookCsv(TestContext context) {
+    RoutingContext routingContext = mock(RoutingContext.class, RETURNS_DEEP_STUBS);
+    when(routingContext.request().getHeader("X-Okapi-Tenant")).thenReturn(tenant);
+    when(routingContext.request().params().get("agreementId")).thenReturn(a2);
+    when(routingContext.request().params().get("format")).thenReturn("BOOK");
+    when(routingContext.request().params().get("csv")).thenReturn("true");
+    when(routingContext.request().params().get("startDate")).thenReturn("2020-05");
+    when(routingContext.request().params().get("endDate")).thenReturn("2020-06");
     when(routingContext.request().params().get("includeOA")).thenReturn("true");
     new EusageReportsApi().getCostPerUse(vertx, routingContext)
         .onComplete(context.asyncAssertSuccess(x -> {
@@ -904,23 +961,49 @@ public class EusageReportsApiTest {
             CSVRecord totals = records.get(1);
             context.assertEquals("Agreement line", header.get(0));
             context.assertEquals("Totals", totals.get(0));
+            context.assertEquals("ISBN", header.get(2));
+            context.assertEquals("Order type", header.get(3));
             context.assertEquals(4, records.size());
-            context.assertEquals("Title 11", records.get(2).get(0));
-            context.assertEquals("Title 12", records.get(3).get(0));
-            context.assertEquals("Purchase order line", header.get(6));
-            context.assertEquals("p1", records.get(2).get(6));
-            context.assertEquals("p1", records.get(3).get(6));
-            context.assertEquals("Invoice number", header.get(7));
-            context.assertEquals("i1", records.get(2).get(7));
-            context.assertEquals("i1", records.get(3).get(7));
-            context.assertEquals("Cost per request - total", header.get(16));
-            context.assertEquals("0.54", totals.get(16));
-            context.assertEquals("1.17", records.get(2).get(16));
-            context.assertEquals("1.45", records.get(3).get(16));
-            context.assertEquals("Cost per request - unique", header.get(17));
-            context.assertEquals("0.98", totals.get(17));
-            context.assertEquals("3.06", records.get(2).get(17));
-            context.assertEquals("1.9", records.get(3).get(17));
+            context.assertEquals("Title 31", records.get(2).get(0));
+            context.assertEquals("Title 32", records.get(3).get(0));
+            context.assertEquals("Cost per request - total", header.get(14));
+          } catch (IOException e) {
+            context.fail(e);
+          }
+        }));
+  }
+
+  @Test
+  public void costPerUseFormatJournalCsv(TestContext context) {
+    RoutingContext routingContext = mock(RoutingContext.class, RETURNS_DEEP_STUBS);
+    when(routingContext.request().getHeader("X-Okapi-Tenant")).thenReturn(tenant);
+    when(routingContext.request().params().get("agreementId")).thenReturn(a2);
+    when(routingContext.request().params().get("format")).thenReturn("JOURNAL");
+    when(routingContext.request().params().get("csv")).thenReturn("true");
+    when(routingContext.request().params().get("startDate")).thenReturn("2020-05");
+    when(routingContext.request().params().get("endDate")).thenReturn("2020-06");
+    when(routingContext.request().params().get("includeOA")).thenReturn("true");
+    new EusageReportsApi().getCostPerUse(vertx, routingContext)
+        .onComplete(context.asyncAssertSuccess(x -> {
+          ArgumentCaptor<String> body = ArgumentCaptor.forClass(String.class);
+          verify(routingContext.response()).end(body.capture());
+          String res = body.getValue();
+          System.out.println(res);
+          StringReader reader = new StringReader(res);
+          try {
+            CSVParser parser = new CSVParser(reader, EusageReportsApi.CSV_FORMAT);
+            List<CSVRecord> records = parser.getRecords();
+            CSVRecord header = records.get(0);
+            CSVRecord totals = records.get(1);
+            context.assertEquals("Agreement line", header.get(0));
+            context.assertEquals("Totals", totals.get(0));
+            context.assertEquals("Print ISSN", header.get(2));
+            context.assertEquals("Online ISSN", header.get(3));
+            context.assertEquals("Order type", header.get(4));
+            context.assertEquals(4, records.size());
+            context.assertEquals("Title 21", records.get(2).get(0));
+            context.assertEquals("Title 22", records.get(3).get(0));
+            context.assertEquals("Cost per request - total", header.get(15));
           } catch (IOException e) {
             context.fail(e);
           }

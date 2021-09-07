@@ -1723,14 +1723,18 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     return String.join(" ", ar.getList());
   }
 
-  static void getCostPerUse2Csv(JsonObject json, Appendable appendable)
+  static void getCostPerUse2Csv(JsonObject json, Boolean isJournal, Appendable appendable)
       throws IOException {
     CSVPrinter writer = new CSVPrinter(appendable, CSV_FORMAT);
     writer.print("Agreement line");
-    writer.print("Publication Type");
-    writer.print("Print ISSN");
-    writer.print("Online ISSN");
-    writer.print("ISBN");
+    writer.print("Derived Title");
+    if (isJournal == null || isJournal) {
+      writer.print("Print ISSN");
+      writer.print("Online ISSN");
+    }
+    if (isJournal == null || !isJournal) {
+      writer.print("ISBN");
+    }
     writer.print("Order type");
     writer.print("Purchase order line");
     writer.print("Invoice number");
@@ -1748,9 +1752,13 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
 
     writer.print("Totals"); // agreement line
     writer.print(null); // publication type
-    writer.print(null); // print issn
-    writer.print(null); // online ISSN
-    writer.print(null); // ISBN
+    if (isJournal == null || isJournal) {
+      writer.print(null); // print issn
+      writer.print(null); // online ISSN
+    }
+    if (isJournal == null || !isJournal) {
+      writer.print(null); // ISBN
+    }
     writer.print(null); // Order type
     writer.print(null); // Purchase order line
     writer.print(null); // Invoice number
@@ -1774,9 +1782,13 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
       JsonObject item = items.getJsonObject(i);
       writer.print(item.getString("title"));
       writer.print(item.getBoolean("derivedTitle") ? "Y" : "N");
-      writer.print(item.getString("printISSN"));
-      writer.print(item.getString("onlineISSN"));
-      writer.print(item.getString("ISBN"));
+      if (isJournal == null || isJournal) {
+        writer.print(item.getString("printISSN"));
+        writer.print(item.getString("onlineISSN"));
+      }
+      if (isJournal == null || !isJournal) {
+        writer.print(item.getString("ISBN"));
+      }
       writer.print(item.getString("orderType"));
       writer.print(orderLinesToString(item.getJsonArray("poLineIDs")));
       writer.print(orderLinesToString(item.getJsonArray("invoiceNumbers")));
@@ -1795,6 +1807,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
   }
 
   private static void costPerUse(StringBuilder sql, TenantPgPool pool,
+                                 Boolean isJournal,
                                  boolean includeOA, int periods) {
     sql
         .append("SELECT title_entries.kbTitleId AS kbId, kbTitleName AS title,")
@@ -1834,11 +1847,16 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
 
     }
     sql.append(" WHERE agreementId = $1");
+    if (isJournal != null) {
+      sql.append(isJournal ? " AND (printISSN IS NOT NULL OR onlineISSN IS NOT NULL)"
+          : " AND (printISSN IS NULL AND onlineISSN IS NULL)");
+    }
   }
 
 
-  Future<JsonObject> costPerUse(TenantPgPool pool, boolean includeOA, String agreementId,
-                                String accessCountPeriod, String start, String end) {
+  Future<JsonObject> costPerUse(TenantPgPool pool, Boolean isJournal, boolean includeOA,
+                                String agreementId, String accessCountPeriod,
+                                String start, String end) {
 
     Periods periods = new Periods(start, end, accessCountPeriod);
     Tuple tuple = Tuple.of(agreementId);
@@ -1846,7 +1864,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     periods.addEnd(tuple);
 
     StringBuilder sql = new StringBuilder();
-    costPerUse(sql, pool, includeOA, periods.size());
+    costPerUse(sql, pool, isJournal, includeOA, periods.size());
     sql.append(" ORDER BY title");
     log.info("AD: costPerUse SQL={}", sql.toString());
 
@@ -2003,16 +2021,17 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     json.put("items", items);
   }
 
-  Future<String> getCostPerUse(TenantPgPool pool, boolean includeOA, String agreementId,
-                               String accessCountPeriod, String start, String end, boolean csv) {
-    return costPerUse(pool, includeOA, agreementId, accessCountPeriod, start, end)
+  Future<String> getCostPerUse(TenantPgPool pool, Boolean isJournal, boolean includeOA,
+                               String agreementId, String accessCountPeriod, String start,
+                               String end, boolean csv) {
+    return costPerUse(pool, isJournal, includeOA, agreementId, accessCountPeriod, start, end)
         .compose(json -> {
           if (!csv) {
             return Future.succeededFuture(json.encodePrettily());
           }
           try {
             StringWriter stringWriter = new StringWriter();
-            getCostPerUse2Csv(json, stringWriter);
+            getCostPerUse2Csv(json, isJournal, stringWriter);
             return Future.succeededFuture(stringWriter.toString());
           } catch (IOException e) {
             return Future.failedFuture(e);
@@ -2022,6 +2041,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
 
   Future<Void> getCostPerUse(Vertx vertx, RoutingContext ctx) {
     TenantPgPool pool = TenantPgPool.pool(vertx, TenantUtil.tenant(ctx));
+    Boolean isJournal = getJournalFromFormat(ctx, "ALL");
     boolean csv = "true".equalsIgnoreCase(ctx.request().params().get("csv"));
     boolean includeOA = "true".equalsIgnoreCase(ctx.request().params().get("includeOA"));
     String agreementId = ctx.request().params().get("agreementId");
@@ -2029,7 +2049,8 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     String start = ctx.request().params().get("startDate");
     String end = ctx.request().params().get("endDate");
 
-    return getCostPerUse(pool, includeOA, agreementId, accessCountPeriod, start, end, csv)
+    return getCostPerUse(pool, isJournal, includeOA, agreementId, accessCountPeriod,
+        start, end, csv)
         .map(res -> {
           ctx.response().setStatusCode(200);
           ctx.response().putHeader("Content-Type", csv ? "text/csv" : "application/json");
