@@ -1694,6 +1694,13 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     return n;
   }
 
+  static String orderLinesToString(JsonArray ar) {
+    if (ar == null) {
+      return null;
+    }
+    return String.join(" ", ar.getList());
+  }
+
   static void getCostPerUse2Csv(JsonObject json, Appendable appendable)
       throws IOException {
     CSVPrinter writer = new CSVPrinter(appendable, CSV_FORMAT);
@@ -1749,8 +1756,8 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
       writer.print(item.getString("onlineISSN"));
       writer.print(item.getString("ISBN"));
       writer.print(item.getString("orderType"));
-      writer.print(item.getString("poLineIDs"));
-      writer.print(item.getString("invoiceNumbers"));
+      writer.print(orderLinesToString(item.getJsonArray("poLineIDs")));
+      writer.print(orderLinesToString(item.getJsonArray("invoiceNumbers")));
       writer.print(item.getString("fiscalDateStart"));
       writer.print(item.getString("fiscalDateEnd"));
       writer.print(item.getString("subscriptionDateStart"));

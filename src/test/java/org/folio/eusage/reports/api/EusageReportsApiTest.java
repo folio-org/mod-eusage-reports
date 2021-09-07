@@ -855,6 +855,12 @@ public class EusageReportsApiTest {
             context.assertEquals(4, records.size());
             context.assertEquals("Title 11", records.get(2).get(0));
             context.assertEquals("Title 12", records.get(3).get(0));
+            context.assertEquals("Purchase order line", header.get(6));
+            context.assertEquals("p1", records.get(2).get(6));
+            context.assertEquals("p1", records.get(3).get(6));
+            context.assertEquals("Invoice number", header.get(7));
+            context.assertEquals("i1", records.get(2).get(7));
+            context.assertEquals("i1", records.get(3).get(7));
             context.assertEquals("Cost per request - total", header.get(16));
             context.assertEquals("1.29", totals.get(16));
             context.assertEquals("1.17", records.get(2).get(16));
