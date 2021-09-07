@@ -1,7 +1,6 @@
 in: query
 name: format
-description: item format type; an item is a journal if it has a printISSN or an onlineISSN
-required: true
+description: item format type
 schema:
   type: string
-  pattern: ^(BOOK|JOURNAL|DATABASE)$
+  pattern: ^(BOOK|JOURNAL|ALL)$

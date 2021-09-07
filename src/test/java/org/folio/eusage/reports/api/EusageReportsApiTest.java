@@ -131,7 +131,7 @@ public class EusageReportsApiTest {
 
   @Test
   public void useOverTimeCsvOK(TestContext context) {
-    getUseOverTime("BOOK", "2020", "2021", true)
+    getUseOverTime("ALL", "2020", "2021", true)
         .onComplete(context.asyncAssertSuccess());
   }
 
@@ -140,7 +140,6 @@ public class EusageReportsApiTest {
     getUseOverTime("BOOK", "2020", "2021", false)
         .onComplete(context.asyncAssertSuccess());
   }
-
 
   @Test
   public void useOverTimeStartDateEndDateLengthMismatch() {
@@ -274,7 +273,7 @@ public class EusageReportsApiTest {
         .mapEmpty();
   }
 
-  private Future<JsonObject> getUseOverTime(boolean isJournal, boolean includeOA, String agreementId, String accessCountPeriod, String start, String end) {
+  private Future<JsonObject> getUseOverTime(Boolean isJournal, Boolean includeOA, String agreementId, String accessCountPeriod, String start, String end) {
     return new EusageReportsApi().getUseOverTime(pool, isJournal, includeOA, false, agreementId, accessCountPeriod, start, end);
   }
 
@@ -406,6 +405,35 @@ public class EusageReportsApiTest {
   }
 
   @Test
+  public void useOverTimeFormatAll(TestContext context) {
+    getUseOverTime(null, true, a3, "auto", "2020-04", "2020-05")
+        .onComplete(context.asyncAssertSuccess(json -> {
+          assertThat(json.getString("agreementId"), is(a3));
+          assertThat((List<?>) json.getJsonArray("accessCountPeriods").getList(), contains("2020-04", "2020-05"));
+          assertThat(json.getLong("totalItemRequestsTotal"), is(56L));
+          assertThat(json.getLong("uniqueItemRequestsTotal"), is(38L));
+          assertThat((Long []) json.getValue("totalItemRequestsByPeriod"), is(arrayContaining(22L, 34L)));
+          assertThat((Long []) json.getValue("uniqueItemRequestsByPeriod"), is(arrayContaining(20L, 18L)));
+          assertThat(json.getJsonArray("items").size(), is(8));
+        })).onComplete(context.asyncAssertSuccess());
+  }
+
+  @Test
+  public void useOverTimeFormatBook(TestContext context) {
+    getUseOverTime(false, true, a3, "auto", "2020-04", "2020-05")
+        .onComplete(context.asyncAssertSuccess(json -> {
+          System.out.println(json.encodePrettily());
+          assertThat(json.getString("agreementId"), is(a3));
+          assertThat((List<?>) json.getJsonArray("accessCountPeriods").getList(), contains("2020-04", "2020-05"));
+          assertThat(json.getLong("totalItemRequestsTotal"), is(nullValue()));
+          assertThat(json.getLong("uniqueItemRequestsTotal"), is(nullValue()));
+          assertThat((Long []) json.getValue("totalItemRequestsByPeriod"), is(arrayContaining(nullValue(), nullValue())));
+          assertThat((Long []) json.getValue("uniqueItemRequestsByPeriod"), is(arrayContaining(nullValue(), nullValue())));
+          assertThat(json.getJsonArray("items").size(), is(0));
+        })).onComplete(context.asyncAssertSuccess());
+  }
+
+  @Test
   public void useOverTimeAccessCountPeriod(TestContext context) {
     getUseOverTime(true, true, a2, "4M", "2020", "2021")
         .onComplete(context.asyncAssertSuccess(json -> {
@@ -413,7 +441,7 @@ public class EusageReportsApiTest {
               contains("2020-01 - 2020-04", "2020-05 - 2020-08", "2020-09 - 2020-12", "2021-01 - 2021-04"));
           assertThat(json.getLong("totalItemRequestsTotal"), is(42L));
           assertThat(json.getLong("uniqueItemRequestsTotal"), is(21L));
-          assertThat((Long []) json.getValue("totalItemRequestsByPeriod"), is(arrayContaining(0L, 42L, null, null)));
+          assertThat((Long []) json.getValue("totalItemRequestsByPeriod"), is(arrayContaining(0L, 42L, null, null )));
           assertThat((Long []) json.getValue("uniqueItemRequestsByPeriod"), is(arrayContaining(0L, 21L, null, null)));
           assertThat(json.getJsonArray("items").size(), is(8));
         }));
@@ -433,12 +461,13 @@ public class EusageReportsApiTest {
 
   @Test
   public void useOverTimeBook(TestContext context) {
-    getUseOverTime(/* journal = */ false, true, a2, null, "2020-05", "2020-06")
+    getUseOverTime(false, true, a2, null, "2020-05", "2020-06")
     .onComplete(context.asyncAssertSuccess(json -> {
       assertThat(json.getLong("totalItemRequestsTotal"), is(42L));
       assertThat(json.getLong("uniqueItemRequestsTotal"), is(21L));
       assertThat((Long []) json.getValue("totalItemRequestsByPeriod"), is(arrayContaining(40L, 2L)));
       assertThat((Long []) json.getValue("uniqueItemRequestsByPeriod"), is(arrayContaining(20L, 1L)));
+      assertThat(json.getJsonArray("items").size(), is(8));
       assertThat(json.getJsonArray("items").getJsonObject(0).encodePrettily(),
           is(new JsonObject()
               .put("kbId", "31000000-0000-4000-8000-000000000000")
@@ -450,6 +479,30 @@ public class EusageReportsApiTest {
               .put("accessCountsByPeriod", new JsonArray("[ 40, null ]"))
               .encodePrettily()));
     }));
+  }
+
+  @Test
+  public void useOverTimeAll(TestContext context) {
+    getUseOverTime(null, true, a2, null, "2020-05", "2020-06")
+        .onComplete(context.asyncAssertSuccess(json -> {
+          assertThat(json.getLong("totalItemRequestsTotal"), is(84L));
+          assertThat(json.getLong("uniqueItemRequestsTotal"), is(42L));
+          assertThat((Long []) json.getValue("totalItemRequestsByPeriod"), is(arrayContaining(80L, 4L)));
+          assertThat((Long []) json.getValue("uniqueItemRequestsByPeriod"), is(arrayContaining(40L, 2L)));
+          assertThat(json.getJsonArray("items").size(), is(16));
+        }));
+  }
+
+  @Test
+  public void useOverTimeJournal(TestContext context) {
+    getUseOverTime(true, true, a2, null, "2020-05", "2020-06")
+        .onComplete(context.asyncAssertSuccess(json -> {
+          assertThat(json.getLong("totalItemRequestsTotal"), is(42L));
+          assertThat(json.getLong("uniqueItemRequestsTotal"), is(21L));
+          assertThat((Long []) json.getValue("totalItemRequestsByPeriod"), is(arrayContaining(40L, 2L)));
+          assertThat((Long []) json.getValue("uniqueItemRequestsByPeriod"), is(arrayContaining(20L, 1L)));
+          assertThat(json.getJsonArray("items").size(), is(8));
+        }));
   }
 
   @Test

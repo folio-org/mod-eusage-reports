@@ -1156,13 +1156,19 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     writer.println();
   }
 
-  static void getUseOverTime2Csv(JsonObject json, boolean groupByPublicationYear,
+  static void getUseOverTime2Csv(JsonObject json, Boolean isJournal,
+                                 boolean groupByPublicationYear,
                                  boolean periodOfUse, Appendable appendable)
       throws IOException {
     CSVPrinter writer = new CSVPrinter(appendable, CSV_FORMAT);
     writer.print("Title");
-    writer.print("Print ISSN");
-    writer.print("Online ISSN");
+    if (isJournal == null || isJournal) {
+      writer.print("Print ISSN");
+      writer.print("Online ISSN");
+    }
+    if (isJournal == null || !isJournal) {
+      writer.print("ISBN");
+    }
     if (periodOfUse) {
       writer.print("Period of use");
     }
@@ -1206,21 +1212,27 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     }
   }
 
-  Future<Void> getUseOverTime(Vertx vertx, RoutingContext ctx) {
+  Boolean getJournalFromFormat(RoutingContext ctx, String def) {
     String format = ctx.request().params().get("format");
-    boolean isJournal;
-
-    boolean csv = "true".equalsIgnoreCase(ctx.request().params().get("csv"));
+    if (format == null) {
+      format = def;
+    }
     switch (format) {
       case "JOURNAL":
-        isJournal = true;
-        break;
+        return Boolean.TRUE;
       case "BOOK":
-        isJournal = false;
-        break;
+        return Boolean.FALSE;
+      case "ALL":
+        return null;
       default:
         throw new IllegalArgumentException("format = " + format);
     }
+  }
+
+  Future<Void> getUseOverTime(Vertx vertx, RoutingContext ctx) {
+    Boolean isJournal = getJournalFromFormat(ctx, "ALL");
+
+    boolean csv = "true".equalsIgnoreCase(ctx.request().params().get("csv"));
 
     TenantPgPool pool = TenantPgPool.pool(vertx, TenantUtil.tenant(ctx));
     String agreementId = ctx.request().params().get("agreementId");
@@ -1239,7 +1251,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
         });
   }
 
-  Future<String> getUseOverTime(TenantPgPool pool, boolean isJournal, boolean includeOA,
+  Future<String> getUseOverTime(TenantPgPool pool, Boolean isJournal, Boolean includeOA,
                                 boolean groupByPublicationYear, String agreementId,
                                 String accessCountPeriod, String start, String end, boolean csv) {
     return getUseOverTime(pool, isJournal, includeOA, groupByPublicationYear, agreementId,
@@ -1250,7 +1262,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
           }
           try {
             StringWriter stringWriter = new StringWriter();
-            getUseOverTime2Csv(json, groupByPublicationYear, false, stringWriter);
+            getUseOverTime2Csv(json, isJournal, groupByPublicationYear, false, stringWriter);
             return Future.succeededFuture(stringWriter.toString());
           } catch (IOException e) {
             return Future.failedFuture(e);
@@ -1259,7 +1271,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
   }
 
   Future<JsonObject> getUseOverTime(TenantPgPool pool,
-      boolean isJournal, boolean includeOA, boolean groupByPublicationYear,
+      Boolean isJournal, boolean includeOA, boolean groupByPublicationYear,
       String agreementId, String accessCountPeriod, String start, String end) {
 
     Periods periods = new Periods(start, end, accessCountPeriod);
@@ -1291,9 +1303,17 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
         JsonArray accessCountsByPeriod = new JsonArray();
         LongAdder accessCountTotal = new LongAdder();
         boolean unique = "Unique_Item_Requests".equals(row.getString("metrictype"));
-        final int journalColumnsToSkip = groupByPublicationYear ? 7 : 6;
-        final int bookColumnsToSkip = 5;
-        int pos0 = isJournal ? journalColumnsToSkip : bookColumnsToSkip;
+        int skip = 4;
+        if (isJournal == null || !isJournal) {
+          skip++;
+        }
+        if (isJournal == null || isJournal) {
+          skip += 2;
+        }
+        if (groupByPublicationYear) {
+          skip++;
+        }
+        int pos0 = skip;
         for (int i = 0; i < periods.size(); i++) {
           Long l = row.getLong(pos0 + i);
           accessCountsByPeriod.add(l);
@@ -1307,11 +1327,11 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
         JsonObject json = new JsonObject()
             .put("kbId", row.getUUID("kbid"))
             .put("title", row.getString("title"));
-        if (isJournal) {
-          json
-              .put("printISSN", row.getString("printissn"))
+        if (isJournal == null || isJournal) {
+          json.put("printISSN", row.getString("printissn"))
               .put("onlineISSN", row.getString("onlineissn"));
-        } else {
+        }
+        if (isJournal == null || !isJournal) {
           json.put("ISBN", row.getString("isbn"));
         }
         if (groupByPublicationYear) {
@@ -1367,12 +1387,12 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
    * </pre>
    */
   private static void useOverTime(StringBuilder sql, TenantPgPool pool,
-                                  boolean isJournal, boolean openAccess, boolean unique,
+                                  Boolean isJournal, boolean openAccess, boolean unique,
                                   boolean groupByPublicationYear, int periods) {
 
-    sql.append("SELECT title_entries.kbTitleId AS kbId, kbTitleName AS title,")
-        .append(isJournal ? " printISSN, onlineISSN, "
-            : " ISBN, ")
+    sql.append("SELECT title_entries.kbTitleId AS kbId, kbTitleName AS title, ")
+        .append(isJournal == null || isJournal ? "printISSN, onlineISSN, " : "")
+        .append(isJournal == null || !isJournal ? "ISBN, " : "")
         .append(groupByPublicationYear ? (periods > 0 ? "t0.publicationYear AS publicationYear, "
             : "null AS publicationYear, ") : "")
         .append(openAccess ? "'OA_Gold' AS accessType, "
@@ -1406,9 +1426,11 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
       .append(" ) t").append(i).append(" ON t").append(i).append(".titleEntryId = ")
         .append(titleEntriesTable(pool)).append(".id");
     }
-    sql.append(" WHERE agreementId = $1 AND ")
-        .append(isJournal ? "NOT " : "")
-        .append("(printISSN IS NULL AND onlineISSN IS NULL)");
+    sql.append(" WHERE agreementId = $1");
+    if (isJournal != null) {
+      sql.append(isJournal ? " AND (printISSN IS NOT NULL OR onlineISSN IS NOT NULL)"
+          : " AND (printISSN IS NULL AND onlineISSN IS NULL)");
+    }
   }
 
   Future<Void> getReqsByDateOfUse(Vertx vertx, RoutingContext ctx) {
@@ -1461,7 +1483,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
           }
           try {
             StringWriter stringWriter = new StringWriter();
-            getUseOverTime2Csv(json, false, true, stringWriter);
+            getUseOverTime2Csv(json, true,false, true, stringWriter);
             return Future.succeededFuture(stringWriter.toString());
           } catch (IOException e) {
             return Future.failedFuture(e);
