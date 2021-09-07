@@ -846,7 +846,7 @@ public class EusageReportsApiTest {
           System.out.println(res);
           StringReader reader = new StringReader(res);
           try {
-            CSVParser parser = new CSVParser(reader, CSVFormat.EXCEL);
+            CSVParser parser = new CSVParser(reader, EusageReportsApi.CSV_FORMAT);
             List<CSVRecord> records = parser.getRecords();
             CSVRecord header = records.get(0);
             CSVRecord totals = records.get(1);

@@ -60,6 +60,8 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
 
   private WebClient webClient;
 
+  static final CSVFormat CSV_FORMAT = CSVFormat.RFC4180;
+
   static DecimalFormat costDecimalFormat = new DecimalFormat("#.00");
 
   static String titleEntriesTable(TenantPgPool pool) {
@@ -1157,7 +1159,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
   static void getUseOverTime2Csv(JsonObject json, boolean groupByPublicationYear,
                                  boolean periodOfUse, Appendable appendable)
       throws IOException {
-    CSVPrinter writer = new CSVPrinter(appendable, CSVFormat.EXCEL);
+    CSVPrinter writer = new CSVPrinter(appendable, CSV_FORMAT);
     writer.print("Title");
     writer.print("Print ISSN");
     writer.print("Online ISSN");
@@ -1694,7 +1696,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
 
   static void getCostPerUse2Csv(JsonObject json, Appendable appendable)
       throws IOException {
-    CSVPrinter writer = new CSVPrinter(appendable, CSVFormat.EXCEL);
+    CSVPrinter writer = new CSVPrinter(appendable, CSV_FORMAT);
     writer.print("Agreement line");
     writer.print("Publication Type");
     writer.print("Print ISSN");
