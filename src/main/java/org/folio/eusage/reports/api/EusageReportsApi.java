@@ -1956,7 +1956,8 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
       if (encumberedCost != null) {
         item.put("amountEncumbered", formatCost(
             encumberedCost.doubleValue() / totalTitles));
-        json.put("amountEncumberedTotal", encumberedCost);
+        json.put("amountEncumberedTotal",
+            formatCost(periods.size() * encumberedCost.doubleValue() / subscriptionMonths));
       }
       Number amountPaid = row.getNumeric(11);
       if (amountPaid != null) {
@@ -1965,9 +1966,11 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
         }
         Double paidByTitle = amountPaid.doubleValue() / totalTitles;
         item.put("amountPaid", formatCost(paidByTitle));
-        json.put("amountPaidTotal", formatCost(amountPaid.doubleValue()));
+        json.put("amountPaidTotal",
+            formatCost(periods.size() * amountPaid.doubleValue() / subscriptionMonths));
         if (totalItemRequests != 0L) {
-          item.put("costPerTotalRequest", formatCost(paidByTitle / totalItemRequests));
+          item.put("costPerTotalRequest",
+              formatCost(paidByTitle / totalItemRequests));
         }
         if (uniqueItemRequests != 0L) {
           item.put("costPerUniqueRequest", formatCost(paidByTitle / uniqueItemRequests));

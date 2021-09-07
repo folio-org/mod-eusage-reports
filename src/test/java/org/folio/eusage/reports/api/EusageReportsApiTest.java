@@ -861,11 +861,11 @@ public class EusageReportsApiTest {
             context.assertEquals("i1", records.get(2).get(7));
             context.assertEquals("i1", records.get(3).get(7));
             context.assertEquals("Cost per request - total", header.get(16));
-            context.assertEquals("1.29", totals.get(16));
+            context.assertEquals("0.54", totals.get(16));
             context.assertEquals("1.17", records.get(2).get(16));
             context.assertEquals("1.45", records.get(3).get(16));
             context.assertEquals("Cost per request - unique", header.get(17));
-            context.assertEquals("2.34", totals.get(17));
+            context.assertEquals("0.98", totals.get(17));
             context.assertEquals("3.06", records.get(2).get(17));
             context.assertEquals("1.9", records.get(3).get(17));
           } catch (IOException e) {
