@@ -1,6 +1,7 @@
 package org.folio.eusage.reports.api;
 
 import java.time.LocalDate;
+import java.time.Period;
 
 public class DateRange {
 
@@ -40,5 +41,10 @@ public class DateRange {
 
   String getEnd() {
     return end.toString();
+  }
+
+  int getMonths() {
+    Period age = Period.between(start, end.plusDays(1));
+    return age.getYears() * 12 + age.getMonths();
   }
 }

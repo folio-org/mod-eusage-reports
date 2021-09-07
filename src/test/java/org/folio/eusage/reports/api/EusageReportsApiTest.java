@@ -708,9 +708,9 @@ public class EusageReportsApiTest {
           assertThat((List<?>) json.getJsonArray("titleCountByPeriod").getList(),
               contains(2, 2, 2, 2, 2));
           assertThat((List<?>) json.getJsonArray("totalItemCostsPerRequestsByPeriod").getList(),
-              contains(1.0, 0.65, 0.76, null, null));
+              contains(0.42, 0.27, 0.32, null, null));
           assertThat((List<?>) json.getJsonArray("uniqueItemCostsPerRequestsByPeriod").getList(),
-              contains(1.1, 1.22, 2.44, null, null));
+              contains(0.46, 0.51, 1.02, null, null));
           assertThat(json.getJsonArray("items").size(), is(2));
           assertThat(json.getJsonArray("items").getJsonObject(0).getString("kbId"), is(t11));
           assertThat(json.getJsonArray("items").getJsonObject(0).getLong("totalItemRequests"), is(47L));
@@ -748,9 +748,9 @@ public class EusageReportsApiTest {
           assertThat((List<?>) json.getJsonArray("titleCountByPeriod").getList(),
               contains(4, 4, 4, 4, 4));
           assertThat((List<?>) json.getJsonArray("totalItemCostsPerRequestsByPeriod").getList(),
-              contains(null, 0.53, 10.5, null, null));
+              contains(null, 0.22, 4.38, null, null));
           assertThat((List<?>) json.getJsonArray("uniqueItemCostsPerRequestsByPeriod").getList(),
-              contains(null, 1.05, 21.0, null, null));
+              contains(null, 0.44, 8.75, null, null));
         }));
   }
 
@@ -773,9 +773,9 @@ public class EusageReportsApiTest {
           assertThat((List<?>) json.getJsonArray("titleCountByPeriod").getList(),
               contains(4, 4, 4, 4, 4));
           assertThat((List<?>) json.getJsonArray("totalItemCostsPerRequestsByPeriod").getList(),
-              contains(null, 0.53, null, null, null));
+              contains(null, 0.22, null, null, null));
           assertThat((List<?>) json.getJsonArray("uniqueItemCostsPerRequestsByPeriod").getList(),
-              contains(null, 1.05, null, null, null));
+              contains(null, 0.44, null, null, null));
         }));
   }
 
@@ -798,9 +798,9 @@ public class EusageReportsApiTest {
           assertThat((List<?>) json.getJsonArray("titleCountByPeriod").getList(),
               contains(2, 2, 2));
           assertThat((List<?>) json.getJsonArray("totalItemCostsPerRequestsByPeriod").getList(),
-              contains(4.7, 3.04, 3.56));
+              contains(1.41, 0.91, 1.07));
           assertThat((List<?>) json.getJsonArray("uniqueItemCostsPerRequestsByPeriod").getList(),
-              contains(5.17, 5.74, 11.48));
+              contains(1.55, 1.72, 3.44));
         }));
   }
 
@@ -823,9 +823,9 @@ public class EusageReportsApiTest {
           assertThat((List<?>) json.getJsonArray("titleCountByPeriod").getList(),
               contains(2, 2, 2, 2));
           assertThat((List<?>) json.getJsonArray("totalItemCostsPerRequestsByPeriod").getList(),
-              contains(null, 2.28, 2.67, null));
+              contains(null, 1.14, 1.34, null));
           assertThat((List<?>) json.getJsonArray("uniqueItemCostsPerRequestsByPeriod").getList(),
-              contains(null, 4.31, 8.61, null));
+              contains(null, 2.15, 4.31, null));
         }));
   }
 

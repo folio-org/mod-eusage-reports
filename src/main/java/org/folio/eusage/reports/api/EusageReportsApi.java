@@ -1863,17 +1863,15 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
         Long n = totalRequests.getLong(i);
         long c = totalTitles.get();
         if (n > 0) {
-          log.info("totalItemCostsPerRequestsByPerid {} {}*{}/({}*{})",
-              i, d, p, n, c);
-          totalItemCostsPerRequestsByPeriod.add(formatCost(d * p / (n * c)));
+          log.info("totalItemCostsPerRequestsByPerid {} {}/{}", i, p, n);
+          totalItemCostsPerRequestsByPeriod.add(formatCost(p / n));
         } else {
           totalItemCostsPerRequestsByPeriod.addNull();
         }
         n = uniqueRequests.getLong(i);
         if (n > 0) {
-          log.info("uniqueItemCostsPerRequestsByPerid {} {}*{}/({}*{})",
-              i, d, paidByPeriod.getDouble(i), n, c);
-          uniqueItemCostsPerRequestsByPeriod.add(formatCost(d * p / (n * c)));
+          log.info("uniqueItemCostsPerRequestsByPerid {} {}/{}", i, p, n);
+          uniqueItemCostsPerRequestsByPeriod.add(formatCost(p / n));
         } else {
           uniqueItemCostsPerRequestsByPeriod.addNull();
         }
@@ -1921,17 +1919,21 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
         item.put("invoiceNumbers", new JsonArray().add(invoiceNumbers));
       }
       String fiscalYearRange = row.getString(8);
+      int subscriptionMonths = periods.size();
       if (fiscalYearRange != null) {
         DateRange dateRange = new DateRange(fiscalYearRange);
         item.put("fiscalDateStart", dateRange.getStart());
         item.put("fiscalDateEnd", dateRange.getEnd());
+        subscriptionMonths = dateRange.getMonths();
       }
       String subscriptionDateRange = row.getString(9);
       if (subscriptionDateRange != null) {
         DateRange dateRange = new DateRange(subscriptionDateRange);
         item.put("subscriptionDateStart", dateRange.getStart());
         item.put("subscriptionDateEnd", dateRange.getEnd());
+        subscriptionMonths = dateRange.getMonths();
       }
+      log.info("subscriptionMonths {}", subscriptionMonths);
       Long totalItemRequests = 0L;
       Long uniqueItemRequests = 0L;
 
@@ -1959,7 +1961,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
       Number amountPaid = row.getNumeric(11);
       if (amountPaid != null) {
         for (int i = 0; i < periods.size(); i++) {
-          paidByPeriod.set(i, amountPaid.doubleValue());
+          paidByPeriod.set(i, amountPaid.doubleValue() / subscriptionMonths);
         }
         Double paidByTitle = amountPaid.doubleValue() / totalTitles;
         item.put("amountPaid", formatCost(paidByTitle));
