@@ -374,16 +374,24 @@ public class EusageReportsApiTest {
 
   @Test
   public void useOverTimeCsv(TestContext context) {
-    new EusageReportsApi().getUseOverTime(pool, true, true, false, a1, null, "2020-04", "2020-05", false)
-        .onComplete(context.asyncAssertSuccess(res0 -> {
-          System.out.println(res0);
-          new EusageReportsApi().getUseOverTime(pool, true, true, false, a1, null,"2020-04", "2020-05", true)
-              .onComplete(context.asyncAssertSuccess(res -> {
-                System.out.println(res);
-                assertThat(res, containsString("Title,Print ISSN,Online ISSN,Access type,Metric Type,Reporing period total,2020-04,2020-05"));
-                assertThat(res, containsString("Totals - total item requests,,,,,56,22,34"));
-                assertThat(res, containsString("Totals - unique item requests,,,,,38,20,18"));
-              }));
+    new EusageReportsApi().getUseOverTime(pool, true, true, false, a1, null,"2020-04", "2020-05", true)
+        .onComplete(context.asyncAssertSuccess(res -> {
+          assertThat(res, containsString("Title,Print ISSN,Online ISSN,Access type,Metric Type,Reporting period total,2020-04,2020-05"));
+          assertThat(res, containsString("Totals - total item requests,,,,,56,22,34"));
+          assertThat(res, containsString("Totals - unique item requests,,,,,38,20,18"));
+          assertThat(res, containsString("Title 11,1111-1111,1111-2222,Controlled,Total_Item_Requests,18,6,12"));
+        }));
+  }
+
+  @Test
+  public void useOverTimeCsvAll(TestContext context) {
+    new EusageReportsApi().getUseOverTime(pool, null, true, false, a1, null,"2020-04", "2020-05", true)
+        .onComplete(context.asyncAssertSuccess(res -> {
+          System.out.println(res);
+          assertThat(res, containsString("Title,Print ISSN,Online ISSN,ISBN,Access type,Metric Type,Reporting period total,2020-04,2020-05"));
+          assertThat(res, containsString("Totals - total item requests,,,,,,56,22,34"));
+          assertThat(res, containsString("Totals - unique item requests,,,,,,38,20,18"));
+          assertThat(res, containsString("Title 11,1111-1111,1111-2222,,Controlled,Total_Item_Requests,18,6,12"));
         }));
   }
 

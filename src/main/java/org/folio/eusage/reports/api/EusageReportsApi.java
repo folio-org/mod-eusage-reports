@@ -1134,12 +1134,17 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
         });
   }
 
-  static void getUseTotalsCsv(JsonObject json, boolean groupByPublicationYear,
+  static void getUseTotalsCsv(JsonObject json, Boolean isJournal, boolean groupByPublicationYear,
                               boolean periodOfUse, CSVPrinter writer,
                               String lead) throws IOException {
     writer.print("Totals - " + lead + " item requests");
-    writer.print(null);
-    writer.print(null);
+    if (isJournal == null || isJournal) {
+      writer.print(null);
+      writer.print(null);
+    }
+    if (isJournal == null || !isJournal) {
+      writer.print(null);
+    }
     if (periodOfUse) {
       writer.print(null);
     }
@@ -1177,7 +1182,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     }
     writer.print("Access type");
     writer.print("Metric Type");
-    writer.print("Reporing period total");
+    writer.print("Reporting period total");
     JsonArray accessCountPeriods = json.getJsonArray("accessCountPeriods");
     for (int i = 0; i < accessCountPeriods.size(); i++) {
       // TODO .. If year  prefix with "Published "
@@ -1186,15 +1191,20 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     }
     writer.println();
 
-    getUseTotalsCsv(json, groupByPublicationYear, periodOfUse, writer, "total");
-    getUseTotalsCsv(json, groupByPublicationYear, periodOfUse, writer, "unique");
+    getUseTotalsCsv(json, isJournal, groupByPublicationYear, periodOfUse, writer, "total");
+    getUseTotalsCsv(json, isJournal, groupByPublicationYear, periodOfUse, writer, "unique");
 
     JsonArray items = json.getJsonArray("items");
     for (int j = 0; j < items.size(); j++) {
       JsonObject item = items.getJsonObject(j);
       writer.print(item.getString("title"));
-      writer.print(item.getString("printISSN"));
-      writer.print(item.getString("onlineISSN"));
+      if (isJournal == null || isJournal) {
+        writer.print(item.getString("printISSN"));
+        writer.print(item.getString("onlineISSN"));
+      }
+      if (isJournal == null || !isJournal) {
+        writer.print(item.getString("ISBN"));
+      }
       if (groupByPublicationYear) {
         writer.print(item.getLong("publicationYear"));
       }
