@@ -396,6 +396,19 @@ public class EusageReportsApiTest {
   }
 
   @Test
+  public void useOverTimeCsvBook(TestContext context) {
+    new EusageReportsApi().getUseOverTime(pool, false, true, false, a2, null,"2020-05", "2020-06", true)
+        .onComplete(context.asyncAssertSuccess(res -> {
+          System.out.println(res);
+          assertThat(res, containsString("Title,ISBN,Access type,Metric Type,Reporting period total,2020-05,2020-06"));
+          assertThat(res, containsString("Totals - total item requests,,,,42,40,2"));
+          assertThat(res, containsString("Totals - unique item requests,,,,21,20,1"));
+          assertThat(res, containsString("Title 31,3131313131,Controlled,Total_Item_Requests,40,40,"));
+          assertThat(res, containsString("Title 32,3232323232,OA_Gold,Total_Item_Requests,2,,2"));
+        }));
+  }
+
+  @Test
   public void useOverTimeOpenAccess(TestContext context) {
     getUseOverTime(true, true, a2, null, "2020-06", "2020-06")
     .onComplete(context.asyncAssertSuccess(json -> {
