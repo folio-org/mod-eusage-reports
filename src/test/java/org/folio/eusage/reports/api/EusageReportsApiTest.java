@@ -610,7 +610,7 @@ public class EusageReportsApiTest {
   private Future<JsonObject> getReqsByPubPeriod(boolean includeOA, String agreementId,
       String accessCountPeriod, String start, String end, String periodOfUse) {
 
-    return new EusageReportsApi().getReqsByPubYear(pool, includeOA, agreementId, accessCountPeriod, start, end, periodOfUse);
+    return new EusageReportsApi().getReqsByPubYear(pool, true, includeOA, agreementId, accessCountPeriod, start, end, periodOfUse);
   }
 
   @Test
@@ -1012,7 +1012,7 @@ public class EusageReportsApiTest {
 
   @Test
   public void reqsByPubYearCsv(TestContext context) {
-    new EusageReportsApi().getReqsByPubYear(pool, true, a1, null, "2020-04", "2020-08", "6M", true)
+    new EusageReportsApi().getReqsByPubYear(pool, true, true, a1, null, "2020-04", "2020-08", "6M", true)
         .onComplete(context.asyncAssertSuccess(res -> {
           assertThat(res, containsString(",2020-07 - 2020-12,Controlled,"));
         }));

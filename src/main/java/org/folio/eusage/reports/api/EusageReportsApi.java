@@ -1426,23 +1426,20 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
       .append(" ) t").append(i).append(" ON t").append(i).append(".titleEntryId = ")
         .append(titleEntriesTable(pool)).append(".id");
     }
-    sql.append(" WHERE agreementId = $1");
-    if (isJournal != null) {
-      sql.append(isJournal ? " AND (printISSN IS NOT NULL OR onlineISSN IS NOT NULL)"
-          : " AND (printISSN IS NULL AND onlineISSN IS NULL)");
-    }
+    sql.append(" WHERE agreementId = $1").append(limitJournal(isJournal));
   }
 
   Future<Void> getReqsByDateOfUse(Vertx vertx, RoutingContext ctx) {
     TenantPgPool pool = TenantPgPool.pool(vertx, TenantUtil.tenant(ctx));
     boolean csv = "true".equalsIgnoreCase(ctx.request().params().get("csv"));
+    Boolean isJournal = getJournalFromFormat(ctx, "JOURNAL");
     String agreementId = ctx.request().params().get("agreementId");
     String accessCountPeriod = ctx.request().params().get("accessCountPeriod");
     String start = ctx.request().params().get("startDate");
     String end = ctx.request().params().get("endDate");
     boolean includeOA = "true".equalsIgnoreCase(ctx.request().params().get("includeOA"));
 
-    return getUseOverTime(pool, true, includeOA, true, agreementId,
+    return getUseOverTime(pool, isJournal, includeOA, true, agreementId,
         accessCountPeriod, start, end, csv)
         .map(res -> {
           ctx.response().setStatusCode(200);
@@ -1454,6 +1451,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
 
   Future<Void> getReqsByPubYear(Vertx vertx, RoutingContext ctx) {
     TenantPgPool pool = TenantPgPool.pool(vertx, TenantUtil.tenant(ctx));
+    Boolean isJournal = getJournalFromFormat(ctx, "JOURNAL");
     boolean csv = "true".equalsIgnoreCase(ctx.request().params().get("csv"));
     boolean includeOA = "true".equalsIgnoreCase(ctx.request().params().get("includeOA"));
     String agreementId = ctx.request().params().get("agreementId");
@@ -1462,7 +1460,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     String end = ctx.request().params().get("endDate");
     String periodOfUse = ctx.request().params().get("periodOfUse");
 
-    return getReqsByPubYear(pool, includeOA, agreementId,
+    return getReqsByPubYear(pool, isJournal, includeOA, agreementId,
         accessCountPeriod, start, end, periodOfUse, csv)
         .map(res -> {
           ctx.response().setStatusCode(200);
@@ -1472,10 +1470,11 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
         });
   }
 
-  Future<String> getReqsByPubYear(TenantPgPool pool, boolean includeOA, String agreementId,
+  Future<String> getReqsByPubYear(TenantPgPool pool, Boolean isJournal, boolean includeOA,
+                                  String agreementId,
                                   String accessCountPeriod, String start, String end,
                                   String periodOfUse, boolean csv) {
-    return getReqsByPubYear(pool, includeOA, agreementId,
+    return getReqsByPubYear(pool, isJournal, includeOA, agreementId,
         accessCountPeriod, start, end, periodOfUse)
         .compose(json -> {
           if (!csv) {
@@ -1483,7 +1482,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
           }
           try {
             StringWriter stringWriter = new StringWriter();
-            getUseOverTime2Csv(json, true,false, true, stringWriter);
+            getUseOverTime2Csv(json, isJournal,false, true, stringWriter);
             return Future.succeededFuture(stringWriter.toString());
           } catch (IOException e) {
             return Future.failedFuture(e);
@@ -1491,13 +1490,14 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
         });
   }
 
-  Future<JsonObject> getReqsByPubYear(TenantPgPool pool, boolean includeOA, String agreementId,
-      String accessCountPeriod, String start, String end, String periodOfUse) {
+  Future<JsonObject> getReqsByPubYear(TenantPgPool pool, Boolean isJournal, boolean includeOA,
+                                      String agreementId, String accessCountPeriod,
+                                      String start, String end, String periodOfUse) {
 
     Periods usePeriods = new Periods(start, end, periodOfUse);
     int pubPeriodsInMonths = accessCountPeriod == null || "auto".equals(accessCountPeriod)
         ? 12 : Periods.getPeriodInMonths(accessCountPeriod);
-    return getPubPeriods(pool, agreementId, usePeriods, pubPeriodsInMonths)
+    return getPubPeriods(pool, isJournal, agreementId, usePeriods, pubPeriodsInMonths)
         .compose(pubYears -> {
           StringBuilder sql = new StringBuilder();
 
@@ -1506,14 +1506,14 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
               sql.append(" UNION ");
             }
             if (includeOA) {
-              reqsByPubYear(sql, pool, true, true, pubYears.size(), i);
+              reqsByPubYear(sql, pool, isJournal,true, true, pubYears.size(), i);
               sql.append(" UNION ");
-              reqsByPubYear(sql, pool, true, false, pubYears.size(), i);
+              reqsByPubYear(sql, pool, isJournal,true, false, pubYears.size(), i);
               sql.append(" UNION ");
             }
-            reqsByPubYear(sql, pool, false, true, pubYears.size(), i);
+            reqsByPubYear(sql, pool, isJournal,false, true, pubYears.size(), i);
             sql.append(" UNION ");
-            reqsByPubYear(sql, pool, false, false, pubYears.size(), i);
+            reqsByPubYear(sql, pool, isJournal,false, false, pubYears.size(), i);
           }
           sql.append(" ORDER BY title, kbId, accessType, periodOfUse, metricType");
 
@@ -1597,27 +1597,35 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
    * Distinct publication periods (like quarters or years), sorted.
    * @return first day of publication period
    */
-  Future<List<LocalDate>> getPubPeriods(TenantPgPool pool, String agreementId,
-      Periods usePeriods, int pubPeriodLengthInMonths) {
+  Future<List<LocalDate>> getPubPeriods(TenantPgPool pool, Boolean isJournal, String agreementId,
+                                        Periods usePeriods, int pubPeriodLengthInMonths) {
 
     String sql =
         "SELECT distinct(" + pool.getSchema() + ".floor_months(publicationDate, $4::integer))"
-        + " FROM " + agreementEntriesTable(pool)
-        + " LEFT JOIN " + packageEntriesTable(pool) + " USING (kbPackageId)"
-        + " JOIN " + titleEntriesTable(pool) + " ON"
-        + " title_entries.kbTitleId = agreement_entries.kbTitleId OR"
-        + " title_entries.kbTitleId = package_entries.kbTitleId"
-        + " JOIN " + titleDataTable(pool) + " ON titleEntryId = title_entries.id"
-        + " WHERE agreementId = $1"
-        + "   AND publicationDate IS NOT NULL"
-        + "   AND (printISSN IS NOT NULL OR onlineISSN IS NOT NULL)"
-        + "   AND daterange($2, $3) @> lower(usageDateRange)"
-        + " ORDER BY 1";
+            + " FROM " + agreementEntriesTable(pool)
+            + " LEFT JOIN " + packageEntriesTable(pool) + " USING (kbPackageId)"
+            + " JOIN " + titleEntriesTable(pool) + " ON"
+            + " title_entries.kbTitleId = agreement_entries.kbTitleId OR"
+            + " title_entries.kbTitleId = package_entries.kbTitleId"
+            + " JOIN " + titleDataTable(pool) + " ON titleEntryId = title_entries.id"
+            + " WHERE agreementId = $1"
+            + "   AND publicationDate IS NOT NULL"
+            + limitJournal(isJournal)
+            + "   AND daterange($2, $3) @> lower(usageDateRange)"
+            + " ORDER BY 1";
     return pool.preparedQuery(sql)
         .collecting(Collectors.mapping(row -> row.getLocalDate(0), Collectors.toList()))
         .execute(Tuple.of(agreementId, usePeriods.startDate, usePeriods.endDate,
             pubPeriodLengthInMonths))
         .map(SqlResult::value);
+  }
+
+  static String limitJournal(Boolean isJournal) {
+    if (isJournal == null) {
+      return "";
+    }
+    return isJournal ? " AND (printISSN IS NOT NULL OR onlineISSN IS NOT NULL)"
+        : " AND (printISSN IS NULL AND onlineISSN IS NULL)";
   }
 
   /**
@@ -1659,8 +1667,9 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
    * <br>$8 = end of usage range 1
    * ($8 is also start of usage range 2 if there were more usage ranges)
    */
-  private static void reqsByPubYear(StringBuilder sql, TenantPgPool pool,
-      boolean openAccess, boolean unique, int publicationPeriods, int usePeriod) {
+  private static void reqsByPubYear(StringBuilder sql, TenantPgPool pool, Boolean isJournal,
+                                    boolean openAccess, boolean unique, int publicationPeriods,
+                                    int usePeriod) {
 
     final int pubPeriodPos = 2;
     final int usePeriodPos = pubPeriodPos + 2 * publicationPeriods;
@@ -1699,9 +1708,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
       .append(" ON t").append(i).append(".titleEntryId = ")
         .append(titleEntriesTable(pool)).append(".id");
     }
-    sql
-        .append(" WHERE agreementId = $1::uuid")
-        .append("   AND (printISSN IS NOT NULL OR onlineISSN IS NOT NULL)");
+    sql.append(" WHERE agreementId = $1::uuid").append(limitJournal(isJournal));
   }
 
   static Number formatCost(Double n) {
@@ -1846,13 +1853,8 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
       // TODO  .append(" AND coverageDateRanges @> t").append(i).append(".publicationDate")
 
     }
-    sql.append(" WHERE agreementId = $1");
-    if (isJournal != null) {
-      sql.append(isJournal ? " AND (printISSN IS NOT NULL OR onlineISSN IS NOT NULL)"
-          : " AND (printISSN IS NULL AND onlineISSN IS NULL)");
-    }
+    sql.append(" WHERE agreementId = $1").append(limitJournal(isJournal));
   }
-
 
   Future<JsonObject> costPerUse(TenantPgPool pool, Boolean isJournal, boolean includeOA,
                                 String agreementId, String accessCountPeriod,
