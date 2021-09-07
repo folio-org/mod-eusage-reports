@@ -387,7 +387,6 @@ public class EusageReportsApiTest {
   public void useOverTimeCsvAll(TestContext context) {
     new EusageReportsApi().getUseOverTime(pool, null, true, false, a1, null,"2020-04", "2020-05", true)
         .onComplete(context.asyncAssertSuccess(res -> {
-          System.out.println(res);
           assertThat(res, containsString("Title,Print ISSN,Online ISSN,ISBN,Access type,Metric Type,Reporting period total,2020-04,2020-05"));
           assertThat(res, containsString("Totals - total item requests,,,,,,56,22,34"));
           assertThat(res, containsString("Totals - unique item requests,,,,,,38,20,18"));
@@ -399,7 +398,6 @@ public class EusageReportsApiTest {
   public void useOverTimeCsvBook(TestContext context) {
     new EusageReportsApi().getUseOverTime(pool, false, true, false, a2, null,"2020-05", "2020-06", true)
         .onComplete(context.asyncAssertSuccess(res -> {
-          System.out.println(res);
           assertThat(res, containsString("Title,ISBN,Access type,Metric Type,Reporting period total,2020-05,2020-06"));
           assertThat(res, containsString("Totals - total item requests,,,,42,40,2"));
           assertThat(res, containsString("Totals - unique item requests,,,,21,20,1"));
@@ -443,7 +441,6 @@ public class EusageReportsApiTest {
   public void useOverTimeFormatBook(TestContext context) {
     getUseOverTime(false, true, a3, "auto", "2020-04", "2020-05")
         .onComplete(context.asyncAssertSuccess(json -> {
-          System.out.println(json.encodePrettily());
           assertThat(json.getString("agreementId"), is(a3));
           assertThat((List<?>) json.getJsonArray("accessCountPeriods").getList(), contains("2020-04", "2020-05"));
           assertThat(json.getLong("totalItemRequestsTotal"), is(nullValue()));
@@ -728,7 +725,6 @@ public class EusageReportsApiTest {
   public void reqsByPubYear(TestContext context) {
     getReqsByPubPeriod(true, a1, null, "2020-04", "2020-08", "6M")
     .onComplete(context.asyncAssertSuccess(json -> {
-      System.out.println(json.encodePrettily());
       assertThat(json.getInteger("totalItemRequestsTotal"), is(99));
       assertThat(json.getInteger("uniqueItemRequestsTotal"), is(59));
       assertThat((List<?>) json.getJsonArray("accessCountPeriods").getList(), contains("1999", "2000", "2010"));
@@ -775,7 +771,6 @@ public class EusageReportsApiTest {
           ArgumentCaptor<String> body = ArgumentCaptor.forClass(String.class);
           verify(routingContext.response()).end(body.capture());
           JsonObject json = new JsonObject(body.getValue());
-          System.out.println(json.encodePrettily());
           assertThat((List<?>) json.getJsonArray("accessCountPeriods").getList(),
               contains("2020-04", "2020-05", "2020-06", "2020-07", "2020-08"));
           assertThat((List<?>) json.getJsonArray("titleCountByPeriod").getList(),
@@ -815,7 +810,6 @@ public class EusageReportsApiTest {
           ArgumentCaptor<String> body = ArgumentCaptor.forClass(String.class);
           verify(routingContext.response()).end(body.capture());
           JsonObject json = new JsonObject(body.getValue());
-          System.out.println(json.encodePrettily());
           assertThat((List<?>) json.getJsonArray("accessCountPeriods").getList(),
               contains("2020-04", "2020-05", "2020-06", "2020-07", "2020-08"));
           assertThat((List<?>) json.getJsonArray("titleCountByPeriod").getList(),
@@ -840,7 +834,6 @@ public class EusageReportsApiTest {
           ArgumentCaptor<String> body = ArgumentCaptor.forClass(String.class);
           verify(routingContext.response()).end(body.capture());
           JsonObject json = new JsonObject(body.getValue());
-          System.out.println(json.encodePrettily());
           assertThat((List<?>) json.getJsonArray("accessCountPeriods").getList(),
               contains("2020-04", "2020-05", "2020-06", "2020-07", "2020-08"));
           assertThat((List<?>) json.getJsonArray("titleCountByPeriod").getList(),
@@ -865,7 +858,6 @@ public class EusageReportsApiTest {
           ArgumentCaptor<String> body = ArgumentCaptor.forClass(String.class);
           verify(routingContext.response()).end(body.capture());
           JsonObject json = new JsonObject(body.getValue());
-          System.out.println(json.encodePrettily());
           assertThat((List<?>) json.getJsonArray("accessCountPeriods").getList(),
               contains("2020-04", "2020-05", "2020-06"));
           assertThat((List<?>) json.getJsonArray("titleCountByPeriod").getList(),
@@ -890,7 +882,6 @@ public class EusageReportsApiTest {
           ArgumentCaptor<String> body = ArgumentCaptor.forClass(String.class);
           verify(routingContext.response()).end(body.capture());
           JsonObject json = new JsonObject(body.getValue());
-          System.out.println(json.encodePrettily());
           assertThat((List<?>) json.getJsonArray("accessCountPeriods").getList(),
               contains("2020-04", "2020-05", "2020-06", "2020-07"));
           assertThat((List<?>) json.getJsonArray("titleCountByPeriod").getList(),
@@ -916,7 +907,6 @@ public class EusageReportsApiTest {
           ArgumentCaptor<String> body = ArgumentCaptor.forClass(String.class);
           verify(routingContext.response()).end(body.capture());
           String res = body.getValue();
-          System.out.println(res);
           StringReader reader = new StringReader(res);
           try {
             CSVParser parser = new CSVParser(reader, EusageReportsApi.CSV_FORMAT);
@@ -973,7 +963,6 @@ public class EusageReportsApiTest {
           ArgumentCaptor<String> body = ArgumentCaptor.forClass(String.class);
           verify(routingContext.response()).end(body.capture());
           String res = body.getValue();
-          System.out.println(res);
           StringReader reader = new StringReader(res);
           try {
             CSVParser parser = new CSVParser(reader, EusageReportsApi.CSV_FORMAT);
@@ -1009,7 +998,6 @@ public class EusageReportsApiTest {
           ArgumentCaptor<String> body = ArgumentCaptor.forClass(String.class);
           verify(routingContext.response()).end(body.capture());
           String res = body.getValue();
-          System.out.println(res);
           StringReader reader = new StringReader(res);
           try {
             CSVParser parser = new CSVParser(reader, EusageReportsApi.CSV_FORMAT);

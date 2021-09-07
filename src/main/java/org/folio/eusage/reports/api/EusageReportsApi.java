@@ -1240,11 +1240,9 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
   }
 
   Future<Void> getUseOverTime(Vertx vertx, RoutingContext ctx) {
-    Boolean isJournal = getJournalFromFormat(ctx, "ALL");
-
-    boolean csv = "true".equalsIgnoreCase(ctx.request().params().get("csv"));
-
     TenantPgPool pool = TenantPgPool.pool(vertx, TenantUtil.tenant(ctx));
+    Boolean isJournal = getJournalFromFormat(ctx, "ALL");
+    boolean csv = "true".equalsIgnoreCase(ctx.request().params().get("csv"));
     String agreementId = ctx.request().params().get("agreementId");
     String accessCountPeriod = ctx.request().params().get("accessCountPeriod");
     String start = ctx.request().params().get("startDate");
@@ -1557,8 +1555,8 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
           } while (date.isBefore(usePeriods.endDate));
           usePeriods.addEnd(tuple);
 
-          System.out.println(sql);
-          System.out.println(tuple.deepToString());
+          log.debug("{}", sql);
+          log.debug("tuple {}", tuple.deepToString());
           return pool.preparedQuery(sql.toString()).execute(tuple).map(rowSet -> {
             JsonArray items = new JsonArray();
             LongAdder [] totalItemRequestsByPub = LongAdder.arrayOfLength(pubYears.size());
@@ -1880,7 +1878,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     StringBuilder sql = new StringBuilder();
     costPerUse(sql, pool, isJournal, includeOA, periods.size());
     sql.append(" ORDER BY title");
-    log.info("AD: costPerUse SQL={}", sql.toString());
+    log.debug("costPerUse SQL={}", sql.toString());
 
     return pool.preparedQuery(sql.toString()).execute(tuple).map(rowSet -> {
 
