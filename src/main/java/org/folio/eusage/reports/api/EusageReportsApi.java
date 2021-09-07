@@ -1791,8 +1791,10 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     writer.print(totalItemRequests);
     long uniqueItemRequests = getTotalInLongArray(items, "uniqueItemRequests");
     writer.print(uniqueItemRequests);
-    writer.print(totalItemRequests == 0 ? null : formatCost(amountPaidTotal / totalItemRequests));
-    writer.print(uniqueItemRequests == 0 ? null : formatCost(amountPaidTotal / uniqueItemRequests));
+    writer.print(totalItemRequests == 0 || amountPaidTotal == null ? null
+        : formatCost(amountPaidTotal / totalItemRequests));
+    writer.print(uniqueItemRequests == 0 || amountPaidTotal == null ? null
+        : formatCost(amountPaidTotal / uniqueItemRequests));
     writer.println();
 
     for (int i = 0; i < items.size(); i++) {
@@ -1910,10 +1912,8 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
       JsonArray totalItemCostsPerRequestsByPeriod = new JsonArray();
       JsonArray uniqueItemCostsPerRequestsByPeriod = new JsonArray();
       for (int i = 0; i < periods.size(); i++) {
-        Long d = titleCountByPeriod.getLong(i);
         Double p = paidByPeriod.getDouble(i);
         Long n = totalRequests.getLong(i);
-        long c = totalTitles.get();
         if (n > 0) {
           log.info("totalItemCostsPerRequestsByPerid {} {}/{}", i, p, n);
           totalItemCostsPerRequestsByPeriod.add(formatCost(p / n));
@@ -1986,8 +1986,8 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
         subscriptionMonths = dateRange.getMonths();
       }
       log.info("subscriptionMonths {}", subscriptionMonths);
-      Long totalItemRequests = 0L;
-      Long uniqueItemRequests = 0L;
+      long totalItemRequests = 0L;
+      long uniqueItemRequests = 0L;
 
       for (int i = 0; i < periods.size(); i++) {
         Long totalItemRequestsByPeriod = row.getLong(12 + i * 2);
@@ -2016,7 +2016,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
         for (int i = 0; i < periods.size(); i++) {
           paidByPeriod.set(i, amountPaid.doubleValue() / subscriptionMonths);
         }
-        Double paidByTitle = amountPaid.doubleValue() / totalTitles;
+        double paidByTitle = amountPaid.doubleValue() / totalTitles;
         item.put("amountPaid", formatCost(paidByTitle));
         json.put("amountPaidTotal",
             formatCost(periods.size() * amountPaid.doubleValue() / subscriptionMonths));
