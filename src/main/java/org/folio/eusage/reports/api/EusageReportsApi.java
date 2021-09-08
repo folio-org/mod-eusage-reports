@@ -2006,13 +2006,16 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
       if (monthsInOnePeriod > subscriptionMonths) {
         subscriptionMonths = monthsInOnePeriod; // never more than full amount
       }
+      int monthsAllPeriods = monthsInOnePeriod * periods.size();
+      if (monthsAllPeriods > subscriptionMonths) {
+        monthsAllPeriods = subscriptionMonths;
+      }
       Number encumberedCost = row.getNumeric(10);
       if (encumberedCost != null) {
         item.put("amountEncumbered", formatCost(
             encumberedCost.doubleValue() / totalTitles));
         json.put("amountEncumberedTotal",
-            formatCost(periods.size() * monthsInOnePeriod * encumberedCost.doubleValue()
-                / subscriptionMonths));
+            formatCost(monthsAllPeriods * encumberedCost.doubleValue() / subscriptionMonths));
       }
       Number amountPaid = row.getNumeric(11);
       if (amountPaid != null) {
@@ -2022,8 +2025,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
         double paidByTitle = amountPaid.doubleValue() / totalTitles;
         item.put("amountPaid", formatCost(paidByTitle));
         json.put("amountPaidTotal",
-            formatCost(periods.size() * monthsInOnePeriod * amountPaid.doubleValue()
-                / subscriptionMonths));
+            formatCost(monthsAllPeriods * amountPaid.doubleValue() / subscriptionMonths));
         if (totalItemRequests != 0L) {
           item.put("costPerTotalRequest",
               formatCost(paidByTitle / totalItemRequests));

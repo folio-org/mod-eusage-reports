@@ -779,6 +779,8 @@ public class EusageReportsApiTest {
               contains(0.42, 0.27, 0.32, null, null));
           assertThat((List<?>) json.getJsonArray("uniqueItemCostsPerRequestsByPeriod").getList(),
               contains(0.46, 0.51, 1.02, null, null));
+          assertThat(json.getDouble("amountPaidTotal"), is(45.83)); // 5/12 * 110
+          assertThat(json.getDouble("amountEncumberedTotal"), is(41.67));
           assertThat(json.getJsonArray("items").size(), is(2));
           assertThat(json.getJsonArray("items").getJsonObject(0).getString("kbId"), is(t11));
           assertThat(json.getJsonArray("items").getJsonObject(0).getLong("totalItemRequests"), is(47L));
@@ -915,6 +917,8 @@ public class EusageReportsApiTest {
               contains(1.11));
           assertThat((List<?>) json.getJsonArray("uniqueItemCostsPerRequestsByPeriod").getList(),
               contains(1.86));
+          assertThat(json.getDouble("amountPaidTotal"), is(110.0));
+          assertThat(json.getDouble("amountEncumberedTotal"), is(100.0));
           assertThat(json.getJsonArray("items").size(), is(2));
           assertThat(json.getJsonArray("items").getJsonObject(0).getString("kbId"), is(t11));
           assertThat(json.getJsonArray("items").getJsonObject(0).getLong("totalItemRequests"), is(49L));
@@ -938,7 +942,7 @@ public class EusageReportsApiTest {
     RoutingContext routingContext = mock(RoutingContext.class, RETURNS_DEEP_STUBS);
     when(routingContext.request().getHeader("X-Okapi-Tenant")).thenReturn(tenant);
     when(routingContext.request().params().get("agreementId")).thenReturn(a1);
-    when(routingContext.request().params().get("startDate")).thenReturn("2020-04");
+    when(routingContext.request().params().get("startDate")).thenReturn("2015-09");
     when(routingContext.request().params().get("endDate")).thenReturn("2020-08");
     when(routingContext.request().params().get("includeOA")).thenReturn("true");
     when(routingContext.request().params().get("accessCountPeriod")).thenReturn("5Y");
@@ -947,14 +951,17 @@ public class EusageReportsApiTest {
           ArgumentCaptor<String> body = ArgumentCaptor.forClass(String.class);
           verify(routingContext.response()).end(body.capture());
           JsonObject json = new JsonObject(body.getValue());
+          System.out.println(json.encodePrettily());
           assertThat((List<?>) json.getJsonArray("accessCountPeriods").getList(),
-              contains("2020 - 2024"));
+              contains("2015 - 2019", "2020 - 2024"));
           assertThat((List<?>) json.getJsonArray("titleCountByPeriod").getList(),
-              contains(2));
+              contains(2, 2));
           assertThat((List<?>) json.getJsonArray("totalItemCostsPerRequestsByPeriod").getList(),
-              contains(1.11));
+              contains(null, 1.11));
           assertThat((List<?>) json.getJsonArray("uniqueItemCostsPerRequestsByPeriod").getList(),
-              contains(1.86));
+              contains(null, 1.86));
+          assertThat(json.getDouble("amountPaidTotal"), is(110.0));
+          assertThat(json.getDouble("amountEncumberedTotal"), is(100.0));
           assertThat(json.getJsonArray("items").size(), is(2));
           assertThat(json.getJsonArray("items").getJsonObject(0).getString("kbId"), is(t11));
           assertThat(json.getJsonArray("items").getJsonObject(0).getLong("totalItemRequests"), is(49L));
