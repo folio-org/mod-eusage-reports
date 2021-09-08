@@ -1969,7 +1969,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
         item.put("invoiceNumbers", new JsonArray().add(invoiceNumbers));
       }
       String fiscalYearRange = row.getString(8);
-      int subscriptionMonths = periods.size();
+      int subscriptionMonths = 0;
       if (fiscalYearRange != null) {
         DateRange dateRange = new DateRange(fiscalYearRange);
         item.put("fiscalDateStart", dateRange.getStart());
@@ -2002,22 +2002,28 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
       item.put("totalItemRequests", totalItemRequests);
       item.put("uniqueItemRequests", uniqueItemRequests);
 
+      int monthsInOnePeriod = periods.getMonths();
+      if (monthsInOnePeriod > subscriptionMonths) {
+        subscriptionMonths = monthsInOnePeriod; // never more than full amount
+      }
       Number encumberedCost = row.getNumeric(10);
       if (encumberedCost != null) {
         item.put("amountEncumbered", formatCost(
             encumberedCost.doubleValue() / totalTitles));
         json.put("amountEncumberedTotal",
-            formatCost(periods.size() * encumberedCost.doubleValue() / subscriptionMonths));
+            formatCost(periods.size() * monthsInOnePeriod * encumberedCost.doubleValue()
+                / subscriptionMonths));
       }
       Number amountPaid = row.getNumeric(11);
       if (amountPaid != null) {
         for (int i = 0; i < periods.size(); i++) {
-          paidByPeriod.set(i, amountPaid.doubleValue() / subscriptionMonths);
+          paidByPeriod.set(i, monthsInOnePeriod * amountPaid.doubleValue() / subscriptionMonths);
         }
         double paidByTitle = amountPaid.doubleValue() / totalTitles;
         item.put("amountPaid", formatCost(paidByTitle));
         json.put("amountPaidTotal",
-            formatCost(periods.size() * amountPaid.doubleValue() / subscriptionMonths));
+            formatCost(periods.size() * monthsInOnePeriod * amountPaid.doubleValue()
+                / subscriptionMonths));
         if (totalItemRequests != 0L) {
           item.put("costPerTotalRequest",
               formatCost(paidByTitle / totalItemRequests));

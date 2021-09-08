@@ -94,6 +94,10 @@ public class Periods {
         + endStr.subSequence(0, endStr.length() - 3);
   }
 
+  int getMonths() {
+    return periodInMonths;
+  }
+
   public int size() {
     return accessCountPeriods.size();
   }
