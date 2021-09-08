@@ -907,7 +907,6 @@ public class EusageReportsApiTest {
           ArgumentCaptor<String> body = ArgumentCaptor.forClass(String.class);
           verify(routingContext.response()).end(body.capture());
           JsonObject json = new JsonObject(body.getValue());
-          System.out.printf(json.encodePrettily());
           assertThat((List<?>) json.getJsonArray("accessCountPeriods").getList(),
               contains("2020"));
           assertThat((List<?>) json.getJsonArray("titleCountByPeriod").getList(),
@@ -948,7 +947,6 @@ public class EusageReportsApiTest {
           ArgumentCaptor<String> body = ArgumentCaptor.forClass(String.class);
           verify(routingContext.response()).end(body.capture());
           JsonObject json = new JsonObject(body.getValue());
-          System.out.printf(json.encodePrettily());
           assertThat((List<?>) json.getJsonArray("accessCountPeriods").getList(),
               contains("2020 - 2024"));
           assertThat((List<?>) json.getJsonArray("titleCountByPeriod").getList(),
