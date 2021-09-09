@@ -1825,7 +1825,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
 
   private static void costPerUse(StringBuilder sql, TenantPgPool pool,
                                  Boolean isJournal,
-                                 boolean includeOA, int periods) {
+                                 boolean includeOA, int periods, boolean dummy) {
     sql
         .append("SELECT title_entries.kbTitleId AS kbId, kbTitleName AS title,")
         .append(" printISSN, onlineISSN, ISBN, orderType, poLineNumber, invoiceNumber,")
@@ -1861,9 +1861,12 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
       ;
 
       // TODO  .append(" AND coverageDateRanges @> t").append(i).append(".publicationDate")
-
     }
-    sql.append(" WHERE agreementId = $1").append(limitJournal(isJournal));
+    if (dummy) {
+      sql.append(" WHERE agreementId IS NULL");
+    } else {
+      sql.append(" WHERE agreementId = $1").append(limitJournal(isJournal));
+    }
   }
 
   Future<JsonObject> costPerUse(TenantPgPool pool, Boolean isJournal, boolean includeOA,
@@ -1876,8 +1879,10 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     periods.addEnd(tuple);
 
     StringBuilder sql = new StringBuilder();
-    costPerUse(sql, pool, isJournal, includeOA, periods.size());
-    sql.append(" ORDER BY title");
+    costPerUse(sql, pool, isJournal, includeOA, periods.size(), false);
+    sql.append(" UNION ");
+    costPerUse(sql, pool, isJournal, includeOA, periods.size(), true);
+    sql.append(" ORDER BY title, KbId");
     log.debug("costPerUse SQL={}", sql.toString());
 
     return pool.preparedQuery(sql.toString()).execute(tuple).map(rowSet -> {

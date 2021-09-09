@@ -232,6 +232,11 @@ public class EusageReportsApiTest {
         .compose(x -> insertAgreement(a2, t22, null))
         .compose(x -> insertAgreement(a2, t31, null))
         .compose(x -> insertAgreement(a2, t32, null))
+        .compose(x -> insertAgreement(a2, t21, null)) // dup
+        .compose(x -> insertAgreement(a2, t22, null)) // dup
+        .compose(x -> insertAgreement(a2, t31, null)) // dup
+        .compose(x -> insertAgreement(a2, t32, null)) // dup
+
         .compose(x -> updateAgreement(a2, "orderType = 'One-Time', poLineNumber = 'p2', invoiceNumber = 'i2',"
             + " fiscalYearRange='[2020-01-01,2021-01-01)',"
             + " coverageDateRanges='[1998-01-01,2021-01-01]',"
