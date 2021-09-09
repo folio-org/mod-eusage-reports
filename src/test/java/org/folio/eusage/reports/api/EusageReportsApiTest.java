@@ -552,6 +552,60 @@ public class EusageReportsApiTest {
   }
 
   @Test
+  public void reqsByDateOfUse65(TestContext context) {
+    new EusageReportsApi().getUseOverTime(pool, true, true, true, a1, null, "2020-02", "2020-06")
+        .onComplete(context.asyncAssertSuccess(json -> {
+          System.out.printf(json.encodePrettily());
+          assertThat(json.getLong("totalItemRequestsTotal"), is(96L)); // should be 99
+          assertThat(json.getLong("uniqueItemRequestsTotal"), is(73L)); // should be 59
+          assertThat((Long []) json.getValue("totalItemRequestsByPeriod"), is(arrayContaining(null, 14L, 19L, 34L, 29L)));
+          assertThat((Long []) json.getValue("uniqueItemRequestsByPeriod"), is(arrayContaining(null, 13L, 20L, 22L, 18L)));
+          assertThat(json.getJsonArray("items").getJsonObject(0).encodePrettily(),
+              is(new JsonObject()
+                  .put("kbId", "11000000-0000-4000-8000-000000000000")
+                  .put("title", "Title 11")
+                  .put("printISSN", "1111-1111")
+                  .put("onlineISSN", "1111-2222")
+                  .put("publicationYear", null) // should not be null here MODEUR-63
+                  .put("accessType", "Controlled")
+                  .put("metricType", "Total_Item_Requests")
+                  .put("accessCountTotal", 46)
+                  .put("accessCountsByPeriod", new JsonArray("[ null, 2, 3, 12, 29 ]"))
+                  .encodePrettily()));
+        }));
+  }
+
+  @Test
+  public void useOverTime65(TestContext context) {
+    getUseOverTime(true, true, a1, null, "2020-02", "2020-06")
+        .onComplete(context.asyncAssertSuccess(json -> {
+          System.out.printf(json.encodePrettily());
+          assertThat(json.getLong("totalItemRequestsTotal"), is(99L));
+          assertThat(json.getLong("uniqueItemRequestsTotal"), is(59L));
+          assertThat((Long []) json.getValue("totalItemRequestsByPeriod"), is(arrayContaining(null, 14L, 22L, 34L, 29L)));
+          assertThat((Long []) json.getValue("uniqueItemRequestsByPeriod"), is(arrayContaining(null, 12L, 20L, 18L, 9L)));
+        }));
+  }
+
+  @Test
+  public void costPerUse65(TestContext context) {
+    RoutingContext routingContext = mock(RoutingContext.class, RETURNS_DEEP_STUBS);
+    when(routingContext.request().getHeader("X-Okapi-Tenant")).thenReturn(tenant);
+    when(routingContext.request().params().get("agreementId")).thenReturn(a1);
+    when(routingContext.request().params().get("startDate")).thenReturn("2020-02");
+    when(routingContext.request().params().get("endDate")).thenReturn("2020-06");
+    when(routingContext.request().params().get("includeOA")).thenReturn("true");
+    when(routingContext.request().params().get("format")).thenReturn("JOURNAL");
+    new EusageReportsApi().getCostPerUse(vertx, routingContext)
+        .onComplete(context.asyncAssertSuccess(x -> {
+          ArgumentCaptor<String> body = ArgumentCaptor.forClass(String.class);
+          verify(routingContext.response()).end(body.capture());
+          JsonObject json = new JsonObject(body.getValue());
+          System.out.println(json.encodePrettily());
+        }));
+  }
+
+  @Test
   public void reqsByDateOfUseWithRoutingContext(TestContext context) {
     RoutingContext routingContext = mock(RoutingContext.class, RETURNS_DEEP_STUBS);
     when(routingContext.request().getHeader("X-Okapi-Tenant")).thenReturn(tenant);

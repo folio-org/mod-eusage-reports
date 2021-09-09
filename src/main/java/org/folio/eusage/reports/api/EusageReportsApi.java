@@ -1308,6 +1308,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
       LongAdder [] totalItemRequestsByPeriod = LongAdder.arrayOfLength(periods.size());
       LongAdder [] uniqueItemRequestsByPeriod = LongAdder.arrayOfLength(periods.size());
       rowSet.forEach(row -> {
+        log.info("AD: {}", row.deepToString());
         JsonArray accessCountsByPeriod = new JsonArray();
         LongAdder accessCountTotal = new LongAdder();
         boolean unique = "Unique_Item_Requests".equals(row.getString("metrictype"));
