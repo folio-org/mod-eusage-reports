@@ -556,21 +556,21 @@ public class EusageReportsApiTest {
     new EusageReportsApi().getUseOverTime(pool, true, true, true, a1, null, "2020-02", "2020-06")
         .onComplete(context.asyncAssertSuccess(json -> {
           System.out.printf(json.encodePrettily());
-          assertThat(json.getLong("totalItemRequestsTotal"), is(96L)); // should be 99
-          assertThat(json.getLong("uniqueItemRequestsTotal"), is(73L)); // should be 59
-          assertThat((Long []) json.getValue("totalItemRequestsByPeriod"), is(arrayContaining(null, 14L, 19L, 34L, 29L)));
-          assertThat((Long []) json.getValue("uniqueItemRequestsByPeriod"), is(arrayContaining(null, 13L, 20L, 22L, 18L)));
+          assertThat(json.getLong("totalItemRequestsTotal"), is(99L));
+          assertThat(json.getLong("uniqueItemRequestsTotal"), is(59L));
+          assertThat((Long []) json.getValue("totalItemRequestsByPeriod"), is(arrayContaining(null, 14L, 22L, 34L, 29L)));
+          assertThat((Long []) json.getValue("uniqueItemRequestsByPeriod"), is(arrayContaining(null, 12L, 20L, 18L, 9L)));
           assertThat(json.getJsonArray("items").getJsonObject(0).encodePrettily(),
               is(new JsonObject()
                   .put("kbId", "11000000-0000-4000-8000-000000000000")
                   .put("title", "Title 11")
                   .put("printISSN", "1111-1111")
                   .put("onlineISSN", "1111-2222")
-                  .put("publicationYear", null) // should not be null here MODEUR-63
+                  .put("publicationYear", 2000)
                   .put("accessType", "Controlled")
                   .put("metricType", "Total_Item_Requests")
-                  .put("accessCountTotal", 46)
-                  .put("accessCountsByPeriod", new JsonArray("[ null, 2, 3, 12, 29 ]"))
+                  .put("accessCountTotal", 49)
+                  .put("accessCountsByPeriod", new JsonArray("[ null, 2, 6, 12, 29 ]"))
                   .encodePrettily()));
         }));
   }

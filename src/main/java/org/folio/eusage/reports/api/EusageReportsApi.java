@@ -1297,18 +1297,13 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     useOverTime(sql, pool, isJournal, false, true, groupByPublicationYear, periods.size());
     sql.append(" UNION ");
     useOverTime(sql, pool, isJournal, false, false, groupByPublicationYear, periods.size());
-    if (groupByPublicationYear) {
-      sql.append(" ORDER BY title, kbId, accessType, publicationYear, metricType");
-    } else {
-      sql.append(" ORDER BY title, kbId, accessType, metricType");
-    }
+    sql.append(" ORDER BY title, kbId, accessType, metricType");
 
     return pool.preparedQuery(sql.toString()).execute(tuple).map(rowSet -> {
       JsonArray items = new JsonArray();
       LongAdder [] totalItemRequestsByPeriod = LongAdder.arrayOfLength(periods.size());
       LongAdder [] uniqueItemRequestsByPeriod = LongAdder.arrayOfLength(periods.size());
       rowSet.forEach(row -> {
-        log.info("AD: {}", row.deepToString());
         JsonArray accessCountsByPeriod = new JsonArray();
         LongAdder accessCountTotal = new LongAdder();
         boolean unique = "Unique_Item_Requests".equals(row.getString("metrictype"));
@@ -1318,9 +1313,6 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
         }
         if (isJournal == null || isJournal) {
           skip += 2;
-        }
-        if (groupByPublicationYear) {
-          skip++;
         }
         int pos0 = skip;
         for (int i = 0; i < periods.size(); i++) {
@@ -1344,7 +1336,12 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
           json.put("ISBN", row.getString("isbn"));
         }
         if (groupByPublicationYear) {
-          json.put("publicationYear", row.getInteger("publicationyear"));
+          for (int i = 0; i < periods.size(); i++) {
+            Integer publicationYear = row.getInteger("p" + i);
+            if (publicationYear != null) {
+              json.put("publicationYear", publicationYear);
+            }
+          }
         }
         json
             .put("accessType", row.getString("accesstype"))
@@ -1402,14 +1399,17 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     sql.append("SELECT title_entries.kbTitleId AS kbId, kbTitleName AS title, ")
         .append(isJournal == null || isJournal ? "printISSN, onlineISSN, " : "")
         .append(isJournal == null || !isJournal ? "ISBN, " : "")
-        .append(groupByPublicationYear ? (periods > 0 ? "t0.publicationYear AS publicationYear, "
-            : "null AS publicationYear, ") : "")
         .append(openAccess ? "'OA_Gold' AS accessType, "
             : "'Controlled' AS accessType, ")
         .append(unique ? "'Unique_Item_Requests' AS metricType "
             : "'Total_Item_Requests' AS metricType ");
     for (int i = 0; i < periods; i++) {
       sql.append(", n").append(i);
+    }
+    if (groupByPublicationYear) {
+      for (int i = 0; i < periods; i++) {
+        sql.append(", p").append(i);
+      }
     }
     sql
         .append(" FROM ").append(agreementEntriesTable(pool))
@@ -1422,7 +1422,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
       sql.append(" LEFT JOIN (")
       .append(" SELECT titleEntryId, ")
         .append(groupByPublicationYear
-            ? "extract(year FROM publicationDate)::integer AS publicationYear, "
+            ? "max(extract(year FROM publicationDate)::integer) AS p" + i + ", "
             : "")
         .append("sum(")
         .append(unique ? "uniqueAccessCount" : "totalAccessCount")
@@ -1431,7 +1431,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
       .append(" WHERE daterange($").append(2 + i).append(", $").append(2 + i + 1)
         .append(") @> lower(usageDateRange)")
         .append(openAccess ? " AND openAccess" : " AND NOT openAccess")
-      .append(groupByPublicationYear ? " GROUP BY 1, 2" : " GROUP BY 1")
+      .append(" GROUP BY 1")
       .append(" ) t").append(i).append(" ON t").append(i).append(".titleEntryId = ")
         .append(titleEntriesTable(pool)).append(".id");
     }
