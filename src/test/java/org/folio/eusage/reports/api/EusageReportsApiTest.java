@@ -576,6 +576,30 @@ public class EusageReportsApiTest {
   }
 
   @Test
+  public void reqsByDateOfUseBookNoOA(TestContext context) {
+    new EusageReportsApi().getReqsByDateOfUse(pool, false, false, a2, null, "2020-05", "2020-06")
+        .onComplete(context.asyncAssertSuccess(json -> {
+          System.out.printf(json.encodePrettily());
+          assertThat(json.getLong("totalItemRequestsTotal"), is(40L));
+          assertThat(json.getLong("uniqueItemRequestsTotal"), is(20L));
+          assertThat((Long []) json.getValue("totalItemRequestsByPeriod"), is(arrayContaining(40L, null)));
+          assertThat((Long []) json.getValue("uniqueItemRequestsByPeriod"), is(arrayContaining(20L, null)));
+          assertThat(json.getJsonArray("items").size(), is(2));
+          assertThat(json.getJsonArray("items").getJsonObject(0).encodePrettily(),
+              is(new JsonObject()
+                  .put("kbId", "31000000-0000-4000-8000-000000000000")
+                  .put("title", "Title 31")
+                  .put("ISBN", "3131313131")
+                  .put("publicationYear", 2010)
+                  .put("accessType", "Controlled")
+                  .put("metricType", "Total_Item_Requests")
+                  .put("accessCountTotal", 40)
+                  .put("accessCountsByPeriod", new JsonArray("[ 40, null ]"))
+                  .encodePrettily()));
+        }));
+  }
+
+  @Test
   public void reqsByDateOfUseAll(TestContext context) {
     new EusageReportsApi().getReqsByDateOfUse(pool, null, true, a2, null, "2020-05", "2020-06")
         .onComplete(context.asyncAssertSuccess(json -> {
