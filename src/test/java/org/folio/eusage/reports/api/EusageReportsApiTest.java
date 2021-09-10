@@ -529,7 +529,7 @@ public class EusageReportsApiTest {
   }
 
   @Test
-  public void reqsByDateOfUse(TestContext context) {
+  public void reqsByDateOfUseJournal(TestContext context) {
     new EusageReportsApi().getReqsByDateOfUse(pool, true, true, a2, null, "2020-05", "2020-06")
     .onComplete(context.asyncAssertSuccess(json -> {
       assertThat(json.getLong("totalItemRequestsTotal"), is(42L));
@@ -552,6 +552,43 @@ public class EusageReportsApiTest {
   }
 
   @Test
+  public void reqsByDateOfUseBook(TestContext context) {
+    new EusageReportsApi().getReqsByDateOfUse(pool, false, true, a2, null, "2020-05", "2020-06")
+        .onComplete(context.asyncAssertSuccess(json -> {
+          System.out.printf(json.encodePrettily());
+          assertThat(json.getLong("totalItemRequestsTotal"), is(42L));
+          assertThat(json.getLong("uniqueItemRequestsTotal"), is(21L));
+          assertThat((Long []) json.getValue("totalItemRequestsByPeriod"), is(arrayContaining(40L, 2L)));
+          assertThat((Long []) json.getValue("uniqueItemRequestsByPeriod"), is(arrayContaining(20L, 1L)));
+          assertThat(json.getJsonArray("items").size(), is(4));
+          assertThat(json.getJsonArray("items").getJsonObject(0).encodePrettily(),
+              is(new JsonObject()
+                  .put("kbId", "31000000-0000-4000-8000-000000000000")
+                  .put("title", "Title 31")
+                  .put("ISBN", "3131313131")
+                  .put("publicationYear", 2010)
+                  .put("accessType", "Controlled")
+                  .put("metricType", "Total_Item_Requests")
+                  .put("accessCountTotal", 40)
+                  .put("accessCountsByPeriod", new JsonArray("[ 40, null ]"))
+                  .encodePrettily()));
+        }));
+  }
+
+  @Test
+  public void reqsByDateOfUseAll(TestContext context) {
+    new EusageReportsApi().getReqsByDateOfUse(pool, null, true, a2, null, "2020-05", "2020-06")
+        .onComplete(context.asyncAssertSuccess(json -> {
+          System.out.printf(json.encodePrettily());
+          assertThat(json.getLong("totalItemRequestsTotal"), is(84L));
+          assertThat(json.getLong("uniqueItemRequestsTotal"), is(42L));
+          assertThat((Long []) json.getValue("totalItemRequestsByPeriod"), is(arrayContaining(80L, 4L)));
+          assertThat((Long []) json.getValue("uniqueItemRequestsByPeriod"), is(arrayContaining(40L, 2L)));
+          assertThat(json.getJsonArray("items").size(), is(8));
+        }));
+  }
+
+  @Test
   public void reqsByDateOfUseNoPubYears(TestContext context) {
     new EusageReportsApi().getReqsByDateOfUse(pool, true, true, a1, null, "2005-02", "2005-06")
         .onComplete(context.asyncAssertSuccess(json -> {
@@ -561,7 +598,7 @@ public class EusageReportsApiTest {
   }
 
   @Test
-  public void reqsByDateOfUse65(TestContext context) {
+  public void reqsByDateOfUse63(TestContext context) {
     new EusageReportsApi().getReqsByDateOfUse(pool, true, true, a1, null, "2020-02", "2020-06")
         .onComplete(context.asyncAssertSuccess(json -> {
           assertThat(json.getLong("totalItemRequestsTotal"), is(99L));
@@ -644,7 +681,7 @@ public class EusageReportsApiTest {
   }
 
   @Test
-  public void useOverTime65(TestContext context) {
+  public void useOverTime63(TestContext context) {
     getUseOverTime(true, true, a1, null, "2020-02", "2020-06")
         .onComplete(context.asyncAssertSuccess(json -> {
           System.out.printf(json.encodePrettily());
@@ -656,7 +693,7 @@ public class EusageReportsApiTest {
   }
 
   @Test
-  public void costPerUse65(TestContext context) {
+  public void costPerUse63(TestContext context) {
     RoutingContext routingContext = mock(RoutingContext.class, RETURNS_DEEP_STUBS);
     when(routingContext.request().getHeader("X-Okapi-Tenant")).thenReturn(tenant);
     when(routingContext.request().params().get("agreementId")).thenReturn(a1);
