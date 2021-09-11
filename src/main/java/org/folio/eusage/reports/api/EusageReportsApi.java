@@ -28,6 +28,7 @@ import io.vertx.sqlclient.SqlResult;
 import io.vertx.sqlclient.Tuple;
 import java.io.IOException;
 import java.io.StringWriter;
+import java.io.UncheckedIOException;
 import java.text.DecimalFormat;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -1161,11 +1162,23 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     writer.println();
   }
 
+  static String getUseOverTime2Csv(JsonObject json, Boolean isJournal,
+                                 boolean groupByPublicationYear,
+                                 boolean periodOfUse) {
+    StringWriter stringWriter = new StringWriter();
+    try {
+      CSVPrinter writer = new CSVPrinter(stringWriter, CSV_FORMAT);
+      getUseOverTime2Csv(json, isJournal, groupByPublicationYear, periodOfUse, writer);
+    } catch (IOException e) {
+      throw new UncheckedIOException(e);
+    }
+    return stringWriter.toString();
+  }
+
   static void getUseOverTime2Csv(JsonObject json, Boolean isJournal,
                                  boolean groupByPublicationYear,
-                                 boolean periodOfUse, Appendable appendable)
+                                 boolean periodOfUse, CSVPrinter writer)
       throws IOException {
-    CSVPrinter writer = new CSVPrinter(appendable, CSV_FORMAT);
     writer.print("Title");
     if (isJournal == null || isJournal) {
       writer.print("Print ISSN");
@@ -1259,22 +1272,16 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
         });
   }
 
-  Future<String> getUseOverTime(TenantPgPool pool, Boolean isJournal, Boolean includeOA,
+  Future<String> getUseOverTime(TenantPgPool pool, Boolean isJournal, boolean includeOA,
                                 String agreementId, String accessCountPeriod,
                                 String start, String end, boolean csv) {
     return getUseOverTime(pool, isJournal, includeOA, agreementId,
         accessCountPeriod, start, end)
-        .compose(json -> {
+        .map(json -> {
           if (!csv) {
-            return Future.succeededFuture(json.encodePrettily());
+            return json.encodePrettily();
           }
-          try {
-            StringWriter stringWriter = new StringWriter();
-            getUseOverTime2Csv(json, isJournal, false, false, stringWriter);
-            return Future.succeededFuture(stringWriter.toString());
-          } catch (IOException e) {
-            return Future.failedFuture(e);
-          }
+          return getUseOverTime2Csv(json, isJournal, false, false);
         });
   }
 
@@ -1564,22 +1571,16 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
         });
   }
 
-  Future<String> getReqsByDateOfUse(TenantPgPool pool, Boolean isJournal, Boolean includeOA,
+  Future<String> getReqsByDateOfUse(TenantPgPool pool, Boolean isJournal, boolean includeOA,
                                     String agreementId, String accessCountPeriod,
                                     String start, String end, boolean csv) {
     return getReqsByDateOfUse(pool, isJournal, includeOA, agreementId,
         accessCountPeriod, start, end)
-        .compose(json -> {
+        .map(json -> {
           if (!csv) {
-            return Future.succeededFuture(json.encodePrettily());
+            return json.encodePrettily();
           }
-          try {
-            StringWriter stringWriter = new StringWriter();
-            getUseOverTime2Csv(json, isJournal, true, false, stringWriter);
-            return Future.succeededFuture(stringWriter.toString());
-          } catch (IOException e) {
-            return Future.failedFuture(e);
-          }
+          return getUseOverTime2Csv(json, isJournal, true, false);
         });
   }
 
@@ -1630,17 +1631,11 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
                                   String periodOfUse, boolean csv) {
     return getReqsByPubYear(pool, isJournal, includeOA, agreementId,
         accessCountPeriod, start, end, periodOfUse)
-        .compose(json -> {
+        .map(json -> {
           if (!csv) {
-            return Future.succeededFuture(json.encodePrettily());
+            return json.encodePrettily();
           }
-          try {
-            StringWriter stringWriter = new StringWriter();
-            getUseOverTime2Csv(json, isJournal,false, true, stringWriter);
-            return Future.succeededFuture(stringWriter.toString());
-          } catch (IOException e) {
-            return Future.failedFuture(e);
-          }
+          return getUseOverTime2Csv(json, isJournal, false, true);
         });
   }
 
@@ -1884,9 +1879,19 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     return String.join(" ", ar.getList());
   }
 
-  static void getCostPerUse2Csv(JsonObject json, Boolean isJournal, Appendable appendable)
+  static String getCostPerUse2Csv(JsonObject json, Boolean isJournal) {
+    StringWriter stringWriter = new StringWriter();
+    try {
+      CSVPrinter writer = new CSVPrinter(stringWriter, CSV_FORMAT);
+      getCostPerUse2Csv(json, isJournal, writer);
+    } catch (IOException e) {
+      throw new UncheckedIOException(e);
+    }
+    return stringWriter.toString();
+  }
+
+  static void getCostPerUse2Csv(JsonObject json, Boolean isJournal, CSVPrinter writer)
       throws IOException {
-    CSVPrinter writer = new CSVPrinter(appendable, CSV_FORMAT);
     writer.print("Agreement line");
     writer.print("Derived Title");
     if (isJournal == null || isJournal) {
@@ -2187,17 +2192,11 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
                                String agreementId, String accessCountPeriod, String start,
                                String end, boolean csv) {
     return costPerUse(pool, isJournal, includeOA, agreementId, accessCountPeriod, start, end)
-        .compose(json -> {
+        .map(json -> {
           if (!csv) {
-            return Future.succeededFuture(json.encodePrettily());
+            return json.encodePrettily();
           }
-          try {
-            StringWriter stringWriter = new StringWriter();
-            getCostPerUse2Csv(json, isJournal, stringWriter);
-            return Future.succeededFuture(stringWriter.toString());
-          } catch (IOException e) {
-            return Future.failedFuture(e);
-          }
+          return getCostPerUse2Csv(json, isJournal);
         });
   }
 
