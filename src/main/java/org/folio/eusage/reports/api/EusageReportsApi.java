@@ -1717,6 +1717,12 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
           } while (date.isBefore(usePeriods.endDate));
           usePeriods.addEnd(tuple);
 
+          JsonArray totalRequestsPeriodsOfUseByPeriod = new JsonArray();
+          JsonArray uniqueRequestsPeriodsOfUseByPeriod = new JsonArray();
+          for (int i = 0; i < pubYears.size(); i++) {
+            totalRequestsPeriodsOfUseByPeriod.add(new JsonObject());
+            uniqueRequestsPeriodsOfUseByPeriod.add(new JsonObject());
+          }
           log.debug("{}", sql);
           log.debug("tuple {}", tuple.deepToString());
           return pool.preparedQuery(sql.toString()).execute(tuple).map(rowSet -> {
@@ -1726,16 +1732,25 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
             rowSet.forEach(row -> {
               JsonArray accessCountsByPub = new JsonArray();
               LongAdder accessCountTotal = new LongAdder();
+              String key = row.getString("periodofuse");
               boolean unique = "Unique_Item_Requests".equals(row.getString("metrictype"));
               final int columnsToSkip = 7;
               for (int i = 0; i < pubYears.size(); i++) {
                 Long l = row.getLong(columnsToSkip + i);
                 accessCountsByPub.add(l);
                 accessCountTotal.add(l);
+                JsonObject d;
                 if (unique) {
                   uniqueItemRequestsByPub[i].add(l);
+                  d = uniqueRequestsPeriodsOfUseByPeriod.getJsonObject(i);
                 } else {
                   totalItemRequestsByPub[i].add(l);
+                  d = totalRequestsPeriodsOfUseByPeriod.getJsonObject(i);
+                }
+                Long count = d.getLong(key);
+                if (l != null) {
+                  count = count == null ? l : count + l;
+                  d.put(key, count);
                 }
               }
               JsonObject json = new JsonObject()
@@ -1756,8 +1771,10 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
                 .put("accessCountPeriods", pubYearStrings)
                 .put("totalItemRequestsTotal", LongAdder.sum(totalItemRequestsByPub))
                 .put("totalItemRequestsByPeriod", LongAdder.longArray(totalItemRequestsByPub))
+                .put("totalRequestsPeriodsOfUseByPeriod", totalRequestsPeriodsOfUseByPeriod)
                 .put("uniqueItemRequestsTotal", LongAdder.sum(uniqueItemRequestsByPub))
                 .put("uniqueItemRequestsByPeriod", LongAdder.longArray(uniqueItemRequestsByPub))
+                .put("uniqueRequestsPeriodsOfUseByPeriod", uniqueRequestsPeriodsOfUseByPeriod)
                 .put("items", items);
           });
         });

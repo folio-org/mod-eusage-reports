@@ -34,6 +34,14 @@
         "description": "object with publication year as key and count as value"
       }
     },
+    "totalRequestsPeriodsOfUseByPeriod": {
+      "type": "array",
+      "description": "Access count per period for each publication period, total for all items",
+      "items": {
+        "type": "object",
+        "description": "object with publication year as key and count as value"
+      }
+    },
     "uniqueItemRequestsTotal": {
       "type": "integer",
       "nullable": true,
@@ -50,6 +58,14 @@
     "uniqueRequestsPublicationYearsByPeriod": {
       "type": "array",
       "description": "Unique count per period for each publication year, total for all items",
+      "items": {
+        "type": "object",
+        "description": "object with publication year as key and count as value"
+      }
+    },
+    "uniqueRequestsPeriodsOfUseByPeriod": {
+      "type": "array",
+      "description": "Unique access count per period for each publication period, total for all items",
       "items": {
         "type": "object",
         "description": "object with publication year as key and count as value"
