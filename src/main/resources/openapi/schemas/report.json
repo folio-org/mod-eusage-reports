@@ -31,7 +31,7 @@
       "description": "Access count per period for each publication year, total for all items",
       "items": {
         "type": "object",
-        "description": "object with publication year as key and count value"
+        "description": "object with publication year as key and count as value"
       }
     },
     "uniqueItemRequestsTotal": {
@@ -52,7 +52,7 @@
       "description": "Unique count per period for each publication year, total for all items",
       "items": {
         "type": "object",
-        "description": "object with publication year as key and count value"
+        "description": "object with publication year as key and count as value"
       }
     },
     "items": {
