@@ -1478,7 +1478,12 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
           JsonArray items = new JsonArray();
           LongAdder[] totalItemRequestsByPeriod = LongAdder.arrayOfLength(usePeriods.size());
           LongAdder[] uniqueItemRequestsByPeriod = LongAdder.arrayOfLength(usePeriods.size());
-
+          JsonArray totalRequestsPublicationYearsByPeriod = new JsonArray();
+          JsonArray uniqueRequestsPublicationYearsByPeriod = new JsonArray();
+          for (int i = 0; i < usePeriods.size(); i++) {
+            totalRequestsPublicationYearsByPeriod.add(new JsonObject());
+            uniqueRequestsPublicationYearsByPeriod.add(new JsonObject());
+          }
           if (pubYears.isEmpty()) {
             return Future.succeededFuture(new JsonObject()
                 .put("agreementId", agreementId)
@@ -1520,16 +1525,24 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
               long accessCountTotal = 0L;
               boolean unique = "Unique_Item_Requests".equals(row.getString("metrictype"));
               JsonArray accessCountByPeriod = new JsonArray();
+              int publicationYear = row.getLocalDate("publicationdate").getYear();
               for (int i = 0; i < usePeriods.size(); i++) {
                 Long l = row.getLong(columnsToSkip + i);
                 accessCountByPeriod.add(l);
                 if (l != null) {
                   accessCountTotal += l;
+                  String key = Integer.toString(publicationYear);
+                  JsonObject d;
                   if (unique) {
                     uniqueItemRequestsByPeriod[i].add(l);
+                    d = uniqueRequestsPublicationYearsByPeriod.getJsonObject(i);
                   } else {
                     totalItemRequestsByPeriod[i].add(l);
+                    d = totalRequestsPublicationYearsByPeriod.getJsonObject(i);
                   }
+                  Long count = d.getLong(key);
+                  count = count == null ? l : l + count;
+                  d.put(key, count);
                 }
               }
               if (accessCountTotal > 0L) {
@@ -1544,7 +1557,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
                   json.put("ISBN", row.getString("isbn"));
                 }
                 json
-                    .put("publicationYear", row.getLocalDate("publicationdate").getYear())
+                    .put("publicationYear", publicationYear)
                     .put("accessType", row.getString("accesstype"))
                     .put("metricType", row.getString("metrictype"))
                     .put("accessCountTotal", accessCountTotal)
@@ -1557,8 +1570,11 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
                 .put("accessCountPeriods", usePeriods.getAccessCountPeriods())
                 .put("totalItemRequestsTotal", LongAdder.sum(totalItemRequestsByPeriod))
                 .put("totalItemRequestsByPeriod", LongAdder.longArray(totalItemRequestsByPeriod))
+                .put("totalRequestsPublicationYearsByPeriod", totalRequestsPublicationYearsByPeriod)
                 .put("uniqueItemRequestsTotal", LongAdder.sum(uniqueItemRequestsByPeriod))
                 .put("uniqueItemRequestsByPeriod", LongAdder.longArray(uniqueItemRequestsByPeriod))
+                .put("uniqueRequestsPublicationYearsByPeriod",
+                    uniqueRequestsPublicationYearsByPeriod)
                 .put("items", items);
           });
         });

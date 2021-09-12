@@ -531,24 +531,34 @@ public class EusageReportsApiTest {
   @Test
   public void reqsByDateOfUseJournal(TestContext context) {
     new EusageReportsApi().getReqsByDateOfUse(pool, true, true, a2, null, "2020-05", "2020-06")
-    .onComplete(context.asyncAssertSuccess(json -> {
-      assertThat(json.getLong("totalItemRequestsTotal"), is(42L));
-      assertThat(json.getLong("uniqueItemRequestsTotal"), is(21L));
-      assertThat((Long []) json.getValue("totalItemRequestsByPeriod"), is(arrayContaining(40L, 2L)));
-      assertThat((Long []) json.getValue("uniqueItemRequestsByPeriod"), is(arrayContaining(20L, 1L)));
-      assertThat(json.getJsonArray("items").getJsonObject(0).encodePrettily(),
-          is(new JsonObject()
-              .put("kbId", "21000000-0000-4000-8000-000000000000")
-              .put("title", "Title 21")
-              .put("printISSN", "2121-1111")
-              .put("onlineISSN", null)
-              .put("publicationYear", 2010)
-              .put("accessType", "Controlled")
-              .put("metricType", "Total_Item_Requests")
-              .put("accessCountTotal", 40L)
-              .put("accessCountsByPeriod", new JsonArray("[ 40, null ]"))
-              .encodePrettily()));
-    }));
+        .onComplete(context.asyncAssertSuccess(json -> {
+          assertThat(json.getLong("totalItemRequestsTotal"), is(42L));
+          assertThat(json.getLong("uniqueItemRequestsTotal"), is(21L));
+          assertThat((Long []) json.getValue("totalItemRequestsByPeriod"), is(arrayContaining(40L, 2L)));
+          assertThat((Long []) json.getValue("uniqueItemRequestsByPeriod"), is(arrayContaining(20L, 1L)));
+          assertThat(json.getJsonArray("totalRequestsPublicationYearsByPeriod").encodePrettily(),
+              is(new JsonArray()
+                  .add(new JsonObject().put("2010", 40))
+                  .add(new JsonObject().put("2010", 2))
+                  .encodePrettily()));
+          assertThat(json.getJsonArray("uniqueRequestsPublicationYearsByPeriod").encodePrettily(),
+              is(new JsonArray()
+                  .add(new JsonObject().put("2010", 20))
+                  .add(new JsonObject().put("2010", 1))
+                  .encodePrettily()));
+          assertThat(json.getJsonArray("items").getJsonObject(0).encodePrettily(),
+              is(new JsonObject()
+                  .put("kbId", "21000000-0000-4000-8000-000000000000")
+                  .put("title", "Title 21")
+                  .put("printISSN", "2121-1111")
+                  .put("onlineISSN", null)
+                  .put("publicationYear", 2010)
+                  .put("accessType", "Controlled")
+                  .put("metricType", "Total_Item_Requests")
+                  .put("accessCountTotal", 40L)
+                  .put("accessCountsByPeriod", new JsonArray("[ 40, null ]"))
+                  .encodePrettily()));
+        }));
   }
 
   @Test
@@ -629,6 +639,22 @@ public class EusageReportsApiTest {
           assertThat(json.getLong("uniqueItemRequestsTotal"), is(59L));
           assertThat((Long []) json.getValue("totalItemRequestsByPeriod"), is(arrayContaining(null, 14L, 22L, 34L, 29L)));
           assertThat((Long []) json.getValue("uniqueItemRequestsByPeriod"), is(arrayContaining(null, 12L, 20L, 18L, 9L)));
+          assertThat(json.getJsonArray("totalRequestsPublicationYearsByPeriod").encodePrettily(),
+              is(new JsonArray()
+                  .add(new JsonObject())
+                  .add(new JsonObject().put("1999", 2).put("2010", 12))
+                  .add(new JsonObject().put("1999", 3).put("2000", 3).put("2010", 16))
+                  .add(new JsonObject().put("2000", 12).put("2010", 22))
+                  .add(new JsonObject().put("2000", 29))
+                  .encodePrettily()));
+          assertThat(json.getJsonArray("uniqueRequestsPublicationYearsByPeriod").encodePrettily(),
+              is(new JsonArray()
+                  .add(new JsonObject())
+                  .add(new JsonObject().put("1999", 1).put("2010", 11))
+                  .add(new JsonObject().put("1999", 2).put("2000", 3).put("2010", 15))
+                  .add(new JsonObject().put("2000", 4).put("2010", 14))
+                  .add(new JsonObject().put("2000", 9))
+                  .encodePrettily()));
           assertThat(json.getJsonArray("items").getJsonObject(0).encodePrettily(),
               is(new JsonObject()
                   .put("kbId", "11000000-0000-4000-8000-000000000000")
