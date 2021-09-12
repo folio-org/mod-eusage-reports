@@ -1747,10 +1747,8 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
                   totalItemRequestsByPub[i].add(l);
                   d = totalRequestsPeriodsOfUseByPeriod.getJsonObject(i);
                 }
-                Long count = d.getLong(key);
                 if (l != null) {
-                  count = count == null ? l : count + l;
-                  d.put(key, count);
+                  d.put(key, l);
                 }
               }
               JsonObject json = new JsonObject()
