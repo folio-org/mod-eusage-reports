@@ -190,6 +190,7 @@ paths:
       - $ref: parameters/end-date.yaml
       - $ref: parameters/format.yaml
       - $ref: parameters/include-oa.yaml
+      - $ref: parameters/yop-interval.yaml
     get:
       description: Return requests by date of use; this is like use over time but additionally groups by publication year.
       operationId: getReqsByDateOfUse

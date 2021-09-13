@@ -22,6 +22,10 @@
       "type": "string",
       "description": "ISBN for instance"
     },
+    "publicationYear": {
+      "type": "string",
+      "description": "Publication year .. or range (eg 2000 for 1Y, or 2000-2001 for 2Y)"
+    },
     "periodOfUse": {
       "type": "string",
       "description": "The usage period of this publication year report row, either one month like 2018-03 or one year like 2018 or a month range like 2018-03 - 2018-05 or a year range like 2018-2019"

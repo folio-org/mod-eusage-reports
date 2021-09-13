@@ -530,7 +530,7 @@ public class EusageReportsApiTest {
 
   @Test
   public void reqsByDateOfUseJournal(TestContext context) {
-    new EusageReportsApi().getReqsByDateOfUse(pool, true, true, a2, null, "2020-05", "2020-06")
+    new EusageReportsApi().getReqsByDateOfUse(pool, true, true, a2, null, "2020-05", "2020-06", null)
         .onComplete(context.asyncAssertSuccess(json -> {
           assertThat(json.getLong("totalItemRequestsTotal"), is(42L));
           assertThat(json.getLong("uniqueItemRequestsTotal"), is(21L));
@@ -552,7 +552,7 @@ public class EusageReportsApiTest {
                   .put("title", "Title 21")
                   .put("printISSN", "2121-1111")
                   .put("onlineISSN", null)
-                  .put("publicationYear", 2010)
+                  .put("publicationYear", "2010")
                   .put("accessType", "Controlled")
                   .put("metricType", "Total_Item_Requests")
                   .put("accessCountTotal", 40L)
@@ -563,7 +563,7 @@ public class EusageReportsApiTest {
 
   @Test
   public void reqsByDateOfUseBook(TestContext context) {
-    new EusageReportsApi().getReqsByDateOfUse(pool, false, true, a2, null, "2020-05", "2020-06")
+    new EusageReportsApi().getReqsByDateOfUse(pool, false, true, a2, null, "2020-05", "2020-06", null)
         .onComplete(context.asyncAssertSuccess(json -> {
           assertThat(json.getLong("totalItemRequestsTotal"), is(42L));
           assertThat(json.getLong("uniqueItemRequestsTotal"), is(21L));
@@ -575,7 +575,7 @@ public class EusageReportsApiTest {
                   .put("kbId", "31000000-0000-4000-8000-000000000000")
                   .put("title", "Title 31")
                   .put("ISBN", "3131313131")
-                  .put("publicationYear", 2010)
+                  .put("publicationYear", "2010")
                   .put("accessType", "Controlled")
                   .put("metricType", "Total_Item_Requests")
                   .put("accessCountTotal", 40)
@@ -586,7 +586,7 @@ public class EusageReportsApiTest {
 
   @Test
   public void reqsByDateOfUseBookNoOA(TestContext context) {
-    new EusageReportsApi().getReqsByDateOfUse(pool, false, false, a2, null, "2020-05", "2020-06")
+    new EusageReportsApi().getReqsByDateOfUse(pool, false, false, a2, null, "2020-05", "2020-06", null)
         .onComplete(context.asyncAssertSuccess(json -> {
           assertThat(json.getLong("totalItemRequestsTotal"), is(40L));
           assertThat(json.getLong("uniqueItemRequestsTotal"), is(20L));
@@ -598,7 +598,7 @@ public class EusageReportsApiTest {
                   .put("kbId", "31000000-0000-4000-8000-000000000000")
                   .put("title", "Title 31")
                   .put("ISBN", "3131313131")
-                  .put("publicationYear", 2010)
+                  .put("publicationYear", "2010")
                   .put("accessType", "Controlled")
                   .put("metricType", "Total_Item_Requests")
                   .put("accessCountTotal", 40)
@@ -609,7 +609,7 @@ public class EusageReportsApiTest {
 
   @Test
   public void reqsByDateOfUseAll(TestContext context) {
-    new EusageReportsApi().getReqsByDateOfUse(pool, null, true, a2, null, "2020-05", "2020-06")
+    new EusageReportsApi().getReqsByDateOfUse(pool, null, true, a2, null, "2020-05", "2020-06", null)
         .onComplete(context.asyncAssertSuccess(json -> {
           assertThat(json.getLong("totalItemRequestsTotal"), is(84L));
           assertThat(json.getLong("uniqueItemRequestsTotal"), is(42L));
@@ -621,7 +621,7 @@ public class EusageReportsApiTest {
 
   @Test
   public void reqsByDateOfUseNoPubYears(TestContext context) {
-    new EusageReportsApi().getReqsByDateOfUse(pool, true, true, a1, null, "2005-02", "2005-06")
+    new EusageReportsApi().getReqsByDateOfUse(pool, true, true, a1, null, "2005-02", "2005-06", "auto")
         .onComplete(context.asyncAssertSuccess(json -> {
           assertThat(json.getLong("totalItemRequestsTotal"), is(0L));
           assertThat(json.getLong("uniqueItemRequestsTotal"), is(0L));
@@ -630,7 +630,7 @@ public class EusageReportsApiTest {
 
   @Test
   public void reqsByDateOfUse63(TestContext context) {
-    new EusageReportsApi().getReqsByDateOfUse(pool, true, true, a1, null, "2020-02", "2020-06")
+    new EusageReportsApi().getReqsByDateOfUse(pool, true, true, a1, null, "2020-02", "2020-06", null)
         .onComplete(context.asyncAssertSuccess(json -> {
           assertThat(json.getLong("totalItemRequestsTotal"), is(99L));
           assertThat(json.getLong("uniqueItemRequestsTotal"), is(59L));
@@ -658,7 +658,7 @@ public class EusageReportsApiTest {
                   .put("title", "Title 11")
                   .put("printISSN", "1111-1111")
                   .put("onlineISSN", "1111-2222")
-                  .put("publicationYear", 1999)
+                  .put("publicationYear", "1999")
                   .put("accessType", "Controlled")
                   .put("metricType", "Total_Item_Requests")
                   .put("accessCountTotal", 5)
@@ -670,7 +670,7 @@ public class EusageReportsApiTest {
                   .put("title", "Title 11")
                   .put("printISSN", "1111-1111")
                   .put("onlineISSN", "1111-2222")
-                  .put("publicationYear", 1999)
+                  .put("publicationYear", "1999")
                   .put("accessType", "Controlled")
                   .put("metricType", "Unique_Item_Requests")
                   .put("accessCountTotal", 3)
@@ -682,7 +682,7 @@ public class EusageReportsApiTest {
                   .put("title", "Title 11")
                   .put("printISSN", "1111-1111")
                   .put("onlineISSN", "1111-2222")
-                  .put("publicationYear", 2000)
+                  .put("publicationYear", "2000")
                   .put("accessType", "Controlled")
                   .put("metricType", "Total_Item_Requests")
                   .put("accessCountTotal", 44)
@@ -694,7 +694,7 @@ public class EusageReportsApiTest {
                   .put("title", "Title 11")
                   .put("printISSN", "1111-1111")
                   .put("onlineISSN", "1111-2222")
-                  .put("publicationYear", 2000)
+                  .put("publicationYear", "2000")
                   .put("accessType", "Controlled")
                   .put("metricType", "Unique_Item_Requests")
                   .put("accessCountTotal", 16)
@@ -706,7 +706,7 @@ public class EusageReportsApiTest {
                   .put("title", "Title 12")
                   .put("printISSN", "1212-1111")
                   .put("onlineISSN", "1212-2222")
-                  .put("publicationYear", 2010)
+                  .put("publicationYear", "2010")
                   .put("accessType", "Controlled")
                   .put("metricType", "Total_Item_Requests")
                   .put("accessCountTotal", 50)
@@ -718,7 +718,7 @@ public class EusageReportsApiTest {
                   .put("title", "Title 12")
                   .put("printISSN", "1212-1111")
                   .put("onlineISSN", "1212-2222")
-                  .put("publicationYear", 2010)
+                  .put("publicationYear", "2010")
                   .put("accessType", "Controlled")
                   .put("metricType", "Unique_Item_Requests")
                   .put("accessCountTotal", 40)
@@ -792,6 +792,49 @@ public class EusageReportsApiTest {
   }
 
   @Test
+  public void reqsByDateOfUseYopInterval2Y(TestContext context) {
+    new EusageReportsApi().getReqsByDateOfUse(pool, null, true, a1, null, "2020-02", "2020-06", "2Y")
+        .onComplete(context.asyncAssertSuccess(json -> {
+          System.out.println(json.encodePrettily());
+          assertThat(json.getLong("totalItemRequestsTotal"), is(99L));
+          assertThat(json.getLong("uniqueItemRequestsTotal"), is(59L));
+          assertThat((Long []) json.getValue("totalItemRequestsByPeriod"), is(arrayContaining(null, 14L, 22L, 34L, 29L)));
+          assertThat((Long []) json.getValue("uniqueItemRequestsByPeriod"), is(arrayContaining(null, 12L, 20L, 18L, 9L)));
+          assertThat(json.getJsonArray("totalRequestsPublicationYearsByPeriod").encodePrettily(),
+              is(new JsonArray()
+                  .add(new JsonObject())
+                  .add(new JsonObject().put("1998-1999", 2).put("2010-2011", 12))
+                  .add(new JsonObject().put("1998-1999", 3).put("2000-2001", 3).put("2010-2011", 16).put("2010-2011", 16))
+                  .add(new JsonObject().put("2000-2001", 12).put("2010-2011", 22))
+                  .add(new JsonObject().put("2000-2001", 29))
+                  .encodePrettily()));
+          assertThat(json.getJsonArray("uniqueRequestsPublicationYearsByPeriod").encodePrettily(),
+              is(new JsonArray()
+                  .add(new JsonObject())
+                  .add(new JsonObject().put("1998-1999", 1).put("2010-2011", 11))
+                  .add(new JsonObject().put("1998-1999", 2).put("2000-2001", 3).put("2010-2011", 16).put("2010-2011", 15))
+                  .add(new JsonObject().put("2000-2001", 4).put("2010-2011", 14))
+                  .add(new JsonObject().put("2000-2001", 9))
+                  .encodePrettily()));
+          assertThat(json.getJsonArray("items").size(), is(6));
+          assertThat(json.getJsonArray("items").getJsonObject(0).encodePrettily(),
+              is(new JsonObject()
+                  .put("kbId", "11000000-0000-4000-8000-000000000000")
+                  .put("title", "Title 11")
+                  .put("printISSN", "1111-1111")
+                  .put("onlineISSN", "1111-2222")
+                  .put("ISBN", null)
+                  .put("publicationYear", "1998-1999")
+                  .put("accessType", "Controlled")
+                  .put("metricType", "Total_Item_Requests")
+                  .put("accessCountTotal", 5)
+                  .put("accessCountsByPeriod", new JsonArray("[ null, 2, 3, null, null ]"))
+                  .encodePrettily()));
+
+        }));
+  }
+
+  @Test
   public void reqsByDateOfUseWithRoutingContext(TestContext context) {
     RoutingContext routingContext = mock(RoutingContext.class, RETURNS_DEEP_STUBS);
     when(routingContext.request().getHeader("X-Okapi-Tenant")).thenReturn(tenant);
@@ -814,7 +857,7 @@ public class EusageReportsApiTest {
               .put("title", "Title 21")
               .put("printISSN", "2121-1111")
               .put("onlineISSN", null)
-              .put("publicationYear", 2010)
+              .put("publicationYear", "2010")
               .put("accessType", "Controlled")
               .put("metricType", "Total_Item_Requests")
               .put("accessCountTotal", 40)

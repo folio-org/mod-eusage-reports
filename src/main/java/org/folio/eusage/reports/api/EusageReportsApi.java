@@ -1221,7 +1221,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
         writer.print(item.getString("ISBN"));
       }
       if (groupByPublicationYear) {
-        writer.print(item.getLong("publicationYear"));
+        writer.print(item.getString("publicationYear"));
       }
       if (periodOfUse) {
         writer.print(item.getString("periodOfUse"));
@@ -1475,12 +1475,27 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     sql.append(" WHERE agreementId = $1::uuid").append(limitJournal(isJournal));
   }
 
+  static String pubPeriodToString(LocalDate date, int periodMonth) {
+    String s1 = date.toString();
+    String s2 = date.plusMonths(periodMonth - 1).toString();
+    if (s1.endsWith("-01-01") && s2.endsWith("-12-01")) {
+      s1 = s1.substring(0, 4);
+      s2 = s2.substring(0, 4);
+    } else {
+      s1 = s1.substring(0, 7);
+      s2 = s2.substring(0, 7);
+    }
+    return s1.equals(s2) ? s1 : s1 + "-" + s2;
+  }
+
   Future<JsonObject> getReqsByDateOfUse(TenantPgPool pool,
                                         Boolean isJournal, boolean includeOA, String agreementId,
-                                        String accessCountPeriod, String start, String end) {
+                                        String accessCountPeriod, String start, String end,
+                                        String yopInterval) {
 
     Periods usePeriods = new Periods(start, end, accessCountPeriod);
-    int pubPeriodsInMonths = 12;
+    int pubPeriodsInMonths = yopInterval == null || "auto".equals(yopInterval)
+        ? 12 : Periods.getPeriodInMonths(yopInterval);
 
     return getPubPeriods(pool, isJournal, agreementId, usePeriods, pubPeriodsInMonths)
         .compose(pubYears -> {
@@ -1534,13 +1549,13 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
               long accessCountTotal = 0L;
               boolean unique = "Unique_Item_Requests".equals(row.getString("metrictype"));
               JsonArray accessCountByPeriod = new JsonArray();
-              int publicationYear = row.getLocalDate("publicationdate").getYear();
+              String publicationPeriod = pubPeriodToString(row.getLocalDate("publicationdate"),
+                  pubPeriodsInMonths);
               for (int i = 0; i < usePeriods.size(); i++) {
                 Long l = row.getLong(columnsToSkip + i);
                 accessCountByPeriod.add(l);
                 if (l != null) {
                   accessCountTotal += l;
-                  String key = Integer.toString(publicationYear);
                   JsonObject d;
                   if (unique) {
                     uniqueItemRequestsByPeriod[i].add(l);
@@ -1549,9 +1564,9 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
                     totalItemRequestsByPeriod[i].add(l);
                     d = totalRequestsPublicationYearsByPeriod.getJsonObject(i);
                   }
-                  Long count = d.getLong(key);
+                  Long count = d.getLong(publicationPeriod);
                   count = count == null ? l : l + count;
-                  d.put(key, count);
+                  d.put(publicationPeriod, count);
                 }
               }
               if (accessCountTotal > 0L) {
@@ -1566,7 +1581,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
                   json.put("ISBN", row.getString("isbn"));
                 }
                 json
-                    .put("publicationYear", publicationYear)
+                    .put("publicationYear", publicationPeriod)
                     .put("accessType", row.getString("accesstype"))
                     .put("metricType", row.getString("metrictype"))
                     .put("accessCountTotal", accessCountTotal)
@@ -1591,9 +1606,9 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
 
   Future<String> getReqsByDateOfUse(TenantPgPool pool, Boolean isJournal, boolean includeOA,
                                     String agreementId, String accessCountPeriod,
-                                    String start, String end, boolean csv) {
+                                    String start, String end, String yopInterval, boolean csv) {
     return getReqsByDateOfUse(pool, isJournal, includeOA, agreementId,
-        accessCountPeriod, start, end)
+        accessCountPeriod, start, end, yopInterval)
         .map(json -> {
           if (!csv) {
             return json.encodePrettily();
@@ -1610,10 +1625,11 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     String accessCountPeriod = ctx.request().params().get("accessCountPeriod");
     String start = ctx.request().params().get("startDate");
     String end = ctx.request().params().get("endDate");
+    String yopInterval = ctx.request().params().get("yopInterval");
     boolean includeOA = "true".equalsIgnoreCase(ctx.request().params().get("includeOA"));
 
     return getReqsByDateOfUse(pool, isJournal, includeOA, agreementId,
-        accessCountPeriod, start, end, csv)
+        accessCountPeriod, start, end, yopInterval, csv)
         .map(res -> {
           ctx.response().setStatusCode(200);
           ctx.response().putHeader("Content-Type", csv ? "text/csv" : "application/json");
@@ -1690,20 +1706,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
             pubYears.forEach(year -> {
               tuple.addLocalDate(year);
               tuple.addLocalDate(year.plusMonths(pubPeriodsInMonths));
-              String s1 = year.toString();
-              String s2 = year.plusMonths(pubPeriodsInMonths - 1).toString();
-              if (s1.endsWith("-01-01") && s2.endsWith("-12-01")) {
-                s1 = s1.substring(0, 4);
-                s2 = s2.substring(0, 4);
-              } else {
-                s1 = s1.substring(0, 7);
-                s2 = s2.substring(0, 7);
-              }
-              if (s1.equals(s2)) {
-                pubYearStrings.add(s1);
-              } else {
-                pubYearStrings.add(s1 + "-" + s2);
-              }
+              pubYearStrings.add(pubPeriodToString(year, pubPeriodsInMonths));
             });
           }
           LocalDate date = usePeriods.startDate;
