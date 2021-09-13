@@ -1485,7 +1485,12 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
           JsonArray items = new JsonArray();
           LongAdder[] totalItemRequestsByPeriod = LongAdder.arrayOfLength(usePeriods.size());
           LongAdder[] uniqueItemRequestsByPeriod = LongAdder.arrayOfLength(usePeriods.size());
-
+          JsonArray totalRequestsPublicationYearsByPeriod = new JsonArray();
+          JsonArray uniqueRequestsPublicationYearsByPeriod = new JsonArray();
+          for (int i = 0; i < usePeriods.size(); i++) {
+            totalRequestsPublicationYearsByPeriod.add(new JsonObject());
+            uniqueRequestsPublicationYearsByPeriod.add(new JsonObject());
+          }
           if (pubYears.isEmpty()) {
             return Future.succeededFuture(new JsonObject()
                 .put("agreementId", agreementId)
@@ -1527,16 +1532,24 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
               long accessCountTotal = 0L;
               boolean unique = "Unique_Item_Requests".equals(row.getString("metrictype"));
               JsonArray accessCountByPeriod = new JsonArray();
+              int publicationYear = row.getLocalDate("publicationdate").getYear();
               for (int i = 0; i < usePeriods.size(); i++) {
                 Long l = row.getLong(columnsToSkip + i);
                 accessCountByPeriod.add(l);
                 if (l != null) {
                   accessCountTotal += l;
+                  String key = Integer.toString(publicationYear);
+                  JsonObject d;
                   if (unique) {
                     uniqueItemRequestsByPeriod[i].add(l);
+                    d = uniqueRequestsPublicationYearsByPeriod.getJsonObject(i);
                   } else {
                     totalItemRequestsByPeriod[i].add(l);
+                    d = totalRequestsPublicationYearsByPeriod.getJsonObject(i);
                   }
+                  Long count = d.getLong(key);
+                  count = count == null ? l : l + count;
+                  d.put(key, count);
                 }
               }
               if (accessCountTotal > 0L) {
@@ -1551,7 +1564,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
                   json.put("ISBN", row.getString("isbn"));
                 }
                 json
-                    .put("publicationYear", row.getLocalDate("publicationdate").getYear())
+                    .put("publicationYear", publicationYear)
                     .put("accessType", row.getString("accesstype"))
                     .put("metricType", row.getString("metrictype"))
                     .put("accessCountTotal", accessCountTotal)
@@ -1564,8 +1577,11 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
                 .put("accessCountPeriods", usePeriods.getAccessCountPeriods())
                 .put("totalItemRequestsTotal", LongAdder.sum(totalItemRequestsByPeriod))
                 .put("totalItemRequestsByPeriod", LongAdder.longArray(totalItemRequestsByPeriod))
+                .put("totalRequestsPublicationYearsByPeriod", totalRequestsPublicationYearsByPeriod)
                 .put("uniqueItemRequestsTotal", LongAdder.sum(uniqueItemRequestsByPeriod))
                 .put("uniqueItemRequestsByPeriod", LongAdder.longArray(uniqueItemRequestsByPeriod))
+                .put("uniqueRequestsPublicationYearsByPeriod",
+                    uniqueRequestsPublicationYearsByPeriod)
                 .put("items", items);
           });
         });
@@ -1696,6 +1712,12 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
           } while (date.isBefore(usePeriods.endDate));
           usePeriods.addEnd(tuple);
 
+          JsonArray totalRequestsPeriodsOfUseByPeriod = new JsonArray();
+          JsonArray uniqueRequestsPeriodsOfUseByPeriod = new JsonArray();
+          for (int i = 0; i < pubYears.size(); i++) {
+            totalRequestsPeriodsOfUseByPeriod.add(new JsonObject());
+            uniqueRequestsPeriodsOfUseByPeriod.add(new JsonObject());
+          }
           log.debug("{}", sql);
           log.debug("tuple {}", tuple.deepToString());
           return pool.preparedQuery(sql.toString()).execute(tuple).map(rowSet -> {
@@ -1705,16 +1727,23 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
             rowSet.forEach(row -> {
               JsonArray accessCountsByPub = new JsonArray();
               LongAdder accessCountTotal = new LongAdder();
+              String key = row.getString("periodofuse");
               boolean unique = "Unique_Item_Requests".equals(row.getString("metrictype"));
               final int columnsToSkip = 7;
               for (int i = 0; i < pubYears.size(); i++) {
                 Long l = row.getLong(columnsToSkip + i);
                 accessCountsByPub.add(l);
                 accessCountTotal.add(l);
+                JsonObject d;
                 if (unique) {
                   uniqueItemRequestsByPub[i].add(l);
+                  d = uniqueRequestsPeriodsOfUseByPeriod.getJsonObject(i);
                 } else {
                   totalItemRequestsByPub[i].add(l);
+                  d = totalRequestsPeriodsOfUseByPeriod.getJsonObject(i);
+                }
+                if (l != null) {
+                  d.put(key, l);
                 }
               }
               JsonObject json = new JsonObject()
@@ -1735,8 +1764,10 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
                 .put("accessCountPeriods", pubYearStrings)
                 .put("totalItemRequestsTotal", LongAdder.sum(totalItemRequestsByPub))
                 .put("totalItemRequestsByPeriod", LongAdder.longArray(totalItemRequestsByPub))
+                .put("totalRequestsPeriodsOfUseByPeriod", totalRequestsPeriodsOfUseByPeriod)
                 .put("uniqueItemRequestsTotal", LongAdder.sum(uniqueItemRequestsByPub))
                 .put("uniqueItemRequestsByPeriod", LongAdder.longArray(uniqueItemRequestsByPub))
+                .put("uniqueRequestsPeriodsOfUseByPeriod", uniqueRequestsPeriodsOfUseByPeriod)
                 .put("items", items);
           });
         });
