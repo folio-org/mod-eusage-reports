@@ -896,6 +896,18 @@ public class EusageReportsApiTest {
           assertThat(json.getLong("uniqueItemRequestsTotal"), is(59L));
           assertThat(json.getJsonArray("totalItemRequestsByPeriod"), contains(5, 44, 50));
           assertThat(json.getJsonArray("uniqueItemRequestsByPeriod"), contains(3, 16, 40));
+          assertThat(json.getJsonArray("totalRequestsPeriodsOfUseByPeriod").encodePrettily(),
+              is(new JsonArray()
+                  .add(new JsonObject().put("2020-01 - 2020-06", 5))
+                  .add(new JsonObject().put("2020-01 - 2020-06", 44))
+                  .add(new JsonObject().put("2020-01 - 2020-06", 50))
+                  .encodePrettily()));
+          assertThat(json.getJsonArray("uniqueRequestsPeriodsOfUseByPeriod").encodePrettily(),
+              is(new JsonArray()
+                  .add(new JsonObject().put("2020-01 - 2020-06", 3))
+                  .add(new JsonObject().put("2020-01 - 2020-06", 16))
+                  .add(new JsonObject().put("2020-01 - 2020-06", 40))
+                  .encodePrettily()));
         }));
   }
 
