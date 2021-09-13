@@ -523,6 +523,13 @@ public class MainVerticleTest {
       ctx.response().end("query missing");
       return;
     }
+    String limit = ctx.request().getParam("limit");
+    if (!"2147483647".equals(limit)) {
+      ctx.response().putHeader("Content-Type", "text/plain");
+      ctx.response().setStatusCode(400);
+      ctx.response().end("limit missing");
+      return;
+    }
     UUID poLineId = UUID.fromString(query.substring(10));
 
     JsonArray ar = new JsonArray();

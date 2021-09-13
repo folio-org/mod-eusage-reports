@@ -63,6 +63,8 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
 
   static final CSVFormat CSV_FORMAT = CSVFormat.RFC4180;
 
+  static final String LIMIT_ALL = "?limit=2147483647";
+
   static DecimalFormat costDecimalFormat = new DecimalFormat("#.00");
 
   static String titleEntriesTable(TenantPgPool pool) {
@@ -722,7 +724,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     if (providerId != null) {
       parms = "&query=providerId%3D%3D" + providerId;
     }
-    final String uri = "/counter-reports" + (id != null ? "/" + id : "?limit=2147483647") + parms;
+    final String uri = "/counter-reports" + (id != null ? "/" + id : LIMIT_ALL) + parms;
     AtomicInteger pathSize = new AtomicInteger(id != null ? 1 : 0);
     JsonObject reportObj = new JsonObject();
     return pool.getConnection().compose(con -> {
@@ -881,7 +883,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
    * @return Invoice lines response.
    */
   Future<JsonObject> lookupInvoiceLines(UUID poLineId, RoutingContext ctx) {
-    String uri = "/invoice-storage/invoice-lines?query=poLineId%3D%3D" + poLineId;
+    String uri = "/invoice-storage/invoice-lines" + LIMIT_ALL + "&query=poLineId%3D%3D" + poLineId;
     return getRequestSend(ctx, uri)
         .map(HttpResponse::bodyAsJsonObject);
   }
