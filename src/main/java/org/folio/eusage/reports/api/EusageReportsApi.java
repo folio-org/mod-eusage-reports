@@ -1475,19 +1475,6 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     sql.append(" WHERE agreementId = $1::uuid").append(limitJournal(isJournal));
   }
 
-  static String pubPeriodToString(LocalDate date, int periodMonth) {
-    String s1 = date.toString();
-    String s2 = date.plusMonths(periodMonth - 1).toString();
-    if (s1.endsWith("-01-01") && s2.endsWith("-12-01")) {
-      s1 = s1.substring(0, 4);
-      s2 = s2.substring(0, 4);
-    } else {
-      s1 = s1.substring(0, 7);
-      s2 = s2.substring(0, 7);
-    }
-    return s1.equals(s2) ? s1 : s1 + "-" + s2;
-  }
-
   Future<JsonObject> getReqsByDateOfUse(TenantPgPool pool,
                                         Boolean isJournal, boolean includeOA, String agreementId,
                                         String accessCountPeriod, String start, String end,
@@ -1549,7 +1536,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
               long accessCountTotal = 0L;
               boolean unique = "Unique_Item_Requests".equals(row.getString("metrictype"));
               JsonArray accessCountByPeriod = new JsonArray();
-              String publicationPeriod = pubPeriodToString(row.getLocalDate("publicationdate"),
+              String publicationPeriod = Periods.periodLabel(row.getLocalDate("publicationdate"),
                   pubPeriodsInMonths);
               for (int i = 0; i < usePeriods.size(); i++) {
                 Long l = row.getLong(columnsToSkip + i);
@@ -1706,7 +1693,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
             pubYears.forEach(year -> {
               tuple.addLocalDate(year);
               tuple.addLocalDate(year.plusMonths(pubPeriodsInMonths));
-              pubYearStrings.add(pubPeriodToString(year, pubPeriodsInMonths));
+              pubYearStrings.add(Periods.periodLabel(year, pubPeriodsInMonths));
             });
           }
           LocalDate date = usePeriods.startDate;

@@ -74,9 +74,12 @@ public class Periods {
   }
 
   /**
-   * Label like "2021" or "2020 - 2024" or "2021-05" or "2021-04 - 2021-06".
+   * Return period label for period range date to date+months.
+   * @param date from date
+   * @param periodInMonths plus amount in month
+   * @return label in formats such as YYYY, YYYY-MM, YYYY - YYYY, YYYY-MM - YYYY-MM
    */
-  public String periodLabel(LocalDate date) {
+  public static String periodLabel(LocalDate date, int periodInMonths) {
     String startStr = date.toString();
     if (periodInMonths == 1) {
       return startStr.substring(0, startStr.length() - 3);
@@ -92,6 +95,13 @@ public class Periods {
     String endStr = date.plusMonths(periodInMonths - 1L).toString();
     return startStr.substring(0, startStr.length() - 3) + " - "
         + endStr.subSequence(0, endStr.length() - 3);
+  }
+
+  /**
+   * Label like "2021" or "2020 - 2024" or "2021-05" or "2021-04 - 2021-06".
+   */
+  public String periodLabel(LocalDate date) {
+    return periodLabel(date, periodInMonths);
   }
 
   int getMonths() {

@@ -803,18 +803,18 @@ public class EusageReportsApiTest {
           assertThat(json.getJsonArray("totalRequestsPublicationYearsByPeriod").encodePrettily(),
               is(new JsonArray()
                   .add(new JsonObject())
-                  .add(new JsonObject().put("1998-1999", 2).put("2010-2011", 12))
-                  .add(new JsonObject().put("1998-1999", 3).put("2000-2001", 3).put("2010-2011", 16).put("2010-2011", 16))
-                  .add(new JsonObject().put("2000-2001", 12).put("2010-2011", 22))
-                  .add(new JsonObject().put("2000-2001", 29))
+                  .add(new JsonObject().put("1998 - 1999", 2).put("2010 - 2011", 12))
+                  .add(new JsonObject().put("1998 - 1999", 3).put("2000 - 2001", 3).put("2010 - 2011", 16).put("2010 - 2011", 16))
+                  .add(new JsonObject().put("2000 - 2001", 12).put("2010 - 2011", 22))
+                  .add(new JsonObject().put("2000 - 2001", 29))
                   .encodePrettily()));
           assertThat(json.getJsonArray("uniqueRequestsPublicationYearsByPeriod").encodePrettily(),
               is(new JsonArray()
                   .add(new JsonObject())
-                  .add(new JsonObject().put("1998-1999", 1).put("2010-2011", 11))
-                  .add(new JsonObject().put("1998-1999", 2).put("2000-2001", 3).put("2010-2011", 16).put("2010-2011", 15))
-                  .add(new JsonObject().put("2000-2001", 4).put("2010-2011", 14))
-                  .add(new JsonObject().put("2000-2001", 9))
+                  .add(new JsonObject().put("1998 - 1999", 1).put("2010 - 2011", 11))
+                  .add(new JsonObject().put("1998 - 1999", 2).put("2000 - 2001", 3).put("2010 - 2011", 16).put("2010 - 2011", 15))
+                  .add(new JsonObject().put("2000 - 2001", 4).put("2010 - 2011", 14))
+                  .add(new JsonObject().put("2000 - 2001", 9))
                   .encodePrettily()));
           assertThat(json.getJsonArray("items").size(), is(6));
           assertThat(json.getJsonArray("items").getJsonObject(0).encodePrettily(),
@@ -824,7 +824,7 @@ public class EusageReportsApiTest {
                   .put("printISSN", "1111-1111")
                   .put("onlineISSN", "1111-2222")
                   .put("ISBN", null)
-                  .put("publicationYear", "1998-1999")
+                  .put("publicationYear", "1998 - 1999")
                   .put("accessType", "Controlled")
                   .put("metricType", "Total_Item_Requests")
                   .put("accessCountTotal", 5)
@@ -970,7 +970,7 @@ public class EusageReportsApiTest {
           verify(routingContext.response()).end(body.capture());
           JsonObject json = new JsonObject(body.getValue());
           assertThat((List<?>) json.getJsonArray("accessCountPeriods").getList(),
-              contains("1998-1999", "2000-2001", "2010-2011"));
+              contains("1998 - 1999", "2000 - 2001", "2010 - 2011"));
           assertThat(json.getLong("totalItemRequestsTotal"), is(99L));
           assertThat(json.getLong("uniqueItemRequestsTotal"), is(59L));
           assertThat(json.getJsonArray("totalItemRequestsByPeriod"), contains(5, 44, 50));
@@ -994,7 +994,7 @@ public class EusageReportsApiTest {
           verify(routingContext.response()).end(body.capture());
           JsonObject json = new JsonObject(body.getValue());
           assertThat((List<?>) json.getJsonArray("accessCountPeriods").getList(),
-              contains("1999-01-1999-03", "2000-01-2000-03", "2010-01-2010-03"));
+              contains("1999-01 - 1999-03", "2000-01 - 2000-03", "2010-01 - 2010-03"));
           assertThat(json.getLong("totalItemRequestsTotal"), is(99L));
           assertThat(json.getLong("uniqueItemRequestsTotal"), is(59L));
           assertThat(json.getJsonArray("totalItemRequestsByPeriod"), contains(5, 44, 50));
