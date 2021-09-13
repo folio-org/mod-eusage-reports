@@ -235,7 +235,8 @@ public class MainVerticleTest {
     ctx.response().putHeader("Content-Type", "application/json");
     ctx.response().write("{ \"counterReports\": [ ")
         .onComplete(x -> {
-          int total = 5;
+          String limit = ctx.request().getParam("limit");
+          int total = "2147483647".equals(limit) ? 5 : 0;
           String query = ctx.request().getParam("query");
           if (query != null) {
             UUID matchProviderId = UUID.fromString(query.substring(query.lastIndexOf('=') + 1));

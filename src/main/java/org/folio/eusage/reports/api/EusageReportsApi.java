@@ -720,9 +720,9 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
 
     String parms = "";
     if (providerId != null) {
-      parms = "?query=providerId%3D%3D" + providerId;
+      parms = "&query=providerId%3D%3D" + providerId;
     }
-    final String uri = "/counter-reports" + (id != null ? "/" + id : "") + parms;
+    final String uri = "/counter-reports" + (id != null ? "/" + id : "?limit=2147483647") + parms;
     AtomicInteger pathSize = new AtomicInteger(id != null ? 1 : 0);
     JsonObject reportObj = new JsonObject();
     return pool.getConnection().compose(con -> {
