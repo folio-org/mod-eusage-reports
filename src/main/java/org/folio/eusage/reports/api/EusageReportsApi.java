@@ -2366,7 +2366,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
             + "-- periods are n months long. Examples:\n"
             + "-- Begin of quarter (3 months): floor_months('2019-05-17', 3) = '2019-04-01'.\n"
             + "-- Begin of decade (10 years): floor_months('2019-05-17', 120) = '2010-01-01'.\n"
-            + "  SELECT make_date(m / 12, m % 12 + 1, 1)\n"
+            + "  SELECT make_date(GREATEST(1, m / 12), m % 12 + 1, 1)\n"
             + "  FROM (SELECT ((12 * extract(year FROM $1)::integer\n"
             + "                 + extract(month FROM $1)::integer - 1) / $2) * $2) AS x(m)\n"
             + "$$ LANGUAGE SQL IMMUTABLE STRICT"

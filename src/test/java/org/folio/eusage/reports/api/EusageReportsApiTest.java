@@ -210,7 +210,7 @@ public class EusageReportsApiTest {
   }
 
   private static Future<RowSet<Row>> insertTitleData(String titleEntryId,
-      String dateStart, String dateEnd, int publicationYear,
+      String dateStart, String dateEnd, String publicationYear,
       boolean openAccess, int uniqueAccessCount, int totalAccessCount) {
 
     return pool.preparedQuery("INSERT INTO " + titleDataTable(pool)
@@ -262,19 +262,19 @@ public class EusageReportsApiTest {
         .compose(x -> insertTitleEntry(te22, t22, "Title 22", null,        "2222-2222"))
         .compose(x -> insertTitleEntry(te31, t31, "Title 31", "3131313131"))
         .compose(x -> insertTitleEntry(te32, t32, "Title 32", "3232323232"))
-        .compose(x -> insertTitleData(te11, "2020-03-01", "2020-04-01", 1999, false, 1, 2))
-        .compose(x -> insertTitleData(te11, "2020-04-01", "2020-04-15", 1999, false, 2, 3))
-        .compose(x -> insertTitleData(te11, "2020-04-15", "2020-05-01", 2000, false, 3, 3))
-        .compose(x -> insertTitleData(te11, "2020-05-01", "2020-06-01", 2000, false, 4, 12))
-        .compose(x -> insertTitleData(te11, "2020-06-01", "2020-07-01", 2000, false, 9, 29))
-        .compose(x -> insertTitleData(te12, "2020-03-01", "2020-04-01", 2010, false, 11, 12))
-        .compose(x -> insertTitleData(te12, "2020-04-01", "2020-05-01", 2010, false, 15, 16))
-        .compose(x -> insertTitleData(te12, "2020-05-01", "2020-06-01", 2010, false, 14, 22))
-        .compose(x -> insertTitleData(te21, "2020-03-01", "2020-04-01", 2010, false, 0, 0))
-        .compose(x -> insertTitleData(te21, "2020-05-01", "2020-06-01", 2010, false, 20, 40))
-        .compose(x -> insertTitleData(te21, "2020-06-01", "2020-07-01", 2010, true, 1, 2))
-        .compose(x -> insertTitleData(te31, "2020-05-01", "2020-06-01", 2010, false, 20, 40))
-        .compose(x -> insertTitleData(te32, "2020-06-01", "2020-07-01", 2010, true, 1, 2))
+        .compose(x -> insertTitleData(te11, "2020-03-01", "2020-04-01", "1999", false, 1, 2))
+        .compose(x -> insertTitleData(te11, "2020-04-01", "2020-04-15", "1999", false, 2, 3))
+        .compose(x -> insertTitleData(te11, "2020-04-15", "2020-05-01", "2000", false, 3, 3))
+        .compose(x -> insertTitleData(te11, "2020-05-01", "2020-06-01", "2000", false, 4, 12))
+        .compose(x -> insertTitleData(te11, "2020-06-01", "2020-07-01", "2000", false, 9, 29))
+        .compose(x -> insertTitleData(te12, "2020-03-01", "2020-04-01", "2010", false, 11, 12))
+        .compose(x -> insertTitleData(te12, "2020-04-01", "2020-05-01", "2010", false, 15, 16))
+        .compose(x -> insertTitleData(te12, "2020-05-01", "2020-06-01", "2010", false, 14, 22))
+        .compose(x -> insertTitleData(te21, "2020-03-01", "2020-04-01", "2010", false, 0, 0))
+        .compose(x -> insertTitleData(te21, "2020-05-01", "2020-06-01", "2010", false, 20, 40))
+        .compose(x -> insertTitleData(te21, "2020-06-01", "2020-07-01", "2010", true, 1, 2))
+        .compose(x -> insertTitleData(te31, "2020-05-01", "2020-06-01", "0001", false, 20, 40))
+        .compose(x -> insertTitleData(te32, "2020-06-01", "2020-07-01", "2010", true, 1, 2))
         .mapEmpty();
   }
 
@@ -575,7 +575,7 @@ public class EusageReportsApiTest {
                   .put("kbId", "31000000-0000-4000-8000-000000000000")
                   .put("title", "Title 31")
                   .put("ISBN", "3131313131")
-                  .put("publicationYear", "2010")
+                  .put("publicationYear", "0001")
                   .put("accessType", "Controlled")
                   .put("metricType", "Total_Item_Requests")
                   .put("accessCountTotal", 40)
@@ -586,7 +586,7 @@ public class EusageReportsApiTest {
 
   @Test
   public void reqsByDateOfUseBookNoOA(TestContext context) {
-    new EusageReportsApi().getReqsByDateOfUse(pool, false, false, a2, null, "2020-05", "2020-06", null)
+    new EusageReportsApi().getReqsByDateOfUse(pool, false, false, a2, null, "2020-05", "2020-06", "5Y")
         .onComplete(context.asyncAssertSuccess(json -> {
           assertThat(json.getLong("totalItemRequestsTotal"), is(40L));
           assertThat(json.getLong("uniqueItemRequestsTotal"), is(20L));
@@ -598,7 +598,7 @@ public class EusageReportsApiTest {
                   .put("kbId", "31000000-0000-4000-8000-000000000000")
                   .put("title", "Title 31")
                   .put("ISBN", "3131313131")
-                  .put("publicationYear", "2010")
+                  .put("publicationYear", "0001 - 0005")
                   .put("accessType", "Controlled")
                   .put("metricType", "Total_Item_Requests")
                   .put("accessCountTotal", 40)
