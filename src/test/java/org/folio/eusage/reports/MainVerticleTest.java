@@ -15,7 +15,6 @@ import io.vertx.ext.web.RoutingContext;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.UUID;
-import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.folio.okapi.common.XOkapiHeaders;
@@ -218,16 +217,15 @@ public class MainVerticleTest {
     return counterReport;
   }
 
-
-  static void getCounterReportsChunk(RoutingContext ctx, AtomicInteger cnt, int max) {
-    if (cnt.incrementAndGet() > max) {
+  static void getCounterReportsChunk(RoutingContext ctx, int offset, int limit, int max, boolean first) {
+    if (offset >= max || limit <= 0) {
       ctx.response().end("], \"totalRecords\": " + max + "}");
       return;
     }
-    String lead = cnt.get() > 1 ? "," : "";
-    JsonObject counterReport = getCounterReportMock(UUID.randomUUID(), cnt.get());
+    String lead = first ? "" : ",";
+    JsonObject counterReport = getCounterReportMock(UUID.randomUUID(), offset + 1);
     ctx.response().write(lead + counterReport.encode())
-        .onComplete(x -> getCounterReportsChunk(ctx, cnt, max));
+        .onComplete(x -> getCounterReportsChunk(ctx, offset + 1, limit - 1, max, false));
   }
 
   static void getCounterReports(RoutingContext ctx) {
@@ -236,7 +234,8 @@ public class MainVerticleTest {
     ctx.response().write("{ \"counterReports\": [ ")
         .onComplete(x -> {
           String limit = ctx.request().getParam("limit");
-          int total = "2147483647".equals(limit) ? 5 : 0;
+          String offset = ctx.request().getParam("offset");
+          int total = 5;
           String query = ctx.request().getParam("query");
           if (query != null) {
             UUID matchProviderId = UUID.fromString(query.substring(query.lastIndexOf('=') + 1));
@@ -244,7 +243,8 @@ public class MainVerticleTest {
               total = 0;
             }
           }
-          getCounterReportsChunk(ctx, new AtomicInteger(0), total);
+          getCounterReportsChunk(ctx, offset == null ? 0 : Integer.parseInt(offset),
+              limit == null ? 10 : Integer.parseInt(limit), total, true);
         });
   }
 

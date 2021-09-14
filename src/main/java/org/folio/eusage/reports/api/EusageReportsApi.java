@@ -714,18 +714,25 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     if (okapiUrl == null) {
       return Future.failedFuture("Missing " + XOkapiHeaders.URL);
     }
-    Promise<Void> promise = Promise.promise();
-    JsonParser parser = JsonParser.newParser();
-    AtomicBoolean objectMode = new AtomicBoolean(false);
     TenantPgPool pool = TenantPgPool.pool(vertx, tenant);
-    List<Future<Void>> futures = new ArrayList<>();
+    return populateCounterReportTitles(ctx, pool, id, providerId,0);
+  }
 
+  private Future<Boolean> populateCounterReportTitles(RoutingContext ctx, TenantPgPool pool,
+      String id, String providerId, int offset) {
+    Promise<Void> promise = Promise.promise();
     String parms = "";
     if (providerId != null) {
       parms = "&query=providerId%3D%3D" + providerId;
     }
-    final String uri = "/counter-reports" + (id != null ? "/" + id : LIMIT_ALL) + parms;
+    final int limit = 1;
+    final String uri = "/counter-reports" + (id != null ? "/" + id
+        : "?limit=" + limit + "&offset=" + offset + parms);
+    JsonParser parser = JsonParser.newParser();
+    AtomicBoolean objectMode = new AtomicBoolean(false);
+    List<Future<Void>> futures = new ArrayList<>();
     AtomicInteger pathSize = new AtomicInteger(id != null ? 1 : 0);
+    AtomicInteger totalRecords = new AtomicInteger(0);
     JsonObject reportObj = new JsonObject();
     return pool.getConnection().compose(con -> {
       parser.handler(event -> {
@@ -745,7 +752,10 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
           futures.add(handleReport(pool, con, ctx, reportObj));
         } else {
           String f = event.fieldName();
-          log.debug("Field = {}", f);
+          log.debug("Field = {} pathSize={}", f, pathSize.get());
+          if (pathSize.get() == 1 && "totalRecords".equals(f)) {
+            totalRecords.set(event.integerValue());
+          }
           if (pathSize.get() == 2) { // if inside each top-level of each report
             if ("id".equals(f)) {
               reportObj.put("id", event.stringValue());
@@ -781,7 +791,13 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
                   + res.statusCode());
             }
             return promise.future().map(true);
-          }).eventually(x -> con.close());
+          }).eventually(x -> con.close())
+          .compose(res -> {
+            if (offset + limit >= totalRecords.get()) {
+              return Future.succeededFuture(res);
+            }
+            return populateCounterReportTitles(ctx, pool, id, providerId,offset + limit);
+          });
     });
   }
 
