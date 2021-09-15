@@ -73,6 +73,15 @@ public class Periods {
     return LocalDate.of(m / 12, m % 12 + 1, 1);
   }
 
+  public LocalDate floorMonths(LocalDate date) {
+    return Periods.floorMonths(date, periodInMonths);
+  }
+
+  int getPeriodEntry(LocalDate date) {
+    return (12 * date.getYear() + date.getMonthValue())
+        - (12 * startDate.getYear() + startDate.getMonthValue());
+  }
+
   /**
    * Return period label for period range date to date+months.
    * @param date from date
