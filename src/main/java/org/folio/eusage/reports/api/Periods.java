@@ -40,16 +40,15 @@ public class Periods {
     startDate = floorMonths(LocalDate.parse(start), periodInMonths);
     endDate   = floorMonths(LocalDate.parse(end), periodInMonths).plus(period);
 
-    if (Period.between(startDate, endDate).getYears() > 10) {
-      throw new IllegalArgumentException(
-          "Must no exceed 10 years: startDate=" + start + ", endDate= " + end);
-    }
-
     LocalDate date = startDate;
     do {
       accessCountPeriods.add(periodLabel(date));
       date = date.plus(period);
     } while (date.isBefore(endDate));
+    if (accessCountPeriods.size() > 100) {
+      throw new IllegalArgumentException(
+          "Too many periods " + accessCountPeriods.size() + " (max is 100) for startDate=" + start + ", endDate= " + end + " " + periodOfUse);
+    }
   }
 
   /**

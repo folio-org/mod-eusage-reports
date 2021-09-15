@@ -130,6 +130,13 @@ public class EusageReportsApiTest {
   }
 
   @Test
+  public void useOverTimeTooManyPeriods() {
+    Throwable t = assertThrows(IllegalArgumentException.class, () ->
+        getUseOverTime("BOOK", "1900", "2020", false));
+    assertThat(t.getMessage(), is("Too many periods 121 (max is 100) for startDate=1900-01-01, endDate= 2020-01-01 1Y"));
+  }
+
+  @Test
   public void useOverTimeCsvOK(TestContext context) {
     getUseOverTime("ALL", "2020", "2021", true)
         .onComplete(context.asyncAssertSuccess());
