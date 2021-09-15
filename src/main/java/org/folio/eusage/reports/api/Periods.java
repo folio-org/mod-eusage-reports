@@ -47,7 +47,8 @@ public class Periods {
     } while (date.isBefore(endDate));
     if (accessCountPeriods.size() > 100) {
       throw new IllegalArgumentException(
-          "Too many periods " + accessCountPeriods.size() + " (max is 100) for startDate=" + start + ", endDate= " + end + " " + periodOfUse);
+          "Too many periods " + accessCountPeriods.size() + " (max is 100) for startDate="
+              + start + ", endDate= " + end + " " + periodOfUse);
     }
   }
 
