@@ -78,8 +78,8 @@ public class Periods {
   }
 
   int getPeriodEntry(LocalDate date) {
-    return (12 * date.getYear() + date.getMonthValue())
-        - (12 * startDate.getYear() + startDate.getMonthValue());
+    return ((12 * date.getYear() + date.getMonthValue())
+        - (12 * startDate.getYear() + startDate.getMonthValue())) / periodInMonths;
   }
 
   /**
