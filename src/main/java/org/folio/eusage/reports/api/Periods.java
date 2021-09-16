@@ -83,6 +83,21 @@ public class Periods {
   }
 
   /**
+   * Return label for start of period and provide default value if date is null.
+   * @param date date (may be null)
+   * @param periodInMonths plus amount in months
+   * @param def default date string returned if date is null.
+   * @return date label.
+   */
+  public static String periodLabelFloor(LocalDate date, int periodInMonths, String def) {
+    if (date == null) {
+      return def;
+    }
+    LocalDate dateFloor = Periods.floorMonths(date, periodInMonths);
+    return Periods.periodLabel(dateFloor, periodInMonths);
+  }
+
+  /**
    * Return period label for period range date to date+months.
    * @param date from date
    * @param periodInMonths plus amount in month

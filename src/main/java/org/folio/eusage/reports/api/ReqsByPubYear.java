@@ -33,20 +33,14 @@ public class ReqsByPubYear {
 
     rowSet.forEach(row -> {
       LocalDate publicationDate = row.getLocalDate("publicationdate");
-      String pubPeriodLabel;
-      if (publicationDate == null) {
-        pubPeriodLabel = "nopub";
-      } else {
-        LocalDate publicationFloor = Periods.floorMonths(publicationDate, pubPeriodInMonths);
-        pubPeriodLabel = Periods.periodLabel(publicationFloor, pubPeriodInMonths);
-      }
+      String pubPeriodLabel = Periods.periodLabelFloor(publicationDate, pubPeriodInMonths, "nopub");
       pubPeriodsSet.add(pubPeriodLabel);
     });
-    Map<String,Integer> pubSet = new HashMap<>();
+    Map<String,Integer> pubYearIndexMap = new HashMap<>();
     JsonArray accessCountsPeriods = new JsonArray();
     int numPubPeriods = 0;
     for (String p : pubPeriodsSet) {
-      pubSet.put(p, numPubPeriods++);
+      pubYearIndexMap.put(p, numPubPeriods++);
       totalItemRequestsByPeriod.add(0L);
       uniqueItemRequestsByPeriod.add(0L);
       totalRequestsPeriodsOfUseByPeriod.add(new JsonObject());
@@ -64,14 +58,9 @@ public class ReqsByPubYear {
         final String usePeriodLabel = usePeriods.periodLabel(usageStart);
 
         LocalDate publicationDate = row.getLocalDate("publicationdate");
-        String pubPeriodLabel;
-        if (publicationDate == null) {
-          pubPeriodLabel = "nopub";
-        } else {
-          LocalDate publicationFloor = Periods.floorMonths(publicationDate, pubPeriodInMonths);
-          pubPeriodLabel = Periods.periodLabel(publicationFloor, pubPeriodInMonths);
-        }
-        int idx = pubSet.get(pubPeriodLabel);
+        String pubPeriodLabel = Periods.periodLabelFloor(publicationDate, pubPeriodInMonths,
+            "nopub");
+        int idx = pubYearIndexMap.get(pubPeriodLabel);
 
         pubPeriodsSet.add(pubPeriodLabel);
         String accessType = row.getBoolean("openaccess") ? "OA_Gold" : "Controlled";
@@ -113,7 +102,7 @@ public class ReqsByPubYear {
             totalItem.put("ISBN", row.getString("isbn"));
           }
           accessCountsByPeriod = new JsonArray();
-          for (int i = 0; i < pubSet.size(); i++) {
+          for (int i = 0; i < pubYearIndexMap.size(); i++) {
             accessCountsByPeriod.add(0L);
           }
           totalItem
@@ -144,7 +133,7 @@ public class ReqsByPubYear {
             uniqueItem.put("ISBN", row.getString("isbn"));
           }
           accessCountsByPeriod = new JsonArray();
-          for (int i = 0; i < pubSet.size(); i++) {
+          for (int i = 0; i < pubYearIndexMap.size(); i++) {
             accessCountsByPeriod.add(0L);
           }
           uniqueItem

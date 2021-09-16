@@ -19,6 +19,7 @@ public class ReqsByDateOfUse {
 
   static JsonObject titlesToJsonObject(RowSet<Row> rowSet, Boolean isJournal, String agreementId,
       Periods usePeriods, int pubPeriodsInMonths) {
+
     List<Long> totalItemRequestsByPeriod = new ArrayList<>();
     List<Long> uniqueItemRequestsByPeriod = new ArrayList<>();
     Map<String,JsonObject> totalItems = new HashMap<>();
@@ -44,13 +45,8 @@ public class ReqsByDateOfUse {
         int idx = usePeriods.getPeriodEntry(usageStart);
 
         LocalDate publicationDate = row.getLocalDate("publicationdate");
-        String pubPeriodLabel;
-        if (publicationDate == null) {
-          pubPeriodLabel = "nopub";
-        } else {
-          LocalDate publicationFloor = Periods.floorMonths(publicationDate, pubPeriodsInMonths);
-          pubPeriodLabel = Periods.periodLabel(publicationFloor, pubPeriodsInMonths);
-        }
+        String pubPeriodLabel = Periods.periodLabelFloor(publicationDate, pubPeriodsInMonths,
+            "nopub");
         String accessType = row.getBoolean("openaccess") ? "OA_Gold" : "Controlled";
         String itemKey = row.getUUID("kbid").toString() + "," + pubPeriodLabel + "," + accessType;
         String dupKey = itemKey + "," + usageDateRange + "," + publicationDate;

@@ -188,7 +188,7 @@ public class ApiIT {
     then().
       statusCode(200).
       body("agreementId", is("10000000-0000-4000-8000-000000000000")).
-      body("totalItemRequestsTotal", is(nullValue())).
+      body("totalItemRequestsTotal", is(0)).
       body("accessCountPeriods", is(empty()));
   }
 
