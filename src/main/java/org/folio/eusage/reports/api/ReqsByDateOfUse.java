@@ -148,7 +148,7 @@ public class ReqsByDateOfUse {
         .put("totalRequestsPublicationYearsByPeriod", totalRequestsPublicationYearsByPeriod)
         .put("uniqueRequestsPublicationYearsByPeriod", uniqueRequestsPublicationYearsByPeriod)
         .put("items", items);
-    log.info("JSON={}", json.encodePrettily());
+    log.debug("JSON={}", () -> json.encodePrettily());
     return json;
   }
 

@@ -48,7 +48,6 @@ public class ReqsByPubYear {
       accessCountsPeriods.add(p);
     }
     rowSet.forEach(row -> {
-      log.info("AD: 2 {}", row.deepToString());
       String usageDateRange = row.getString("usagedaterange");
       Long totalAccessCount = row.getLong("totalaccesscount");
       Long uniqueAccessCount = row.getLong("uniqueaccesscount");
@@ -164,7 +163,7 @@ public class ReqsByPubYear {
         .put("uniqueItemRequestsByPeriod", uniqueItemRequestsByPeriod)
         .put("uniqueRequestsPeriodsOfUseByPeriod", uniqueRequestsPeriodsOfUseByPeriod)
         .put("items", items);
-    log.info("JSON={}", json.encodePrettily());
+    log.debug("JSON={}", () -> json.encodePrettily());
     return json;
   }
 }
