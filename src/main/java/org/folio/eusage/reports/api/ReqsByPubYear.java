@@ -65,7 +65,7 @@ public class ReqsByPubYear {
         pubPeriodsSet.add(pubPeriodLabel);
         String accessType = row.getBoolean("openaccess") ? "OA_Gold" : "Controlled";
         String itemKey = row.getUUID("kbid").toString() + "," + usePeriodLabel + "," + accessType;
-        String dupKey = itemKey + "," + publicationDate.toString() + usageDateRange;
+        String dupKey = itemKey + "," + publicationDate + "," + usageDateRange;
         if (!dup.add(dupKey)) {
           return;
         }
