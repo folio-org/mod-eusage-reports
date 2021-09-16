@@ -10,50 +10,72 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.SortedSet;
 import java.util.TreeSet;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-public class ReqsByDateOfUse {
-  private static final Logger log = LogManager.getLogger(ReqsByDateOfUse.class);
+public class ReqsByPubYear {
+  private static final Logger log = LogManager.getLogger(ReqsByPubYear.class);
 
-  static JsonObject titlesToJsonObject(RowSet<Row> rowSet, Boolean isJournal, String agreementId,
-      Periods usePeriods, int pubPeriodsInMonths) {
+  static JsonObject titlesToJsonObject(
+      RowSet<Row> rowSet, Boolean isJournal, String agreementId,
+      Periods usePeriods, int pubPeriodInMonths) {
     List<Long> totalItemRequestsByPeriod = new ArrayList<>();
+    JsonArray totalRequestsPeriodsOfUseByPeriod = new JsonArray();
     List<Long> uniqueItemRequestsByPeriod = new ArrayList<>();
+    JsonArray uniqueRequestsPeriodsOfUseByPeriod = new JsonArray();
+    JsonArray items = new JsonArray();
     Map<String,JsonObject> totalItems = new HashMap<>();
     Map<String,JsonObject> uniqueItems = new HashMap<>();
     Set<String> dup = new TreeSet<>();
+    SortedSet<String> pubPeriodsSet = new TreeSet<>();
 
-    JsonArray totalRequestsPublicationYearsByPeriod = new JsonArray();
-    JsonArray uniqueRequestsPublicationYearsByPeriod = new JsonArray();
-    JsonArray items = new JsonArray();
-    for (int i = 0; i < usePeriods.size(); i++) {
+    rowSet.forEach(row -> {
+      LocalDate publicationDate = row.getLocalDate("publicationdate");
+      String pubPeriodLabel;
+      if (publicationDate == null) {
+        pubPeriodLabel = "nopub";
+      } else {
+        LocalDate publicationFloor = Periods.floorMonths(publicationDate, pubPeriodInMonths);
+        pubPeriodLabel = Periods.periodLabel(publicationFloor, pubPeriodInMonths);
+      }
+      pubPeriodsSet.add(pubPeriodLabel);
+    });
+    Map<String,Integer> pubSet = new HashMap<>();
+    int numPubPeriods = 0;
+    for (String p : pubPeriodsSet) {
+      pubSet.put(p, numPubPeriods++);
       totalItemRequestsByPeriod.add(0L);
       uniqueItemRequestsByPeriod.add(0L);
-      totalRequestsPublicationYearsByPeriod.add(new JsonObject());
-      uniqueRequestsPublicationYearsByPeriod.add(new JsonObject());
+      totalRequestsPeriodsOfUseByPeriod.add(new JsonObject());
+      uniqueRequestsPeriodsOfUseByPeriod.add(new JsonObject());
     }
     rowSet.forEach(row -> {
+      log.info("AD: 2 {}", row.deepToString());
       String usageDateRange = row.getString("usagedaterange");
       Long totalAccessCount = row.getLong("totalaccesscount");
       Long uniqueAccessCount = row.getLong("uniqueaccesscount");
       if (usageDateRange != null && totalAccessCount > 0L) {
         LocalDate usageStart = usePeriods.floorMonths(LocalDate.parse(
             usageDateRange.substring(1, 11)));
-        int idx = usePeriods.getPeriodEntry(usageStart);
+        final String usePeriodLabel = usePeriods.periodLabel(usageStart);
 
         LocalDate publicationDate = row.getLocalDate("publicationdate");
         String pubPeriodLabel;
         if (publicationDate == null) {
           pubPeriodLabel = "nopub";
         } else {
-          LocalDate publicationFloor = Periods.floorMonths(publicationDate, pubPeriodsInMonths);
-          pubPeriodLabel = Periods.periodLabel(publicationFloor, pubPeriodsInMonths);
+          LocalDate publicationFloor = Periods.floorMonths(publicationDate, pubPeriodInMonths);
+          pubPeriodLabel = Periods.periodLabel(publicationFloor, pubPeriodInMonths);
         }
+        int idx = pubSet.get(pubPeriodLabel);
+        log.info("idx = {}", idx);
+
+        pubPeriodsSet.add(pubPeriodLabel);
         String accessType = row.getBoolean("openaccess") ? "OA_Gold" : "Controlled";
-        String itemKey = row.getUUID("kbid").toString() + "," + pubPeriodLabel + "," + accessType;
-        String dupKey = itemKey + "," + usageDateRange;
+        String itemKey = row.getUUID("kbid").toString() + "," + usePeriodLabel + "," + accessType;
+        String dupKey = itemKey + "," + pubPeriodLabel;
         if (!dup.add(dupKey)) {
           return;
         }
@@ -63,20 +85,18 @@ public class ReqsByDateOfUse {
         uniqueItemRequestsByPeriod.set(idx, uniqueAccessCount
             + uniqueItemRequestsByPeriod.get(idx));
 
-        JsonObject o = totalRequestsPublicationYearsByPeriod.getJsonObject(idx);
-        Long totalAccessCountPeriod = o.getLong(pubPeriodLabel, 0L);
-        o.put(pubPeriodLabel, totalAccessCountPeriod + totalAccessCount);
+        JsonObject o = totalRequestsPeriodsOfUseByPeriod.getJsonObject(idx);
+        Long totalAccessCountPeriod = o.getLong(usePeriodLabel, 0L);
+        o.put(usePeriodLabel, totalAccessCountPeriod + totalAccessCount);
 
-        o = uniqueRequestsPublicationYearsByPeriod.getJsonObject(idx);
-        Long uniqueAccessCountPeriod = o.getLong(pubPeriodLabel, 0L);
-        o.put(pubPeriodLabel, uniqueAccessCountPeriod + uniqueAccessCount);
+        o = uniqueRequestsPeriodsOfUseByPeriod.getJsonObject(idx);
+        Long uniqueAccessCountPeriod = o.getLong(usePeriodLabel, 0L);
+        o.put(usePeriodLabel, uniqueAccessCountPeriod + uniqueAccessCount);
 
         JsonObject totalItem = totalItems.get(itemKey);
-        JsonArray accessCountsByPeriods;
+        JsonArray accessCountsByPeriod;
         if (totalItem != null) {
-          accessCountsByPeriods = totalItem.getJsonArray("accessCountsByPeriod");
-          totalItem.put("accessCountTotal", totalItem.getLong("accessCountTotal")
-              + totalAccessCount);
+          accessCountsByPeriod = totalItem.getJsonArray("accessCountsByPeriod");
         } else {
           totalItem = new JsonObject()
               .put("kbId", row.getUUID("kbid"))
@@ -89,26 +109,24 @@ public class ReqsByDateOfUse {
           if (isJournal == null || !isJournal) {
             totalItem.put("ISBN", row.getString("isbn"));
           }
-          accessCountsByPeriods = new JsonArray();
-          for (int i = 0; i < usePeriods.size(); i++) {
-            accessCountsByPeriods.add(0L);
+          accessCountsByPeriod = new JsonArray();
+          for (int i = 0; i < pubSet.size(); i++) {
+            accessCountsByPeriod.add(0L);
           }
           totalItem
-              .put("publicationYear", pubPeriodLabel)
+              .put("periodOfuse", usePeriodLabel)
               .put("accessType", accessType)
               .put("metricType", "Total_Item_Requests")
               .put("accessCountTotal", totalAccessCount)
-              .put("accessCountsByPeriod", accessCountsByPeriods);
+              .put("accessCountsByPeriod", accessCountsByPeriod);
           items.add(totalItem);
           totalItems.put(itemKey, totalItem);
         }
-        accessCountsByPeriods.set(idx, accessCountsByPeriods.getLong(idx) + totalAccessCount);
+        accessCountsByPeriod.set(idx, accessCountsByPeriod.getLong(idx) + totalAccessCount);
 
         JsonObject uniqueItem = uniqueItems.get(itemKey);
         if (uniqueItem != null) {
-          accessCountsByPeriods = uniqueItem.getJsonArray("accessCountsByPeriod");
-          uniqueItem.put("accessCountTotal", uniqueItem.getLong("accessCountTotal")
-              + uniqueAccessCount);
+          accessCountsByPeriod = uniqueItem.getJsonArray("accessCountsByPeriod");
         } else {
           uniqueItem = new JsonObject()
               .put("kbId", row.getUUID("kbid"))
@@ -120,40 +138,39 @@ public class ReqsByDateOfUse {
           if (isJournal == null || !isJournal) {
             uniqueItem.put("ISBN", row.getString("isbn"));
           }
-          accessCountsByPeriods = new JsonArray();
-          for (int i = 0; i < usePeriods.size(); i++) {
-            accessCountsByPeriods.add(0L);
+          accessCountsByPeriod = new JsonArray();
+          for (int i = 0; i < pubSet.size(); i++) {
+            accessCountsByPeriod.add(0L);
           }
           uniqueItem
-              .put("publicationYear", pubPeriodLabel)
+              .put("periodOfUse", usePeriodLabel)
               .put("accessType", accessType)
               .put("metricType", "Unique_Item_Requests")
               .put("accessCountTotal", uniqueAccessCount)
-              .put("accessCountsByPeriod", accessCountsByPeriods);
+              .put("accessCountsByPeriod", accessCountsByPeriod);
           uniqueItems.put(itemKey, uniqueItem);
           items.add(uniqueItem);
         }
-        accessCountsByPeriods.set(idx, accessCountsByPeriods.getLong(idx) + uniqueAccessCount);
+        accessCountsByPeriod.set(idx, accessCountsByPeriod.getLong(idx) + uniqueAccessCount);
       }
     });
     Long totalItemRequestsTotal = 0L;
     Long uniqueItemRequestsTotal = 0L;
-    for (int i = 0; i < usePeriods.size(); i++) {
+    for (int i = 0; i < totalItemRequestsByPeriod.size(); i++) {
       totalItemRequestsTotal += totalItemRequestsByPeriod.get(i);
       uniqueItemRequestsTotal += uniqueItemRequestsByPeriod.get(i);
     }
     JsonObject json = new JsonObject()
         .put("agreementId", agreementId)
-        .put("accessCountPeriods", usePeriods.getAccessCountPeriods())
+        .put("accessCountPeriods", pubPeriodsSet)
         .put("totalItemRequestsTotal", totalItemRequestsTotal)
+        .put("totalItemRequestsByPeriod", totalItemRequestsByPeriod)
+        .put("totalRequestsPeriodsOfUseByPeriod", totalRequestsPeriodsOfUseByPeriod)
         .put("uniqueItemRequestsTotal", uniqueItemRequestsTotal)
-        .put("totalItemRequestsByPeriod", new JsonArray(totalItemRequestsByPeriod))
-        .put("uniqueItemRequestsByPeriod", new JsonArray(uniqueItemRequestsByPeriod))
-        .put("totalRequestsPublicationYearsByPeriod", totalRequestsPublicationYearsByPeriod)
-        .put("uniqueRequestsPublicationYearsByPeriod", uniqueRequestsPublicationYearsByPeriod)
+        .put("uniqueItemRequestsByPeriod", uniqueItemRequestsByPeriod)
+        .put("uniqueRequestsPeriodsOfUseByPeriod", uniqueRequestsPeriodsOfUseByPeriod)
         .put("items", items);
     log.info("JSON={}", json.encodePrettily());
     return json;
   }
-
 }

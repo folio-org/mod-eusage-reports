@@ -1496,11 +1496,11 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     Periods usePeriods = new Periods(start, end, accessCountPeriod);
     int pubPeriodsInMonths = yopInterval == null || "auto".equals(yopInterval)
         ? 12 : Periods.getPeriodInMonths(yopInterval);
-    return getTitles(pool, isJournal, includeOA, agreementId, usePeriods)
+    return getTitles(pool, isJournal, includeOA, agreementId, usePeriods,
+        "title, publicationDate, openAccess")
         .map(rowSet -> ReqsByDateOfUse.titlesToJsonObject(rowSet, isJournal, agreementId,
             usePeriods, pubPeriodsInMonths));
   }
-
 
   Future<Void> getReqsByPubYear(Vertx vertx, RoutingContext ctx) {
     TenantPgPool pool = TenantPgPool.pool(vertx, TenantUtil.tenant(ctx));
@@ -1544,7 +1544,19 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     Periods usePeriods = new Periods(start, end, periodOfUse);
     int pubPeriodsInMonths = accessCountPeriod == null || "auto".equals(accessCountPeriod)
         ? 12 : Periods.getPeriodInMonths(accessCountPeriod);
-    return getPubPeriods(pool, isJournal, agreementId, usePeriods, pubPeriodsInMonths)
+
+    Future<JsonObject> f = getTitles(pool, isJournal, includeOA, agreementId, usePeriods,
+        "title, usageDateRange, openAccess")
+        .map(rowSet -> ReqsByPubYear.titlesToJsonObject(rowSet, isJournal, agreementId,
+            usePeriods, pubPeriodsInMonths));
+
+    boolean y = false;
+    if (y) {
+      return f;
+    }
+
+    return f.compose(x -> getPubPeriods(pool, isJournal, agreementId,
+        usePeriods, pubPeriodsInMonths)
         .compose(pubYears -> {
           StringBuilder sql = new StringBuilder();
 
@@ -1639,7 +1651,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
                 .put("uniqueRequestsPeriodsOfUseByPeriod", uniqueRequestsPeriodsOfUseByPeriod)
                 .put("items", items);
           });
-        });
+        }));
   }
 
   /**
@@ -1670,7 +1682,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
   }
 
   static Future<RowSet<Row>> getTitles(TenantPgPool pool, Boolean isJournal, boolean includeOA,
-      String agreementId, Periods usePeriods) {
+      String agreementId, Periods usePeriods, String orderBy) {
 
     String sql = "SELECT title_entries.kbTitleId AS kbId, kbTitleName AS title,"
         + " kbPackageId, kbPackageName, printISSN, onlineISSN, ISBN,"
@@ -1685,7 +1697,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
         + limitJournal(isJournal)
         + "   AND daterange($2, $3) @> lower(usageDateRange)"
         +  (includeOA ? "" : " AND NOT openAccess")
-        + " ORDER BY title, publicationDate, openAccess";
+        + " ORDER BY " + orderBy;
     return pool.preparedQuery(sql)
         .execute(Tuple.of(agreementId, usePeriods.startDate, usePeriods.endDate));
   }
