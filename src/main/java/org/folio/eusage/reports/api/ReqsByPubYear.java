@@ -43,6 +43,7 @@ public class ReqsByPubYear {
       pubPeriodsSet.add(pubPeriodLabel);
     });
     Map<String,Integer> pubSet = new HashMap<>();
+    JsonArray accessCountsPeriods = new JsonArray();
     int numPubPeriods = 0;
     for (String p : pubPeriodsSet) {
       pubSet.put(p, numPubPeriods++);
@@ -50,6 +51,7 @@ public class ReqsByPubYear {
       uniqueItemRequestsByPeriod.add(0L);
       totalRequestsPeriodsOfUseByPeriod.add(new JsonObject());
       uniqueRequestsPeriodsOfUseByPeriod.add(new JsonObject());
+      accessCountsPeriods.add(p);
     }
     rowSet.forEach(row -> {
       log.info("AD: 2 {}", row.deepToString());
@@ -70,12 +72,11 @@ public class ReqsByPubYear {
           pubPeriodLabel = Periods.periodLabel(publicationFloor, pubPeriodInMonths);
         }
         int idx = pubSet.get(pubPeriodLabel);
-        log.info("idx = {}", idx);
 
         pubPeriodsSet.add(pubPeriodLabel);
         String accessType = row.getBoolean("openaccess") ? "OA_Gold" : "Controlled";
         String itemKey = row.getUUID("kbid").toString() + "," + usePeriodLabel + "," + accessType;
-        String dupKey = itemKey + "," + pubPeriodLabel;
+        String dupKey = itemKey + "," + publicationDate.toString() + usageDateRange;
         if (!dup.add(dupKey)) {
           return;
         }
@@ -97,6 +98,8 @@ public class ReqsByPubYear {
         JsonArray accessCountsByPeriod;
         if (totalItem != null) {
           accessCountsByPeriod = totalItem.getJsonArray("accessCountsByPeriod");
+          totalItem.put("accessCountTotal", totalAccessCount
+              + totalItem.getLong("accessCountTotal"));
         } else {
           totalItem = new JsonObject()
               .put("kbId", row.getUUID("kbid"))
@@ -114,7 +117,7 @@ public class ReqsByPubYear {
             accessCountsByPeriod.add(0L);
           }
           totalItem
-              .put("periodOfuse", usePeriodLabel)
+              .put("periodOfUse", usePeriodLabel)
               .put("accessType", accessType)
               .put("metricType", "Total_Item_Requests")
               .put("accessCountTotal", totalAccessCount)
@@ -127,6 +130,8 @@ public class ReqsByPubYear {
         JsonObject uniqueItem = uniqueItems.get(itemKey);
         if (uniqueItem != null) {
           accessCountsByPeriod = uniqueItem.getJsonArray("accessCountsByPeriod");
+          uniqueItem.put("accessCountTotal", uniqueAccessCount
+              + uniqueItem.getLong("accessCountTotal"));
         } else {
           uniqueItem = new JsonObject()
               .put("kbId", row.getUUID("kbid"))
@@ -162,7 +167,7 @@ public class ReqsByPubYear {
     }
     JsonObject json = new JsonObject()
         .put("agreementId", agreementId)
-        .put("accessCountPeriods", pubPeriodsSet)
+        .put("accessCountPeriods", accessCountsPeriods)
         .put("totalItemRequestsTotal", totalItemRequestsTotal)
         .put("totalItemRequestsByPeriod", totalItemRequestsByPeriod)
         .put("totalRequestsPeriodsOfUseByPeriod", totalRequestsPeriodsOfUseByPeriod)

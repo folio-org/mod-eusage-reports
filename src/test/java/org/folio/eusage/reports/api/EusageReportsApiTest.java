@@ -742,8 +742,8 @@ public class EusageReportsApiTest {
           assertThat(json.getLong("totalItemRequestsTotal"), is(99L));
           assertThat(json.getLong("uniqueItemRequestsTotal"), is(59L));
           assertThat((List<?>) json.getJsonArray("accessCountPeriods").getList(), contains("1999", "2000", "2010"));
-          assertThat((Long []) json.getValue("totalItemRequestsByPeriod"), is(arrayContaining(5L, 44L, 50L)));
-          assertThat((Long []) json.getValue("uniqueItemRequestsByPeriod"), is(arrayContaining(3L, 16L, 40L)));
+          assertThat((List<?>) json.getJsonArray("totalItemRequestsByPeriod").getList(), contains(5L, 44L, 50L));
+          assertThat((List<?>) json.getJsonArray("uniqueItemRequestsByPeriod").getList(), contains(3L, 16L, 40L));
           assertThat(json.getJsonArray("totalRequestsPeriodsOfUseByPeriod").encodePrettily(),
               is(new JsonArray()
                   .add(new JsonObject().put("2020-03", 2).put("2020-04", 3))
@@ -756,7 +756,7 @@ public class EusageReportsApiTest {
                   .add(new JsonObject().put("2020-04", 3).put("2020-05", 4).put("2020-06", 9))
                   .add(new JsonObject().put("2020-03", 11).put("2020-04", 15).put("2020-05", 14))
                   .encodePrettily()));
-          assertThat(json.getJsonArray("items").getJsonObject(2).encodePrettily(),
+          assertThat(json.getJsonArray("items").getJsonObject(0).encodePrettily(),
               is(new JsonObject()
                   .put("kbId", "11000000-0000-4000-8000-000000000000")
                   .put("title", "Title 11")
@@ -766,7 +766,7 @@ public class EusageReportsApiTest {
                   .put("accessType", "Controlled")
                   .put("metricType", "Total_Item_Requests")
                   .put("accessCountTotal", 2)
-                  .put("accessCountsByPeriod", new JsonArray("[ 2, null, null ]"))
+                  .put("accessCountsByPeriod", new JsonArray("[ 2, 0, 0 ]"))
                   .encodePrettily()));
         }));
   }
@@ -976,6 +976,7 @@ public class EusageReportsApiTest {
           ArgumentCaptor<String> body = ArgumentCaptor.forClass(String.class);
           verify(routingContext.response()).end(body.capture());
           JsonObject json = new JsonObject(body.getValue());
+          System.out.println(json.encodePrettily());
           assertThat((List<?>) json.getJsonArray("accessCountPeriods").getList(),
               contains("1998 - 1999", "2000 - 2001", "2010 - 2011"));
           assertThat(json.getLong("totalItemRequestsTotal"), is(99L));
@@ -1010,34 +1011,15 @@ public class EusageReportsApiTest {
   }
 
   @Test
-  public void reqsByPubYearWithRoutingContextCsv(TestContext context) {
-    RoutingContext routingContext = mock(RoutingContext.class, RETURNS_DEEP_STUBS);
-    when(routingContext.request().getHeader("X-Okapi-Tenant")).thenReturn(tenant);
-    when(routingContext.request().params().get("agreementId")).thenReturn(a1);
-    when(routingContext.request().params().get("csv")).thenReturn("true");
-    when(routingContext.request().params().get("startDate")).thenReturn("2020-04");
-    when(routingContext.request().params().get("endDate")).thenReturn("2020-08");
-    when(routingContext.request().params().get("periodOfUse")).thenReturn("6M");
-    when(routingContext.request().params().get("includeOA")).thenReturn("true");
-    new EusageReportsApi().getReqsByPubYear(vertx, routingContext)
-        .onComplete(context.asyncAssertSuccess(x -> {
-          ArgumentCaptor<String> body = ArgumentCaptor.forClass(String.class);
-          verify(routingContext.response()).end(body.capture());
-          String res = body.getValue();
-          assertThat(res, containsString(",2020-07 - 2020-12,Controlled,"));
-        }));
-  }
-
-  @Test
   public void reqsByPubYear(TestContext context) {
     getReqsByPubPeriod(true, a1, null, "2020-04", "2020-08", "6M")
     .onComplete(context.asyncAssertSuccess(json -> {
       assertThat(json.getInteger("totalItemRequestsTotal"), is(99));
       assertThat(json.getInteger("uniqueItemRequestsTotal"), is(59));
       assertThat((List<?>) json.getJsonArray("accessCountPeriods").getList(), contains("1999", "2000", "2010"));
-      assertThat((Long []) json.getValue("totalItemRequestsByPeriod"), is(arrayContaining(5L, 44L, 50L)));
-      assertThat((Long []) json.getValue("uniqueItemRequestsByPeriod"), is(arrayContaining(3L, 16L, 40L)));
-      assertThat(json.getJsonArray("items").size(), is(16));
+      assertThat((List<?>) json.getJsonArray("totalItemRequestsByPeriod").getList(), contains(5L, 44L, 50L));
+      assertThat((List<?>) json.getJsonArray("uniqueItemRequestsByPeriod").getList(), contains(3L, 16L, 40L));
+      assertThat(json.getJsonArray("items").size(), is(4));
       assertThat(json.getJsonArray("items").getJsonObject(0).encodePrettily(),
           is(new JsonObject()
               .put("kbId", "11000000-0000-4000-8000-000000000000")
@@ -1048,19 +1030,31 @@ public class EusageReportsApiTest {
               .put("accessType", "Controlled")
               .put("metricType", "Total_Item_Requests")
               .put("accessCountTotal", 49)
-              .put("accessCountsByPeriod", new JsonArray("[ 5, 44, null ]"))
+              .put("accessCountsByPeriod", new JsonArray("[ 5, 44, 0 ]"))
               .encodePrettily()));
-      assertThat(json.getJsonArray("items").getJsonObject(2).encodePrettily(),
+      assertThat(json.getJsonArray("items").getJsonObject(1).encodePrettily(),
           is(new JsonObject()
               .put("kbId", "11000000-0000-4000-8000-000000000000")
               .put("title", "Title 11")
               .put("printISSN", "1111-1111")
               .put("onlineISSN", "1111-2222")
-              .put("periodOfUse", "2020-07 - 2020-12")
+              .put("periodOfUse", "2020-01 - 2020-06")
+              .put("accessType", "Controlled")
+              .put("metricType", "Unique_Item_Requests")
+              .put("accessCountTotal", 19)
+              .put("accessCountsByPeriod", new JsonArray("[ 3, 16, 0 ]"))
+              .encodePrettily()));
+      assertThat(json.getJsonArray("items").getJsonObject(2).encodePrettily(),
+          is(new JsonObject()
+              .put("kbId", "12000000-0000-4000-8000-000000000000")
+              .put("title", "Title 12")
+              .put("printISSN", "1212-1111")
+              .put("onlineISSN", "1212-2222")
+              .put("periodOfUse", "2020-01 - 2020-06")
               .put("accessType", "Controlled")
               .put("metricType", "Total_Item_Requests")
-              .put("accessCountTotal", null)
-              .put("accessCountsByPeriod", new JsonArray("[ null, null, null ]"))
+              .put("accessCountTotal", 50)
+              .put("accessCountsByPeriod", new JsonArray("[ 0, 0, 50 ]"))
               .encodePrettily()));
     }));
   }
@@ -1416,7 +1410,7 @@ public class EusageReportsApiTest {
   public void reqsByPubYearCsv(TestContext context) {
     new EusageReportsApi().getReqsByPubYear(pool, true, true, a1, null, "2020-04", "2020-08", "6M", true)
         .onComplete(context.asyncAssertSuccess(res -> {
-          assertThat(res, containsString(",2020-07 - 2020-12,Controlled,"));
+          assertThat(res, containsString(",2020-01 - 2020-06,Controlled,"));
         }));
   }
 

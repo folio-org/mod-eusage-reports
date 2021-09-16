@@ -1550,7 +1550,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
         .map(rowSet -> ReqsByPubYear.titlesToJsonObject(rowSet, isJournal, agreementId,
             usePeriods, pubPeriodsInMonths));
 
-    boolean y = false;
+    boolean y = true;
     if (y) {
       return f;
     }

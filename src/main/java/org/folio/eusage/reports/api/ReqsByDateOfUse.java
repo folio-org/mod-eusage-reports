@@ -53,7 +53,7 @@ public class ReqsByDateOfUse {
         }
         String accessType = row.getBoolean("openaccess") ? "OA_Gold" : "Controlled";
         String itemKey = row.getUUID("kbid").toString() + "," + pubPeriodLabel + "," + accessType;
-        String dupKey = itemKey + "," + usageDateRange;
+        String dupKey = itemKey + "," + usageDateRange + "," + publicationDate;
         if (!dup.add(dupKey)) {
           return;
         }
