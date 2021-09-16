@@ -24,7 +24,6 @@ import io.vertx.sqlclient.Row;
 import io.vertx.sqlclient.RowSet;
 import io.vertx.sqlclient.RowStream;
 import io.vertx.sqlclient.SqlConnection;
-import io.vertx.sqlclient.SqlResult;
 import io.vertx.sqlclient.Tuple;
 import java.io.IOException;
 import java.io.StringWriter;
@@ -41,7 +40,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVPrinter;
 import org.apache.logging.log4j.LogManager;
@@ -85,7 +83,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
 
   static void failHandler(RoutingContext ctx) {
     Throwable t = ctx.failure();
-    // both semantic errors and syntax errors are from same pile.. Choosing 400 over 422.
+    // both semantic errors and syntax errors are from same pile ... Choosing 400 over 422.
     int statusCode = t.getClass().getName().startsWith("io.vertx.ext.web.validation") ? 400 : 500;
     failHandler(statusCode, ctx, t.getMessage());
   }
