@@ -1452,6 +1452,21 @@ public class MainVerticleTest {
     resObject = new JsonObject(response.body().asString());
     context.assertEquals(4, resObject.getInteger("reportLinesCreated"));
 
+    // running the from-agreement twice (wiping out the ond one above)
+    response = RestAssured.given()
+        .header(XOkapiHeaders.TENANT, tenant)
+        .header(XOkapiHeaders.URL, "http://localhost:" + MOCK_PORT)
+        .header("Content-Type", "application/json")
+        .body(new JsonObject()
+            .put("agreementId", goodAgreementId)
+            .encode())
+        .post("/eusage-reports/report-data/from-agreement")
+        .then().statusCode(200)
+        .header("Content-Type", is("application/json"))
+        .extract();
+    resObject = new JsonObject(response.body().asString());
+    context.assertEquals(4, resObject.getInteger("reportLinesCreated"));
+
     response = RestAssured.given()
         .header(XOkapiHeaders.TENANT, tenant)
         .header(XOkapiHeaders.URL, "http://localhost:" + MOCK_PORT)
@@ -1464,8 +1479,8 @@ public class MainVerticleTest {
         .header("Content-Type", is("application/json"))
         .extract();
     resObject = new JsonObject(response.body().asString());
-    context.assertEquals(3, resObject.getJsonArray("titles").size());
-    context.assertEquals(14, resObject.getJsonObject("resultInfo").getInteger("totalRecords"));
+    context.assertEquals(4, resObject.getJsonArray("titles").size());
+    context.assertEquals(15, resObject.getJsonObject("resultInfo").getInteger("totalRecords"));
     context.assertEquals(0, resObject.getJsonObject("resultInfo").getJsonArray("diagnostics").size());
 
     response = RestAssured.given()

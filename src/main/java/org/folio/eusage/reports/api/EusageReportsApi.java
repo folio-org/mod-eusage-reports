@@ -1046,6 +1046,13 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     return null;
   }
 
+  static Future<Void> clearAgreement(TenantPgPool pool, SqlConnection con, UUID agreementId) {
+    return con.preparedQuery("DELETE FROM " + agreementEntriesTable(pool)
+            + " WHERE agreementId = $1")
+        .execute(Tuple.of(agreementId))
+        .mapEmpty();
+  }
+
   Future<Void> populateAgreementLine(TenantPgPool pool, SqlConnection con,
                                      JsonObject agreementLine, UUID agreementId,
                                      RoutingContext ctx) {
@@ -1122,7 +1129,8 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
             // the call below returns 500 with a stacktrace if agreement ID is no good.
             // example: /erm/entitlements?filters=owner%3D3b6623de-de39-4b43-abbc-998bed892025
             String uri = "/erm/entitlements?filters=owner%3D" + agreementId;
-            return getRequestSend(ctx, uri)
+            return clearAgreement(pool, con, agreementId)
+                .compose(a -> getRequestSend(ctx, uri))
                 .compose(res -> {
                   Future<Void> future = Future.succeededFuture();
                   JsonArray items = res.bodyAsJsonArray();
