@@ -234,6 +234,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
             .put("onlineISSN", row.getString("onlineissn"))
             .put("ISBN", row.getString("isbn"))
             .put("DOI", row.getString("doi"))
+            .put("publicationType", row.getString("publicationtype"))
     );
   }
 
@@ -320,7 +321,9 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
 
   static Tuple parseErmTitle(JsonObject resource) {
     UUID titleId = UUID.fromString(resource.getString("id"));
-    return Tuple.of(titleId, resource.getString("name"));
+    JsonObject pubObj = resource.getJsonObject("publicationType");
+    String publicationType = pubObj == null ? null : pubObj.getString("value");
+    return Tuple.of(titleId, resource.getString("name"), publicationType);
   }
 
   Future<Tuple> ermTitleLookup2(RoutingContext ctx, String identifier, String type) {
@@ -433,14 +436,16 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
               return con.preparedQuery("UPDATE " + titleEntriesTable(pool)
                   + " SET"
                   + " kbTitleName = $2,"
-                  + " kbTitleId = $3"
+                  + " kbTitleId = $3,"
+                  + " publicationType = $4"
                   + " WHERE id = $1")
-                  .execute(Tuple.of(id, kbTitleName, kbTitleId)).map(id);
+                  .execute(Tuple.of(id, kbTitleName, kbTitleId, erm.getString(2))).map(id);
             });
           }
           return ermTitleLookup2(ctx, identifier, type).compose(erm -> {
             UUID kbTitleId = erm != null ? erm.getUUID(0) : null;
             String kbTitleName = erm != null ? erm.getString(1) : null;
+            String publicationType = erm != null ? erm.getString(2) : null;
 
             return updateTitleEntryByKbTitle(pool, con, kbTitleId,
                 counterReportTitle, printIssn, onlineIssn, isbn, doi)
@@ -451,12 +456,12 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
                   return con.preparedQuery(" INSERT INTO " + titleEntriesTable(pool)
                       + "(id, counterReportTitle,"
                       + " kbTitleName, kbTitleId,"
-                      + " kbManualMatch, printISSN, onlineISSN, ISBN, DOI)"
-                      + " VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)"
+                      + " kbManualMatch, printISSN, onlineISSN, ISBN, DOI, publicationType)"
+                      + " VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)"
                       + " ON CONFLICT (counterReportTitle) DO NOTHING")
                       .execute(Tuple.of(UUID.randomUUID(), counterReportTitle,
                           kbTitleName, kbTitleId,
-                          false, printIssn, onlineIssn, isbn, doi))
+                          false, printIssn, onlineIssn, isbn, doi, publicationType))
                       .compose(x ->
                           con.preparedQuery("SELECT id FROM " + titleEntriesTable(pool)
                               + " WHERE counterReportTitle = $1")
@@ -1979,7 +1984,8 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
             + "printISSN text, "
             + "onlineISSN text, "
             + "ISBN text, "
-            + "DOI text"
+            + "DOI text, "
+            + "publicationType text"
             + ")",
         "CREATE INDEX IF NOT EXISTS title_entries_kbTitleId ON "
             + titleEntriesTable(pool) + " USING btree(kbTitleId)",

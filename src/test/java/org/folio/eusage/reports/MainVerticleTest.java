@@ -280,6 +280,7 @@ public class MainVerticleTest {
     if (goodKbTitleId.equals(kbTitleId)) {
       res.put("name", "good kb title instance name");
       res.put("id", kbTitleId);
+      res.put("publicationType", new JsonObject().put("value", "monograph"));
       res.put("identifiers", new JsonArray()
           .add(new JsonObject()
               .put("identifier", new JsonObject()
@@ -297,6 +298,7 @@ public class MainVerticleTest {
           ));
     } else {
       res.put("name", "fake kb title instance name");
+      res.put("publicationType", new JsonObject().put("value", "serial"));
       res.put("id", kbTitleId);
       res.put("identifiers", new JsonArray()
           .add(new JsonObject()
@@ -905,6 +907,15 @@ public class MainVerticleTest {
         if (!title.containsKey("kbTitleId")) {
           noUndef++;
         }
+      }
+      String publicationType = title.getString("publicationType");
+      String kbTitleName = title.getString("kbTitleName");
+      if (kbTitleName == null || kbTitleName.startsWith("correct")) {
+        context.assertNull(publicationType);
+      } else if (kbTitleName.startsWith("fake")) {
+        context.assertEquals("serial", publicationType);
+      } else {
+        context.assertEquals("monograph", publicationType);
       }
     }
     context.assertEquals(expectUndef, noUndef);

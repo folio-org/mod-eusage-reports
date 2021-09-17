@@ -39,6 +39,10 @@
     "DOI": {
       "type": "string",
       "description": "Digital Object identifier"
+    },
+    "publicationType": {
+      "type": "string",
+      "description": "publication type from ERM ('serial', 'monograph')"
     }
   },
   "additionalProperties": false,
