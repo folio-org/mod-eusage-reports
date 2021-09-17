@@ -1149,17 +1149,13 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
         });
   }
 
-  static void getUseTotalsCsv(JsonObject json, Boolean isJournal, boolean groupByPublicationYear,
+  static void getUseTotalsCsv(JsonObject json, boolean groupByPublicationYear,
                               boolean periodOfUse, CSVPrinter writer,
                               String lead) throws IOException {
     writer.print("Totals - " + lead + " item requests");
-    if (isJournal == null || isJournal) {
-      writer.print(null);
-      writer.print(null);
-    }
-    if (isJournal == null || !isJournal) {
-      writer.print(null);
-    }
+    writer.print(null);
+    writer.print(null);
+    writer.print(null);
     if (periodOfUse) {
       writer.print(null);
     }
@@ -1189,24 +1185,20 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     StringWriter stringWriter = new StringWriter();
     try {
       CSVPrinter writer = new CSVPrinter(stringWriter, CSV_FORMAT);
-      getUseOverTime2Csv(json, isJournal, groupByPublicationYear, periodOfUse, writer);
+      getUseOverTime2Csv(json, groupByPublicationYear, periodOfUse, writer);
     } catch (IOException e) {
       throw new UncheckedIOException(e);
     }
     return stringWriter.toString();
   }
 
-  static void getUseOverTime2Csv(JsonObject json, Boolean isJournal, boolean groupByPublicationYear,
+  static void getUseOverTime2Csv(JsonObject json, boolean groupByPublicationYear,
       boolean periodOfUse, CSVPrinter writer) throws IOException {
 
     writer.print("Title");
-    if (isJournal == null || isJournal) {
-      writer.print("Print ISSN");
-      writer.print("Online ISSN");
-    }
-    if (isJournal == null || !isJournal) {
-      writer.print("ISBN");
-    }
+    writer.print("Print ISSN");
+    writer.print("Online ISSN");
+    writer.print("ISBN");
     if (periodOfUse) {
       writer.print("Period of use");
     }
@@ -1224,20 +1216,16 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     }
     writer.println();
 
-    getUseTotalsCsv(json, isJournal, groupByPublicationYear, periodOfUse, writer, "total");
-    getUseTotalsCsv(json, isJournal, groupByPublicationYear, periodOfUse, writer, "unique");
+    getUseTotalsCsv(json, groupByPublicationYear, periodOfUse, writer, "total");
+    getUseTotalsCsv(json, groupByPublicationYear, periodOfUse, writer, "unique");
 
     JsonArray items = json.getJsonArray("items");
     for (int j = 0; j < items.size(); j++) {
       JsonObject item = items.getJsonObject(j);
       writer.print(item.getString("title"));
-      if (isJournal == null || isJournal) {
-        writer.print(item.getString("printISSN"));
-        writer.print(item.getString("onlineISSN"));
-      }
-      if (isJournal == null || !isJournal) {
-        writer.print(item.getString("ISBN"));
-      }
+      writer.print(item.getString("printISSN"));
+      writer.print(item.getString("onlineISSN"));
+      writer.print(item.getString("ISBN"));
       if (groupByPublicationYear) {
         writer.print(item.getString("publicationYear"));
       }

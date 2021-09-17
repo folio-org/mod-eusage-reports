@@ -398,10 +398,10 @@ assertThat(json.getJsonArray("items").size(), is(4));
   public void useOverTimeCsv(TestContext context) {
     new EusageReportsApi().getUseOverTime(pool, true, true, a1, null,"2020-04", "2020-05", true)
         .onComplete(context.asyncAssertSuccess(res -> {
-          assertThat(res, containsString("Title,Print ISSN,Online ISSN,Access type,Metric Type,Reporting period total,2020-04,2020-05"));
-          assertThat(res, containsString("Totals - total item requests,,,,,56,22,34"));
-          assertThat(res, containsString("Totals - unique item requests,,,,,38,20,18"));
-          assertThat(res, containsString("Title 11,1111-1111,1111-2222,Controlled,Total_Item_Requests,18,6,12"));
+          assertThat(res, containsString("Title,Print ISSN,Online ISSN,ISBN,Access type,Metric Type,Reporting period total,2020-04,2020-05"));
+          assertThat(res, containsString("Totals - total item requests,,,,,,56,22,34"));
+          assertThat(res, containsString("Totals - unique item requests,,,,,,38,20,18"));
+          assertThat(res, containsString("Title 11,1111-1111,1111-2222,,Controlled,Total_Item_Requests,18,6,12"));
         }));
   }
 
@@ -420,11 +420,11 @@ assertThat(json.getJsonArray("items").size(), is(4));
   public void useOverTimeCsvBook(TestContext context) {
     new EusageReportsApi().getUseOverTime(pool, false, true, a2, null,"2020-05", "2020-06", true)
         .onComplete(context.asyncAssertSuccess(res -> {
-          assertThat(res, containsString("Title,ISBN,Access type,Metric Type,Reporting period total,2020-05,2020-06"));
-          assertThat(res, containsString("Totals - total item requests,,,,42,40,2"));
-          assertThat(res, containsString("Totals - unique item requests,,,,21,20,1"));
-          assertThat(res, containsString("Title 31,3131313131,Controlled,Total_Item_Requests,40,40,"));
-          assertThat(res, containsString("Title 32,3232323232,OA_Gold,Total_Item_Requests,2,0,2"));
+          assertThat(res, containsString("Title,Print ISSN,Online ISSN,ISBN,Access type,Metric Type,Reporting period total,2020-05,2020-06"));
+          assertThat(res, containsString("Totals - total item requests,,,,,,42,40,2"));
+          assertThat(res, containsString("Totals - unique item requests,,,,,,21,20,1"));
+          assertThat(res, containsString("Title 31,,,3131313131,Controlled,Total_Item_Requests,40,40,"));
+          assertThat(res, containsString("Title 32,,,3232323232,OA_Gold,Total_Item_Requests,2,0,2"));
         }));
   }
 
@@ -895,9 +895,9 @@ assertThat(json.getJsonArray("items").size(), is(4));
           ArgumentCaptor<String> body = ArgumentCaptor.forClass(String.class);
           verify(routingContext.response()).end(body.capture());
           String res = body.getValue();
-          assertThat(res, containsString("Title,Print ISSN,Online ISSN,Year of publication,Access type,Metric Type,Reporting period total,2020-05,2020-06"));
-          assertThat(res, containsString("Totals - total item requests,,,,,,42,40,2"));
-          assertThat(res, containsString("Title 21,2121-1111,,2010,Controlled,Unique_Item_Requests,20,20,"));
+          assertThat(res, containsString("Title,Print ISSN,Online ISSN,ISBN,Year of publication,Access type,Metric Type,Reporting period total,2020-05,2020-06"));
+          assertThat(res, containsString("Totals - total item requests,,,,,,,42,40,2"));
+          assertThat(res, containsString("Title 21,2121-1111,,,2010,Controlled,Unique_Item_Requests,20,20,"));
         }));
   }
 
