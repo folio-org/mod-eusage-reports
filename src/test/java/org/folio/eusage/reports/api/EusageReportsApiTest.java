@@ -7,8 +7,6 @@ import static org.folio.eusage.reports.api.EusageReportsApi.titleEntriesTable;
 import static org.hamcrest.collection.IsIterableContainingInOrder.contains;
 import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.CoreMatchers.nullValue;
-import static org.hamcrest.collection.IsArrayContainingInOrder.arrayContaining;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertThrows;
 import static org.mockito.Mockito.mock;
@@ -202,18 +200,19 @@ public class EusageReportsApiTest {
     .execute(Tuple.of(packageId, packageName, titleId));
   }
 
-  private static Future<RowSet<Row>> insertTitleEntry(String titleEntryId,
-      String titleId, String titleName, String printISSN, String onlineISSN) {
+  private static Future<RowSet<Row>> insertTitleEntry(String titleEntryId, String titleId,
+      String titleName, String printISSN, String onlineISSN) {
     return pool.preparedQuery("INSERT INTO " + titleEntriesTable(pool)
-        + "(id, kbTitleId, kbTitleName, printISSN, onlineISSN) VALUES ($1, $2, $3, $4, $5)")
-    .execute(Tuple.of(titleEntryId, titleId, titleName, printISSN, onlineISSN));
+            + "(id, kbTitleId, kbTitleName, printISSN, onlineISSN, publicationType)"
+            +" VALUES ($1, $2, $3, $4, $5, $6)")
+        .execute(Tuple.of(titleEntryId, titleId, titleName, printISSN, onlineISSN, "serial"));
   }
 
   private static Future<RowSet<Row>> insertTitleEntry(String titleEntryId,
       String titleId, String titleName, String isbn) {
     return pool.preparedQuery("INSERT INTO " + titleEntriesTable(pool)
-        + "(id, kbTitleId, kbTitleName, ISBN) VALUES ($1, $2, $3, $4)")
-    .execute(Tuple.of(titleEntryId, titleId, titleName, isbn));
+        + "(id, kbTitleId, kbTitleName, ISBN, publicationType) VALUES ($1, $2, $3, $4, $5)")
+    .execute(Tuple.of(titleEntryId, titleId, titleName, isbn, "monograph"));
   }
 
   private static Future<RowSet<Row>> insertTitleData(String titleEntryId,

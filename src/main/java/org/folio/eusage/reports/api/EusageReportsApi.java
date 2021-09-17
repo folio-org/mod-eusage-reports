@@ -1438,8 +1438,8 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     if (isJournal == null) {
       return "";
     }
-    return isJournal ? " AND (printISSN IS NOT NULL OR onlineISSN IS NOT NULL)"
-        : " AND (printISSN IS NULL AND onlineISSN IS NULL)";
+    return isJournal ? " AND publicationType = 'serial'"
+        : " AND publicationType = 'monograph'";
   }
 
   static Number formatCost(Double n) {
