@@ -183,63 +183,58 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
   }
 
   Future<Void> getReportTitles(Vertx vertx, RoutingContext ctx) {
-    try {
-      PgCqlQuery pgCqlQuery = PgCqlQuery.query();
-      pgCqlQuery.addField(new PgCqlField("cql.allRecords", PgCqlField.Type.ALWAYS_MATCHES));
-      pgCqlQuery.addField(new PgCqlField("id", PgCqlField.Type.UUID));
-      pgCqlQuery.addField(new PgCqlField("counterReportTitle", PgCqlField.Type.FULLTEXT));
-      pgCqlQuery.addField(new PgCqlField("ISBN", PgCqlField.Type.TEXT));
-      pgCqlQuery.addField(new PgCqlField("printISSN", PgCqlField.Type.TEXT));
-      pgCqlQuery.addField(new PgCqlField("onlineISSN", PgCqlField.Type.TEXT));
-      pgCqlQuery.addField(new PgCqlField("kbTitleId", PgCqlField.Type.UUID));
-      pgCqlQuery.addField(new PgCqlField("kbManualMatch", PgCqlField.Type.BOOLEAN));
+    PgCqlQuery pgCqlQuery = PgCqlQuery.query();
+    pgCqlQuery.addField(new PgCqlField("cql.allRecords", PgCqlField.Type.ALWAYS_MATCHES));
+    pgCqlQuery.addField(new PgCqlField("id", PgCqlField.Type.UUID));
+    pgCqlQuery.addField(new PgCqlField("counterReportTitle", PgCqlField.Type.FULLTEXT));
+    pgCqlQuery.addField(new PgCqlField("ISBN", PgCqlField.Type.TEXT));
+    pgCqlQuery.addField(new PgCqlField("printISSN", PgCqlField.Type.TEXT));
+    pgCqlQuery.addField(new PgCqlField("onlineISSN", PgCqlField.Type.TEXT));
+    pgCqlQuery.addField(new PgCqlField("kbTitleId", PgCqlField.Type.UUID));
+    pgCqlQuery.addField(new PgCqlField("kbManualMatch", PgCqlField.Type.BOOLEAN));
 
-      RequestParameters params = ctx.get(ValidationHandler.REQUEST_CONTEXT_KEY);
-      final String tenant = stringOrNull(params.headerParameter(XOkapiHeaders.TENANT));
-      final String counterReportId = stringOrNull(params.queryParameter("counterReportId"));
-      final String providerId = stringOrNull(params.queryParameter("providerId"));
-      final TenantPgPool pool = TenantPgPool.pool(vertx, tenant);
-      final String distinct = titleEntriesTable(pool) + ".id";
+    RequestParameters params = ctx.get(ValidationHandler.REQUEST_CONTEXT_KEY);
+    final String tenant = stringOrNull(params.headerParameter(XOkapiHeaders.TENANT));
+    final String counterReportId = stringOrNull(params.queryParameter("counterReportId"));
+    final String providerId = stringOrNull(params.queryParameter("providerId"));
+    final TenantPgPool pool = TenantPgPool.pool(vertx, tenant);
+    final String distinct = titleEntriesTable(pool) + ".id";
 
-      pgCqlQuery.parse(stringOrNull(params.queryParameter("query")));
-      String cqlWhere = pgCqlQuery.getWhereClause();
+    pgCqlQuery.parse(stringOrNull(params.queryParameter("query")));
+    String cqlWhere = pgCqlQuery.getWhereClause();
 
-      String from = titleEntriesTable(pool);
-      if (counterReportId != null) {
-        from = from + " INNER JOIN " + titleDataTable(pool)
-            + " ON titleEntryId = " + titleEntriesTable(pool) + ".id"
-            + " WHERE counterReportId = '" + UUID.fromString(counterReportId) + "'";
-        if (cqlWhere != null) {
-          from = from + " AND " + cqlWhere;
-        }
-      } else if (providerId != null) {
-        from = from + " INNER JOIN " + titleDataTable(pool)
-            + " ON titleEntryId = " + titleEntriesTable(pool) + ".id"
-            + " WHERE providerId = '" + UUID.fromString(providerId) + "'";
-        if (cqlWhere != null) {
-          from = from + " AND " + cqlWhere;
-        }
-      } else {
-        if (cqlWhere != null) {
-          from = from + " WHERE " + cqlWhere;
-        }
+    String from = titleEntriesTable(pool);
+    if (counterReportId != null) {
+      from = from + " INNER JOIN " + titleDataTable(pool)
+          + " ON titleEntryId = " + titleEntriesTable(pool) + ".id"
+          + " WHERE counterReportId = '" + UUID.fromString(counterReportId) + "'";
+      if (cqlWhere != null) {
+        from = from + " AND " + cqlWhere;
       }
-      return streamResult(ctx, pool, distinct, from, "titles",
-          row -> new JsonObject()
-              .put("id", row.getUUID(0))
-              .put("counterReportTitle", row.getString(1))
-              .put("kbTitleName", row.getString(2))
-              .put("kbTitleId", row.getUUID(3))
-              .put("kbManualMatch", row.getBoolean(4))
-              .put("printISSN", row.getString(5))
-              .put("onlineISSN", row.getString(6))
-              .put("ISBN", row.getString(7))
-              .put("DOI", row.getString(8))
-      );
-    } catch (Exception e) {
-      log.error(e.getMessage(), e);
-      return Future.failedFuture(e);
+    } else if (providerId != null) {
+      from = from + " INNER JOIN " + titleDataTable(pool)
+          + " ON titleEntryId = " + titleEntriesTable(pool) + ".id"
+          + " WHERE providerId = '" + UUID.fromString(providerId) + "'";
+      if (cqlWhere != null) {
+        from = from + " AND " + cqlWhere;
+      }
+    } else {
+      if (cqlWhere != null) {
+        from = from + " WHERE " + cqlWhere;
+      }
     }
+    return streamResult(ctx, pool, distinct, from, "titles",
+        row -> new JsonObject()
+            .put("id", row.getUUID("id"))
+            .put("counterReportTitle", row.getString("counterreporttitle"))
+            .put("kbTitleName", row.getString("kbtitlename"))
+            .put("kbTitleId", row.getUUID("kbtitleid"))
+            .put("kbManualMatch", row.getBoolean("kbmanualmatch"))
+            .put("printISSN", row.getString("printissn"))
+            .put("onlineISSN", row.getString("onlineissn"))
+            .put("ISBN", row.getString("isbn"))
+            .put("DOI", row.getString("doi"))
+    );
   }
 
   Future<Void> postReportTitles(Vertx vertx, RoutingContext ctx) {
@@ -285,35 +280,30 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
   }
 
   Future<Void> getTitleData(Vertx vertx, RoutingContext ctx) {
-    try {
-      RequestParameters params = ctx.get(ValidationHandler.REQUEST_CONTEXT_KEY);
-      String tenant = stringOrNull(params.headerParameter(XOkapiHeaders.TENANT));
-      TenantPgPool pool = TenantPgPool.pool(vertx, tenant);
-      String from = titleDataTable(pool);
-      return streamResult(ctx, pool, null, from, "data",
-          row -> {
-            JsonObject obj = new JsonObject()
-                .put("id", row.getUUID(0))
-                .put("titleEntryId", row.getUUID(1))
-                .put("counterReportId", row.getUUID(2))
-                .put("counterReportTitle", row.getString(3))
-                .put("providerId", row.getUUID(4))
-                .put("usageDateRange", row.getString(6))
-                .put("uniqueAccessCount", row.getInteger(7))
-                .put("totalAccessCount", row.getInteger(8))
-                .put("openAccess", row.getBoolean(9));
-            LocalDate publicationDate = row.getLocalDate(5);
-            if (publicationDate != null) {
-              obj.put("publicationDate",
-                  publicationDate.format(DateTimeFormatter.ISO_LOCAL_DATE));
-            }
-            return obj;
+    RequestParameters params = ctx.get(ValidationHandler.REQUEST_CONTEXT_KEY);
+    String tenant = stringOrNull(params.headerParameter(XOkapiHeaders.TENANT));
+    TenantPgPool pool = TenantPgPool.pool(vertx, tenant);
+    String from = titleDataTable(pool);
+    return streamResult(ctx, pool, null, from, "data",
+        row -> {
+          JsonObject obj = new JsonObject()
+              .put("id", row.getUUID("id"))
+              .put("titleEntryId", row.getUUID("titleentryid"))
+              .put("counterReportId", row.getUUID("counterreportid"))
+              .put("counterReportTitle", row.getString("counterreporttitle"))
+              .put("providerId", row.getUUID("providerid"))
+              .put("usageDateRange", row.getString("usagedaterange"))
+              .put("uniqueAccessCount", row.getInteger("uniqueaccesscount"))
+              .put("totalAccessCount", row.getInteger("totalaccesscount"))
+              .put("openAccess", row.getBoolean("openaccess"));
+          LocalDate publicationDate = row.getLocalDate("publicationdate");
+          if (publicationDate != null) {
+            obj.put("publicationDate",
+                publicationDate.format(DateTimeFormatter.ISO_LOCAL_DATE));
           }
-      );
-    } catch (Exception e) {
-      log.error(e.getMessage(), e);
-      return Future.failedFuture(e);
-    }
+          return obj;
+        }
+    );
   }
 
   Future<Void> postFromCounter(Vertx vertx, RoutingContext ctx) {
@@ -800,33 +790,28 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
   }
 
   Future<Void> getReportData(Vertx vertx, RoutingContext ctx) {
-    try {
-      RequestParameters params = ctx.get(ValidationHandler.REQUEST_CONTEXT_KEY);
-      String tenant = stringOrNull(params.headerParameter(XOkapiHeaders.TENANT));
-      TenantPgPool pool = TenantPgPool.pool(vertx, tenant);
-      String from = agreementEntriesTable(pool);
-      return streamResult(ctx, pool, null, from, "data", row ->
-          new JsonObject()
-              .put("id", row.getUUID(0))
-              .put("kbTitleId", row.getUUID(1))
-              .put("kbPackageId", row.getUUID(2))
-              .put("type", row.getString(3))
-              .put("agreementId", row.getUUID(4))
-              .put("agreementLineId", row.getUUID(5))
-              .put("poLineId", row.getUUID(6))
-              .put("encumberedCost", row.getNumeric(7))
-              .put("invoicedCost", row.getNumeric(8))
-              .put("fiscalYearRange", row.getString(9))
-              .put("subscriptionDateRange", row.getString(10))
-              .put("coverageDateRanges", row.getString(11))
-              .put("orderType", row.getString(12))
-              .put("invoiceNumber", row.getString(13))
-              .put("poLineNumber", row.getString(14))
-      );
-    } catch (Exception e) {
-      log.error(e.getMessage(), e);
-      return Future.failedFuture(e);
-    }
+    RequestParameters params = ctx.get(ValidationHandler.REQUEST_CONTEXT_KEY);
+    String tenant = stringOrNull(params.headerParameter(XOkapiHeaders.TENANT));
+    TenantPgPool pool = TenantPgPool.pool(vertx, tenant);
+    String from = agreementEntriesTable(pool);
+    return streamResult(ctx, pool, null, from, "data", row ->
+        new JsonObject()
+            .put("id", row.getUUID("id"))
+            .put("kbTitleId", row.getUUID("kbtitleid"))
+            .put("kbPackageId", row.getUUID("kbpackageid"))
+            .put("type", row.getString("type"))
+            .put("agreementId", row.getUUID("agreementid"))
+            .put("agreementLineId", row.getUUID("agreementlineid"))
+            .put("poLineId", row.getUUID("polineid"))
+            .put("encumberedCost", row.getNumeric("encumberedcost"))
+            .put("invoicedCost", row.getNumeric("invoicedcost"))
+            .put("fiscalYearRange", row.getString("fiscalyearrange"))
+            .put("subscriptionDateRange", row.getString("subscriptiondaterange"))
+            .put("coverageDateRanges", row.getString("coveragedateranges"))
+            .put("orderType", row.getString("ordertype"))
+            .put("invoiceNumber", row.getString("invoicenumber"))
+            .put("poLineNumber", row.getString("polinenumber"))
+    );
   }
 
   Future<Boolean> agreementExists(RoutingContext ctx, UUID agreementId) {
