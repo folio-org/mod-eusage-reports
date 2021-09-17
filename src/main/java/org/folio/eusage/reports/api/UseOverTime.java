@@ -18,20 +18,23 @@ public class UseOverTime {
   private static final Logger log = LogManager.getLogger(UseOverTime.class);
 
   static JsonObject createTotalItem(Row row, String accessType, Long totalAccessCount,
-      JsonArray accessCountsByPeriods) {
+      JsonArray accessCountsByPeriods, int periodSize) {
     return createItem(row, accessType, "Total_Item_Requests",
-        totalAccessCount, accessCountsByPeriods);
+        totalAccessCount, accessCountsByPeriods, periodSize);
   }
 
   static JsonObject createUniqueItem(Row row, String accessType, Long totalAccessCount,
-      JsonArray accessCountsByPeriods) {
+      JsonArray accessCountsByPeriods, int periodSize) {
     return createItem(row, accessType, "Unique_Item_Requests",
-        totalAccessCount, accessCountsByPeriods);
+        totalAccessCount, accessCountsByPeriods, periodSize);
   }
 
   private static JsonObject createItem(Row row, String accessType, String metricType,
-      Long totalAccessCount, JsonArray accessCountsByPeriods) {
+      Long totalAccessCount, JsonArray accessCountsByPeriods, int periodSize) {
 
+    for (int i = 0; i < periodSize; i++) {
+      accessCountsByPeriods.add(0L);
+    }
     JsonObject o = new JsonObject()
         .put("kbId", row.getUUID("kbid"))
         .put("title", row.getString("title"));
@@ -97,10 +100,8 @@ public class UseOverTime {
               + totalAccessCount);
         } else {
           accessCountsByPeriods = new JsonArray();
-          for (int i = 0; i < usePeriods.size(); i++) {
-            accessCountsByPeriods.add(0L);
-          }
-          totalItem = createTotalItem(row, accessType, totalAccessCount, accessCountsByPeriods);
+          totalItem = createTotalItem(row, accessType, totalAccessCount,
+              accessCountsByPeriods, usePeriods.size());
           items.add(totalItem);
           totalItems.put(itemKey, totalItem);
         }
@@ -113,10 +114,8 @@ public class UseOverTime {
               + uniqueAccessCount);
         } else {
           accessCountsByPeriods = new JsonArray();
-          for (int i = 0; i < usePeriods.size(); i++) {
-            accessCountsByPeriods.add(0L);
-          }
-          uniqueItem = createUniqueItem(row, accessType, uniqueAccessCount, accessCountsByPeriods);
+          uniqueItem = createUniqueItem(row, accessType, uniqueAccessCount,
+              accessCountsByPeriods, usePeriods.size());
           uniqueItems.put(itemKey, uniqueItem);
           items.add(uniqueItem);
         }

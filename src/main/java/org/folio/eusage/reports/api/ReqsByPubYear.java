@@ -90,11 +90,8 @@ public class ReqsByPubYear {
               + totalItem.getLong("accessCountTotal"));
         } else {
           accessCountsByPeriod = new JsonArray();
-          for (int i = 0; i < pubYearIndexMap.size(); i++) {
-            accessCountsByPeriod.add(0L);
-          }
           totalItem = UseOverTime.createTotalItem(row, accessType,
-              totalAccessCount, accessCountsByPeriod);
+              totalAccessCount, accessCountsByPeriod, pubYearIndexMap.size());
           totalItem.put("periodOfUse", usePeriodLabel);
           items.add(totalItem);
           totalItems.put(itemKey, totalItem);
@@ -108,11 +105,8 @@ public class ReqsByPubYear {
               + uniqueItem.getLong("accessCountTotal"));
         } else {
           accessCountsByPeriod = new JsonArray();
-          for (int i = 0; i < pubYearIndexMap.size(); i++) {
-            accessCountsByPeriod.add(0L);
-          }
           uniqueItem = UseOverTime.createUniqueItem(row, accessType,
-              uniqueAccessCount, accessCountsByPeriod);
+              uniqueAccessCount, accessCountsByPeriod, pubYearIndexMap.size());
           uniqueItem.put("periodOfUse", usePeriodLabel);
           uniqueItems.put(itemKey, uniqueItem);
           items.add(uniqueItem);

@@ -75,11 +75,8 @@ public class ReqsByDateOfUse {
               + totalAccessCount);
         } else {
           accessCountsByPeriods = new JsonArray();
-          for (int i = 0; i < usePeriods.size(); i++) {
-            accessCountsByPeriods.add(0L);
-          }
           totalItem = UseOverTime.createTotalItem(row, accessType,
-              totalAccessCount, accessCountsByPeriods);
+              totalAccessCount, accessCountsByPeriods, usePeriods.size());
           totalItem.put("publicationYear", pubPeriodLabel);
           items.add(totalItem);
           totalItems.put(itemKey, totalItem);
@@ -93,11 +90,8 @@ public class ReqsByDateOfUse {
               + uniqueAccessCount);
         } else {
           accessCountsByPeriods = new JsonArray();
-          for (int i = 0; i < usePeriods.size(); i++) {
-            accessCountsByPeriods.add(0L);
-          }
           uniqueItem = UseOverTime.createUniqueItem(row, accessType,
-              uniqueAccessCount, accessCountsByPeriods);
+              uniqueAccessCount, accessCountsByPeriods, usePeriods.size());
           uniqueItem.put("publicationYear", pubPeriodLabel);
           uniqueItems.put(itemKey, uniqueItem);
           items.add(uniqueItem);
