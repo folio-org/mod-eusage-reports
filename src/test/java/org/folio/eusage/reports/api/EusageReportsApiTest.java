@@ -1366,12 +1366,12 @@ assertThat(json.getJsonArray("items").size(), is(4));
             CSVRecord totals = records.get(1);
             context.assertEquals("Agreement line", header.get(0));
             context.assertEquals("Totals", totals.get(0));
-            context.assertEquals("ISBN", header.get(2));
-            context.assertEquals("Order type", header.get(3));
+            context.assertEquals("ISBN", header.get(4));
+            context.assertEquals("Order type", header.get(5));
             context.assertEquals(4, records.size());
             context.assertEquals("Title 31", records.get(2).get(0));
             context.assertEquals("Title 32", records.get(3).get(0));
-            context.assertEquals("Cost per request - total", header.get(14));
+            context.assertEquals("Cost per request - total", header.get(16));
           } catch (IOException e) {
             context.fail(e);
           }
@@ -1403,11 +1403,12 @@ assertThat(json.getJsonArray("items").size(), is(4));
             context.assertEquals("Totals", totals.get(0));
             context.assertEquals("Print ISSN", header.get(2));
             context.assertEquals("Online ISSN", header.get(3));
-            context.assertEquals("Order type", header.get(4));
+            context.assertEquals("ISBN", header.get(4));
+            context.assertEquals("Order type", header.get(5));
             context.assertEquals(4, records.size());
             context.assertEquals("Title 21", records.get(2).get(0));
             context.assertEquals("Title 22", records.get(3).get(0));
-            context.assertEquals("Cost per request - total", header.get(15));
+            context.assertEquals("Cost per request - total", header.get(16));
           } catch (IOException e) {
             context.fail(e);
           }

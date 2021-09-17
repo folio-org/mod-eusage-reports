@@ -1179,9 +1179,9 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     writer.println();
   }
 
-  static String getUseOverTime2Csv(JsonObject json, Boolean isJournal,
-                                 boolean groupByPublicationYear,
-                                 boolean periodOfUse) {
+  static String getUseOverTime2Csv(JsonObject json, boolean groupByPublicationYear,
+      boolean periodOfUse) {
+
     StringWriter stringWriter = new StringWriter();
     try {
       CSVPrinter writer = new CSVPrinter(stringWriter, CSV_FORMAT);
@@ -1289,7 +1289,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
           if (!csv) {
             return json.encodePrettily();
           }
-          return getUseOverTime2Csv(json, isJournal, false, false);
+          return getUseOverTime2Csv(json, false, false);
         });
   }
 
@@ -1316,7 +1316,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
           if (!csv) {
             return json.encodePrettily();
           }
-          return getUseOverTime2Csv(json, isJournal, true, false);
+          return getUseOverTime2Csv(json, true, false);
         });
   }
 
@@ -1384,7 +1384,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
           if (!csv) {
             return json.encodePrettily();
           }
-          return getUseOverTime2Csv(json, isJournal, false, true);
+          return getUseOverTime2Csv(json, false, true);
         });
   }
 
@@ -1449,28 +1449,24 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     return String.join(" ", ar.getList());
   }
 
-  static String getCostPerUse2Csv(JsonObject json, Boolean isJournal) {
+  static String getCostPerUse2Csv(JsonObject json) {
     StringWriter stringWriter = new StringWriter();
     try {
       CSVPrinter writer = new CSVPrinter(stringWriter, CSV_FORMAT);
-      getCostPerUse2Csv(json, isJournal, writer);
+      getCostPerUse2Csv(json, writer);
     } catch (IOException e) {
       throw new UncheckedIOException(e);
     }
     return stringWriter.toString();
   }
 
-  static void getCostPerUse2Csv(JsonObject json, Boolean isJournal, CSVPrinter writer)
+  static void getCostPerUse2Csv(JsonObject json, CSVPrinter writer)
       throws IOException {
     writer.print("Agreement line");
     writer.print("Derived Title");
-    if (isJournal == null || isJournal) {
-      writer.print("Print ISSN");
-      writer.print("Online ISSN");
-    }
-    if (isJournal == null || !isJournal) {
-      writer.print("ISBN");
-    }
+    writer.print("Print ISSN");
+    writer.print("Online ISSN");
+    writer.print("ISBN");
     writer.print("Order type");
     writer.print("Purchase order line");
     writer.print("Invoice number");
@@ -1488,13 +1484,9 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
 
     writer.print("Totals"); // agreement line
     writer.print(null); // publication type
-    if (isJournal == null || isJournal) {
-      writer.print(null); // print issn
-      writer.print(null); // online ISSN
-    }
-    if (isJournal == null || !isJournal) {
-      writer.print(null); // ISBN
-    }
+    writer.print(null); // print issn
+    writer.print(null); // online ISSN
+    writer.print(null); // ISBN
     writer.print(null); // Order type
     writer.print(null); // Purchase order line
     writer.print(null); // Invoice number
@@ -1520,13 +1512,9 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
       JsonObject item = items.getJsonObject(i);
       writer.print(item.getString("title"));
       writer.print(item.getBoolean("derivedTitle") ? "Y" : "N");
-      if (isJournal == null || isJournal) {
-        writer.print(item.getString("printISSN"));
-        writer.print(item.getString("onlineISSN"));
-      }
-      if (isJournal == null || !isJournal) {
-        writer.print(item.getString("ISBN"));
-      }
+      writer.print(item.getString("printISSN"));
+      writer.print(item.getString("onlineISSN"));
+      writer.print(item.getString("ISBN"));
       writer.print(item.getString("orderType"));
       writer.print(orderLinesToString(item.getJsonArray("poLineIDs")));
       writer.print(orderLinesToString(item.getJsonArray("invoiceNumbers")));
@@ -1766,7 +1754,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
           if (!csv) {
             return json.encodePrettily();
           }
-          return getCostPerUse2Csv(json, isJournal);
+          return getCostPerUse2Csv(json);
         });
   }
 
