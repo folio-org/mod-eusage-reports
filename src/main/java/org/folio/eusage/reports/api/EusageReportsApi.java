@@ -351,25 +351,21 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     String uri = "/erm/resource?"
         + "match=identifiers.identifier.value&term=" + identifier
         + "&filters=identifiers.identifier.ns.value%3D" + type;
-    return getRequestSend(ctx, uri)
-        .map(res -> {
-          JsonArray ar = res.bodyAsJsonArray();
-          return ar.isEmpty() ? null : parseErmTitle(ar.getJsonObject(0));
-        });
+    return getRequestJsonArray(ctx, uri)
+        .map(ar -> ar.isEmpty() ? null : parseErmTitle(ar.getJsonObject(0)));
   }
 
   Future<Tuple> ermTitleLookup(RoutingContext ctx, UUID id) {
     String uri = "/erm/resource/" + id;
-    return getRequestSend(ctx, uri)
-        .map(res -> parseErmTitle(res.bodyAsJsonObject()));
+    return getRequestJsonObject(ctx, uri)
+        .map(obj -> parseErmTitle(obj));
   }
 
   Future<List<UUID>> ermPackageContentLookup(RoutingContext ctx, UUID id) {
     // example: /erm/packages/dfb61870-1252-4ece-8f75-db02faf4ab82/content
     String uri = "/erm/packages/" + id + "/content";
-    return getRequestSend(ctx, uri)
-        .map(res -> {
-          JsonArray ar = res.bodyAsJsonArray();
+    return getRequestJsonArray(ctx, uri)
+        .map(ar -> {
           List<UUID> list = new ArrayList<>();
           for (int i = 0; i < ar.size(); i++) {
             UUID kbTitleId = UUID.fromString(ar.getJsonObject(i).getJsonObject("pti")
@@ -689,8 +685,12 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     });
   }
 
-  Future<HttpResponse<Buffer>> getRequestSend(RoutingContext ctx, String uri) {
-    return getRequestSend(ctx, uri, -1);
+  Future<JsonObject> getRequestJsonObject(RoutingContext ctx, String uri) {
+    return getRequestSend(ctx, uri, -1).map(res -> res.bodyAsJsonObject());
+  }
+
+  Future<JsonArray> getRequestJsonArray(RoutingContext ctx, String uri) {
+    return getRequestSend(ctx, uri, -1).map(res -> res.bodyAsJsonArray());
   }
 
   /**
@@ -846,8 +846,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
    */
   Future<JsonObject> lookupPurchaseOrderLine(UUID id, RoutingContext ctx) {
     String uri = "/orders/composite-orders/" + id;
-    return getRequestSend(ctx, uri)
-        .map(HttpResponse::bodyAsJsonObject);
+    return getRequestJsonObject(ctx, uri);
   }
 
   /**
@@ -880,8 +879,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
    */
   Future<JsonObject> lookupOrderLine(UUID poLineId, RoutingContext ctx) {
     String uri = "/orders/order-lines/" + poLineId;
-    return getRequestSend(ctx, uri)
-        .map(HttpResponse::bodyAsJsonObject);
+    return getRequestJsonObject(ctx, uri);
   }
 
   /**
@@ -898,8 +896,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
    */
   Future<JsonObject> lookupInvoiceLines(UUID poLineId, RoutingContext ctx) {
     String uri = "/invoice-storage/invoice-lines" + LIMIT_ALL + "&query=poLineId%3D%3D" + poLineId;
-    return getRequestSend(ctx, uri)
-        .map(HttpResponse::bodyAsJsonObject);
+    return getRequestJsonObject(ctx, uri);
   }
 
   /**
@@ -913,8 +910,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
    */
   Future<JsonObject> lookupFund(UUID fundId, RoutingContext ctx) {
     String uri = "/finance-storage/funds/" + fundId;
-    return getRequestSend(ctx, uri)
-        .map(HttpResponse::bodyAsJsonObject);
+    return getRequestJsonObject(ctx, uri);
   }
 
   /**
@@ -928,8 +924,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
    */
   Future<JsonObject> lookupLedger(UUID ledgerId, RoutingContext ctx) {
     String uri = "/finance-storage/ledgers/" + ledgerId;
-    return getRequestSend(ctx, uri)
-        .map(HttpResponse::bodyAsJsonObject);
+    return getRequestJsonObject(ctx, uri);
   }
 
   /**
@@ -943,8 +938,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
    */
   Future<JsonObject> lookupFiscalYear(UUID id, RoutingContext ctx) {
     String uri = "/finance-storage/fiscal-years/" + id;
-    return getRequestSend(ctx, uri)
-        .map(HttpResponse::bodyAsJsonObject);
+    return getRequestJsonObject(ctx, uri);
   }
 
   Future<Void> getFiscalYear(JsonObject poLine, RoutingContext ctx, JsonObject result) {
@@ -1130,10 +1124,9 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
             // example: /erm/entitlements?filters=owner%3D3b6623de-de39-4b43-abbc-998bed892025
             String uri = "/erm/entitlements?filters=owner%3D" + agreementId;
             return clearAgreement(pool, con, agreementId)
-                .compose(a -> getRequestSend(ctx, uri))
-                .compose(res -> {
+                .compose(a -> getRequestJsonArray(ctx, uri))
+                .compose(items -> {
                   Future<Void> future = Future.succeededFuture();
-                  JsonArray items = res.bodyAsJsonArray();
                   for (int i = 0; i < items.size(); i++) {
                     JsonObject agreementLine = items.getJsonObject(i);
                     future = future.compose(v ->
