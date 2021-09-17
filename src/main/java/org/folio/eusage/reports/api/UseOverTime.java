@@ -17,8 +17,44 @@ import org.apache.logging.log4j.Logger;
 public class UseOverTime {
   private static final Logger log = LogManager.getLogger(UseOverTime.class);
 
-  static JsonObject titlesToJsonObject(RowSet<Row> rowSet, Boolean isJournal,
-      String agreementId, Periods usePeriods) {
+  static JsonObject createTotalItem(Row row, String accessType, Long totalAccessCount,
+      JsonArray accessCountsByPeriods) {
+    return createItem(row, accessType, "Total_Item_Requests",
+        totalAccessCount, accessCountsByPeriods);
+  }
+
+  static JsonObject createUniqueItem(Row row, String accessType, Long totalAccessCount,
+      JsonArray accessCountsByPeriods) {
+    return createItem(row, accessType, "Unique_Item_Requests",
+        totalAccessCount, accessCountsByPeriods);
+  }
+
+  private static JsonObject createItem(Row row, String accessType, String metricType,
+      Long totalAccessCount, JsonArray accessCountsByPeriods) {
+
+    JsonObject o = new JsonObject()
+        .put("kbId", row.getUUID("kbid"))
+        .put("title", row.getString("title"));
+    String v = row.getString("printissn");
+    if (v != null) {
+      o.put("printISSN", v);
+    }
+    v = row.getString("onlineissn");
+    if (v != null) {
+      o.put("onlineISSN", v);
+    }
+    v = row.getString("isbn");
+    if (v != null) {
+      o.put("ISBN", v);
+    }
+    o.put("accessType", accessType)
+        .put("metricType", metricType)
+        .put("accessCountTotal", totalAccessCount)
+        .put("accessCountsByPeriod", accessCountsByPeriods);
+    return o;
+  }
+
+  static JsonObject titlesToJsonObject(RowSet<Row> rowSet, String agreementId, Periods usePeriods) {
 
     List<Long> totalItemRequestsByPeriod = new ArrayList<>();
     List<Long> uniqueItemRequestsByPeriod = new ArrayList<>();
@@ -60,26 +96,11 @@ public class UseOverTime {
           totalItem.put("accessCountTotal", totalItem.getLong("accessCountTotal")
               + totalAccessCount);
         } else {
-          totalItem = new JsonObject()
-              .put("kbId", row.getUUID("kbid"))
-              .put("title", row.getString("title"));
-          if (isJournal == null || isJournal) {
-            totalItem
-                .put("printISSN", row.getString("printissn"))
-                .put("onlineISSN", row.getString("onlineissn"));
-          }
-          if (isJournal == null || !isJournal) {
-            totalItem.put("ISBN", row.getString("isbn"));
-          }
           accessCountsByPeriods = new JsonArray();
           for (int i = 0; i < usePeriods.size(); i++) {
             accessCountsByPeriods.add(0L);
           }
-          totalItem
-              .put("accessType", accessType)
-              .put("metricType", "Total_Item_Requests")
-              .put("accessCountTotal", totalAccessCount)
-              .put("accessCountsByPeriod", accessCountsByPeriods);
+          totalItem = createTotalItem(row, accessType, totalAccessCount, accessCountsByPeriods);
           items.add(totalItem);
           totalItems.put(itemKey, totalItem);
         }
@@ -91,25 +112,11 @@ public class UseOverTime {
           uniqueItem.put("accessCountTotal", uniqueItem.getLong("accessCountTotal")
               + uniqueAccessCount);
         } else {
-          uniqueItem = new JsonObject()
-              .put("kbId", row.getUUID("kbid"))
-              .put("title", row.getString("title"));
-          if (isJournal == null || isJournal) {
-            uniqueItem.put("printISSN", row.getString("printissn"))
-                .put("onlineISSN", row.getString("onlineissn"));
-          }
-          if (isJournal == null || !isJournal) {
-            uniqueItem.put("ISBN", row.getString("isbn"));
-          }
           accessCountsByPeriods = new JsonArray();
           for (int i = 0; i < usePeriods.size(); i++) {
             accessCountsByPeriods.add(0L);
           }
-          uniqueItem
-              .put("accessType", accessType)
-              .put("metricType", "Unique_Item_Requests")
-              .put("accessCountTotal", uniqueAccessCount)
-              .put("accessCountsByPeriod", accessCountsByPeriods);
+          uniqueItem = createUniqueItem(row, accessType, uniqueAccessCount, accessCountsByPeriods);
           uniqueItems.put(itemKey, uniqueItem);
           items.add(uniqueItem);
         }

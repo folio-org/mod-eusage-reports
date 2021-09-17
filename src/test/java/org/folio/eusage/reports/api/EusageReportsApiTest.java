@@ -569,12 +569,11 @@ assertThat(json.getJsonArray("items").size(), is(4));
                   .put("kbId", "21000000-0000-4000-8000-000000000000")
                   .put("title", "Title 21")
                   .put("printISSN", "2121-1111")
-                  .put("onlineISSN", null)
-                  .put("publicationYear", "2010")
                   .put("accessType", "Controlled")
                   .put("metricType", "Total_Item_Requests")
                   .put("accessCountTotal", 40L)
                   .put("accessCountsByPeriod", new JsonArray("[ 40, 0 ]"))
+                  .put("publicationYear", "2010")
                   .encodePrettily()));
         }));
   }
@@ -593,11 +592,11 @@ assertThat(json.getJsonArray("items").size(), is(4));
                   .put("kbId", "31000000-0000-4000-8000-000000000000")
                   .put("title", "Title 31")
                   .put("ISBN", "3131313131")
-                  .put("publicationYear", "0001")
                   .put("accessType", "Controlled")
                   .put("metricType", "Total_Item_Requests")
                   .put("accessCountTotal", 40)
                   .put("accessCountsByPeriod", new JsonArray("[ 40, 0 ]"))
+                  .put("publicationYear", "0001")
                   .encodePrettily()));
         }));
   }
@@ -616,11 +615,11 @@ assertThat(json.getJsonArray("items").size(), is(4));
                   .put("kbId", "31000000-0000-4000-8000-000000000000")
                   .put("title", "Title 31")
                   .put("ISBN", "3131313131")
-                  .put("publicationYear", "0000 - 0004")
                   .put("accessType", "Controlled")
                   .put("metricType", "Total_Item_Requests")
                   .put("accessCountTotal", 40)
                   .put("accessCountsByPeriod", new JsonArray("[ 40, 0 ]"))
+                  .put("publicationYear", "0000 - 0004")
                   .encodePrettily()));
         }));
   }
@@ -676,11 +675,11 @@ assertThat(json.getJsonArray("items").size(), is(4));
                   .put("title", "Title 11")
                   .put("printISSN", "1111-1111")
                   .put("onlineISSN", "1111-2222")
-                  .put("publicationYear", "1999")
                   .put("accessType", "Controlled")
                   .put("metricType", "Total_Item_Requests")
                   .put("accessCountTotal", 5)
                   .put("accessCountsByPeriod", new JsonArray("[ 0, 2, 3, 0, 0 ]"))
+                  .put("publicationYear", "1999")
                   .encodePrettily()));
           assertThat(json.getJsonArray("items").getJsonObject(1).encodePrettily(),
               is(new JsonObject()
@@ -688,11 +687,11 @@ assertThat(json.getJsonArray("items").size(), is(4));
                   .put("title", "Title 11")
                   .put("printISSN", "1111-1111")
                   .put("onlineISSN", "1111-2222")
-                  .put("publicationYear", "1999")
                   .put("accessType", "Controlled")
                   .put("metricType", "Unique_Item_Requests")
                   .put("accessCountTotal", 3)
                   .put("accessCountsByPeriod", new JsonArray("[ 0, 1, 2, 0, 0 ]"))
+                  .put("publicationYear", "1999")
                   .encodePrettily()));
           assertThat(json.getJsonArray("items").getJsonObject(2).encodePrettily(),
               is(new JsonObject()
@@ -700,11 +699,11 @@ assertThat(json.getJsonArray("items").size(), is(4));
                   .put("title", "Title 11")
                   .put("printISSN", "1111-1111")
                   .put("onlineISSN", "1111-2222")
-                  .put("publicationYear", "2000")
                   .put("accessType", "Controlled")
                   .put("metricType", "Total_Item_Requests")
                   .put("accessCountTotal", 44)
                   .put("accessCountsByPeriod", new JsonArray("[ 0, 0, 3, 12, 29 ]"))
+                  .put("publicationYear", "2000")
                   .encodePrettily()));
           assertThat(json.getJsonArray("items").getJsonObject(3).encodePrettily(),
               is(new JsonObject()
@@ -712,11 +711,11 @@ assertThat(json.getJsonArray("items").size(), is(4));
                   .put("title", "Title 11")
                   .put("printISSN", "1111-1111")
                   .put("onlineISSN", "1111-2222")
-                  .put("publicationYear", "2000")
                   .put("accessType", "Controlled")
                   .put("metricType", "Unique_Item_Requests")
                   .put("accessCountTotal", 16)
                   .put("accessCountsByPeriod", new JsonArray("[ 0, 0, 3, 4, 9 ]"))
+                  .put("publicationYear", "2000")
                   .encodePrettily()));
           assertThat(json.getJsonArray("items").getJsonObject(4).encodePrettily(),
               is(new JsonObject()
@@ -724,11 +723,11 @@ assertThat(json.getJsonArray("items").size(), is(4));
                   .put("title", "Title 12")
                   .put("printISSN", "1212-1111")
                   .put("onlineISSN", "1212-2222")
-                  .put("publicationYear", "2010")
                   .put("accessType", "Controlled")
                   .put("metricType", "Total_Item_Requests")
                   .put("accessCountTotal", 50)
                   .put("accessCountsByPeriod", new JsonArray("[ 0, 12, 16, 22, 0 ]"))
+                  .put("publicationYear", "2010")
                   .encodePrettily()));
           assertThat(json.getJsonArray("items").getJsonObject(5).encodePrettily(),
               is(new JsonObject()
@@ -736,11 +735,11 @@ assertThat(json.getJsonArray("items").size(), is(4));
                   .put("title", "Title 12")
                   .put("printISSN", "1212-1111")
                   .put("onlineISSN", "1212-2222")
-                  .put("publicationYear", "2010")
                   .put("accessType", "Controlled")
                   .put("metricType", "Unique_Item_Requests")
                   .put("accessCountTotal", 40)
                   .put("accessCountsByPeriod", new JsonArray("[ 0, 11, 15, 14, 0 ]"))
+                  .put("publicationYear", "2010")
                   .encodePrettily()));
         }));
   }
@@ -773,11 +772,11 @@ assertThat(json.getJsonArray("items").size(), is(4));
                   .put("title", "Title 11")
                   .put("printISSN", "1111-1111")
                   .put("onlineISSN", "1111-2222")
-                  .put("periodOfUse", "2020-03")
                   .put("accessType", "Controlled")
                   .put("metricType", "Total_Item_Requests")
                   .put("accessCountTotal", 2)
                   .put("accessCountsByPeriod", new JsonArray("[ 2, 0, 0 ]"))
+                  .put("periodOfUse", "2020-03")
                   .encodePrettily()));
         }));
   }
@@ -842,12 +841,11 @@ assertThat(json.getJsonArray("items").size(), is(4));
                   .put("title", "Title 11")
                   .put("printISSN", "1111-1111")
                   .put("onlineISSN", "1111-2222")
-                  .put("ISBN", null)
-                  .put("publicationYear", "1998 - 1999")
                   .put("accessType", "Controlled")
                   .put("metricType", "Total_Item_Requests")
                   .put("accessCountTotal", 5)
                   .put("accessCountsByPeriod", new JsonArray("[ 0, 2, 3, 0, 0 ]"))
+                  .put("publicationYear", "1998 - 1999")
                   .encodePrettily()));
         }));
   }
@@ -874,12 +872,11 @@ assertThat(json.getJsonArray("items").size(), is(4));
               .put("kbId", "21000000-0000-4000-8000-000000000000")
               .put("title", "Title 21")
               .put("printISSN", "2121-1111")
-              .put("onlineISSN", null)
-              .put("publicationYear", "2010")
               .put("accessType", "Controlled")
               .put("metricType", "Total_Item_Requests")
               .put("accessCountTotal", 40)
               .put("accessCountsByPeriod", new JsonArray("[ 40, 0 ]"))
+              .put("publicationYear", "2010")
               .encodePrettily()));
     }));
   }
@@ -1037,11 +1034,11 @@ assertThat(json.getJsonArray("items").size(), is(4));
               .put("title", "Title 11")
               .put("printISSN", "1111-1111")
               .put("onlineISSN", "1111-2222")
-              .put("periodOfUse", "2020-01 - 2020-06")
               .put("accessType", "Controlled")
               .put("metricType", "Total_Item_Requests")
               .put("accessCountTotal", 49)
               .put("accessCountsByPeriod", new JsonArray("[ 5, 44, 0 ]"))
+              .put("periodOfUse", "2020-01 - 2020-06")
               .encodePrettily()));
       assertThat(json.getJsonArray("items").getJsonObject(1).encodePrettily(),
           is(new JsonObject()
@@ -1049,11 +1046,11 @@ assertThat(json.getJsonArray("items").size(), is(4));
               .put("title", "Title 11")
               .put("printISSN", "1111-1111")
               .put("onlineISSN", "1111-2222")
-              .put("periodOfUse", "2020-01 - 2020-06")
               .put("accessType", "Controlled")
               .put("metricType", "Unique_Item_Requests")
               .put("accessCountTotal", 19)
               .put("accessCountsByPeriod", new JsonArray("[ 3, 16, 0 ]"))
+              .put("periodOfUse", "2020-01 - 2020-06")
               .encodePrettily()));
       assertThat(json.getJsonArray("items").getJsonObject(2).encodePrettily(),
           is(new JsonObject()
@@ -1061,11 +1058,11 @@ assertThat(json.getJsonArray("items").size(), is(4));
               .put("title", "Title 12")
               .put("printISSN", "1212-1111")
               .put("onlineISSN", "1212-2222")
-              .put("periodOfUse", "2020-01 - 2020-06")
               .put("accessType", "Controlled")
               .put("metricType", "Total_Item_Requests")
               .put("accessCountTotal", 50)
               .put("accessCountsByPeriod", new JsonArray("[ 0, 0, 50 ]"))
+              .put("periodOfUse", "2020-01 - 2020-06")
               .encodePrettily()));
     }));
   }

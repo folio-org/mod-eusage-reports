@@ -1315,7 +1315,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     periods.addEnd(tuple);
     return getTitles(pool, isJournal, includeOA, agreementId, periods,
           "title, publicationDate, openAccess")
-          .map(rowSet -> UseOverTime.titlesToJsonObject(rowSet, isJournal, agreementId, periods));
+          .map(rowSet -> UseOverTime.titlesToJsonObject(rowSet, agreementId, periods));
   }
 
   Future<String> getReqsByDateOfUse(TenantPgPool pool, Boolean isJournal, boolean includeOA,
@@ -1361,7 +1361,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
         ? 12 : Periods.getPeriodInMonths(yopInterval);
     return getTitles(pool, isJournal, includeOA, agreementId, usePeriods,
         "title, publicationDate, openAccess")
-        .map(rowSet -> ReqsByDateOfUse.titlesToJsonObject(rowSet, isJournal, agreementId,
+        .map(rowSet -> ReqsByDateOfUse.titlesToJsonObject(rowSet, agreementId,
             usePeriods, pubPeriodsInMonths));
   }
 
@@ -1409,7 +1409,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
 
     return getTitles(pool, isJournal, includeOA, agreementId, usePeriods,
         "title, usageDateRange, openAccess")
-        .map(rowSet -> ReqsByPubYear.titlesToJsonObject(rowSet, isJournal, agreementId,
+        .map(rowSet -> ReqsByPubYear.titlesToJsonObject(rowSet, agreementId,
             usePeriods, pubPeriodsInMonths));
   }
 

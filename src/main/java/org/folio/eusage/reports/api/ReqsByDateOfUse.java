@@ -17,7 +17,7 @@ import org.apache.logging.log4j.Logger;
 public class ReqsByDateOfUse {
   private static final Logger log = LogManager.getLogger(ReqsByDateOfUse.class);
 
-  static JsonObject titlesToJsonObject(RowSet<Row> rowSet, Boolean isJournal, String agreementId,
+  static JsonObject titlesToJsonObject(RowSet<Row> rowSet, String agreementId,
       Periods usePeriods, int pubPeriodsInMonths) {
 
     List<Long> totalItemRequestsByPeriod = new ArrayList<>();
@@ -74,27 +74,13 @@ public class ReqsByDateOfUse {
           totalItem.put("accessCountTotal", totalItem.getLong("accessCountTotal")
               + totalAccessCount);
         } else {
-          totalItem = new JsonObject()
-              .put("kbId", row.getUUID("kbid"))
-              .put("title", row.getString("title"));
-          if (isJournal == null || isJournal) {
-            totalItem
-                .put("printISSN", row.getString("printissn"))
-                .put("onlineISSN", row.getString("onlineissn"));
-          }
-          if (isJournal == null || !isJournal) {
-            totalItem.put("ISBN", row.getString("isbn"));
-          }
           accessCountsByPeriods = new JsonArray();
           for (int i = 0; i < usePeriods.size(); i++) {
             accessCountsByPeriods.add(0L);
           }
-          totalItem
-              .put("publicationYear", pubPeriodLabel)
-              .put("accessType", accessType)
-              .put("metricType", "Total_Item_Requests")
-              .put("accessCountTotal", totalAccessCount)
-              .put("accessCountsByPeriod", accessCountsByPeriods);
+          totalItem = UseOverTime.createTotalItem(row, accessType,
+              totalAccessCount, accessCountsByPeriods);
+          totalItem.put("publicationYear", pubPeriodLabel);
           items.add(totalItem);
           totalItems.put(itemKey, totalItem);
         }
@@ -106,26 +92,13 @@ public class ReqsByDateOfUse {
           uniqueItem.put("accessCountTotal", uniqueItem.getLong("accessCountTotal")
               + uniqueAccessCount);
         } else {
-          uniqueItem = new JsonObject()
-              .put("kbId", row.getUUID("kbid"))
-              .put("title", row.getString("title"));
-          if (isJournal == null || isJournal) {
-            uniqueItem.put("printISSN", row.getString("printissn"))
-                .put("onlineISSN", row.getString("onlineissn"));
-          }
-          if (isJournal == null || !isJournal) {
-            uniqueItem.put("ISBN", row.getString("isbn"));
-          }
           accessCountsByPeriods = new JsonArray();
           for (int i = 0; i < usePeriods.size(); i++) {
             accessCountsByPeriods.add(0L);
           }
-          uniqueItem
-              .put("publicationYear", pubPeriodLabel)
-              .put("accessType", accessType)
-              .put("metricType", "Unique_Item_Requests")
-              .put("accessCountTotal", uniqueAccessCount)
-              .put("accessCountsByPeriod", accessCountsByPeriods);
+          uniqueItem = UseOverTime.createUniqueItem(row, accessType,
+              uniqueAccessCount, accessCountsByPeriods);
+          uniqueItem.put("publicationYear", pubPeriodLabel);
           uniqueItems.put(itemKey, uniqueItem);
           items.add(uniqueItem);
         }
