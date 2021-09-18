@@ -21,6 +21,7 @@ import io.vertx.ext.web.validation.RequestParameter;
 import io.vertx.ext.web.validation.RequestParameters;
 import io.vertx.ext.web.validation.ValidationHandler;
 import io.vertx.sqlclient.Row;
+import io.vertx.sqlclient.RowIterator;
 import io.vertx.sqlclient.RowSet;
 import io.vertx.sqlclient.RowStream;
 import io.vertx.sqlclient.SqlConnection;
@@ -30,6 +31,7 @@ import java.io.StringWriter;
 import java.io.UncheckedIOException;
 import java.text.DecimalFormat;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
 import java.time.temporal.ChronoField;
@@ -79,6 +81,10 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
 
   static String agreementEntriesTable(TenantPgPool pool) {
     return pool.getSchema() + ".agreement_entries";
+  }
+
+  static String statusTable(TenantPgPool pool) {
+    return pool.getSchema() + ".status";
   }
 
   static void failHandler(RoutingContext ctx) {
@@ -1113,32 +1119,48 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     if (agreementIdStr == null) {
       return Future.failedFuture("Missing agreementId property");
     }
+    final UUID agreementId = UUID.fromString(agreementIdStr);
     TenantPgPool pool = TenantPgPool.pool(vertx, tenant);
-    return pool.getConnection().compose(con -> con.begin().compose(tx -> {
-      final UUID agreementId = UUID.fromString(agreementIdStr);
-      return agreementExists(ctx, agreementId)
-          .compose(exists -> {
-            if (!exists) {
-              return Future.succeededFuture(null);
-            }
-            // expand agreement to get agreement lines, now that we know the agreement ID is good.
-            // the call below returns 500 with a stacktrace if agreement ID is no good.
-            // example: /erm/entitlements?filters=owner%3D3b6623de-de39-4b43-abbc-998bed892025
-            String uri = "/erm/entitlements?filters=owner%3D" + agreementId;
-            return clearAgreement(pool, con, agreementId)
-                .compose(a -> getRequestSend(ctx, uri))
-                .compose(res -> {
-                  Future<Void> future = Future.succeededFuture();
-                  JsonArray items = res.bodyAsJsonArray();
-                  for (int i = 0; i < items.size(); i++) {
-                    JsonObject agreementLine = items.getJsonObject(i);
-                    future = future.compose(v ->
-                        populateAgreementLine(pool, con, agreementLine, agreementId, ctx));
+    return pool.getConnection().compose(con -> con.begin()
+        .compose(tx ->
+            agreementExists(ctx, agreementId)
+                .compose(exists -> {
+                  if (!exists) {
+                    return Future.succeededFuture(null);
                   }
-                  return future.compose(x -> tx.commit()).map(items.size());
-                });
-          });
-    }).eventually(x -> con.close()));
+                  // expand agreement to get agreement lines, now that we know the ID is good.
+                  // the call below returns 500 with a stacktrace if agreement ID is no good.
+                  // example: /erm/entitlements?filters=owner%3D3b6623de-de39-4b43-abbc-998bed892025
+                  String uri = "/erm/entitlements?filters=owner%3D" + agreementId;
+                  return populateStatus(pool, agreementId, true)
+                      .compose(x -> clearAgreement(pool, con, agreementId))
+                      .compose(x -> getRequestSend(ctx, uri))
+                      .compose(res -> {
+                        Future<Void> future = Future.succeededFuture();
+                        JsonArray items = res.bodyAsJsonArray();
+                        for (int i = 0; i < items.size(); i++) {
+                          JsonObject agreementLine = items.getJsonObject(i);
+                          future = future.compose(v ->
+                              populateAgreementLine(pool, con, agreementLine, agreementId, ctx));
+                        }
+                        return future.compose(x -> tx.commit()).map(items.size());
+                      })
+                      .eventually(x -> populateStatus(pool, agreementId, false));
+                })
+        )
+        .eventually(x -> con.close())
+    );
+  }
+
+  Future<Void> populateStatus(TenantPgPool pool, UUID agreementId, boolean active) {
+    log.info("populateStatus begin");
+    JsonObject status = new JsonObject()
+        .put("id", agreementId.toString())
+        .put("lastUpdated", LocalDateTime.now().toString())
+        .put("active", active);
+    return pool.preparedQuery("INSERT INTO " + statusTable(pool)
+            + "(id, status) VALUES($1, $2) ON CONFLICT(id) DO UPDATE SET status = $2")
+        .execute(Tuple.of(agreementId, status)).mapEmpty();
   }
 
   Future<Void> postFromAgreement(Vertx vertx, RoutingContext ctx) {
@@ -1939,6 +1961,25 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
         });
   }
 
+  Future<Void> getReportStatus(Vertx vertx, RoutingContext ctx) {
+    TenantPgPool pool = TenantPgPool.pool(vertx, TenantUtil.tenant(ctx));
+    UUID id = UUID.fromString(ctx.request().getParam("id"));
+    return pool.preparedQuery("SELECT status from " + statusTable(pool) + " WHERE id = $1")
+        .execute(Tuple.of(id))
+        .map(rowSet -> {
+          RowIterator<Row> iterator = rowSet.iterator();
+          if (!iterator.hasNext()) {
+            ctx.response().setStatusCode(404);
+            ctx.response().end("No status found for id " + id.toString());
+            return null;
+          }
+          ctx.response().setStatusCode(200);
+          ctx.response().putHeader("Content-Type", "application/json");
+          ctx.response().end(iterator.next().getJsonObject("status").encodePrettily());
+          return null;
+        });
+  }
+
   private void add(RouterBuilder routerBuilder,
       String operationId, Function<RoutingContext, Future<Void>> function) {
 
@@ -1969,6 +2010,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
           add(routerBuilder, "getReqsByDateOfUse", ctx -> getReqsByDateOfUse(vertx, ctx));
           add(routerBuilder, "getReqsByPubYear", ctx -> getReqsByPubYear(vertx, ctx));
           add(routerBuilder, "getCostPerUse", ctx -> getCostPerUse(vertx, ctx));
+          add(routerBuilder, "getReportStatus", ctx -> getReportStatus(vertx, ctx));
           return routerBuilder.createRouter();
         });
   }
@@ -2040,6 +2082,10 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
             + ")",
         "CREATE INDEX IF NOT EXISTS agreement_entries_agreementId ON "
             + agreementEntriesTable(pool) + " USING btree(agreementId)",
+        "CREATE TABLE IF NOT EXISTS " + statusTable(pool) + " ( "
+            + "id UUID PRIMARY KEY, "
+            + "status json"
+            + ")",
         "CREATE OR REPLACE FUNCTION " + pool.getSchema() + ".floor_months(date, integer)"
             + " RETURNS date AS $$\n"
             + "-- floor_months(date, n) returns the start of the period date belongs to,\n"
