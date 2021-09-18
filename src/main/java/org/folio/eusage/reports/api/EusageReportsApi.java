@@ -639,7 +639,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     if (counterReportTitle == null) {
       return Future.succeededFuture();
     }
-    String yop = reportItem.getString("YOP");
+    final String yopString = reportItem.getString("YOP");
     final String usageDateRange = getUsageDate(reportItem);
     final JsonObject identifiers = getIssnIdentifiers(reportItem);
     final String onlineIssn = identifiers.getString("onlineISSN");
@@ -648,16 +648,12 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     final String doi = identifiers.getString("DOI");
     String publicationDate = identifiers.getString("Publication_Date");
 
-    DateTimeFormatter format = new DateTimeFormatterBuilder()
-        .appendPattern("yyyy")
-        .parseDefaulting(ChronoField.MONTH_OF_YEAR, 1)
-        .parseDefaulting(ChronoField.DAY_OF_MONTH, 1)
-        .toFormatter();
-
+    // YOP "0001": unknown, "9999": not yet known.. Also "1" seen ..
+    Integer yop = yopString == null ? 1 : Integer.parseInt(yopString);
     final LocalDate pubdate =
-        publicationDate != null ? LocalDate.parse(publicationDate) :
-            yop != null ? LocalDate.parse(yop, format) :
-                null;
+        publicationDate != null ? LocalDate.parse(publicationDate)
+            : yop != 1 && yop != 9999 ? LocalDate.of(yop, 1, 1)
+            : null;
 
     log.debug("handleReport title={} match={}", counterReportTitle, onlineIssn);
     final int totalAccessCount = getTotalCount(reportItem, "Total_Item_Requests");
