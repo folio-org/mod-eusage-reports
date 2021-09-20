@@ -1501,12 +1501,6 @@ public class MainVerticleTest {
     resObject = new JsonObject(response.body().asString());
     context.assertEquals(4, resObject.getInteger("reportLinesCreated"));
 
-    String b = RestAssured.given()
-        .header(XOkapiHeaders.TENANT, tenant)
-        .header(XOkapiHeaders.URL, "http://localhost:" + MOCK_PORT)
-        .get("/eusage-reports/report-data/status/" + goodAgreementId)
-        .then().statusCode(200).extract().body().asString();
-
     RestAssured.given()
         .header(XOkapiHeaders.TENANT, tenant)
         .header(XOkapiHeaders.URL, "http://localhost:" + MOCK_PORT)

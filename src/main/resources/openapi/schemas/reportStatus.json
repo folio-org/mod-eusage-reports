@@ -9,7 +9,7 @@
     },
     "lastUpdated": {
       "type": "string",
-      "description": "date of last update"
+      "description": "date and time of last update - UTC zone"
     },
     "active": {
       "type": "boolean",

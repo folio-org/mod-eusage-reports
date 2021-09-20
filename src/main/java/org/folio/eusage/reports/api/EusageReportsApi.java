@@ -32,6 +32,7 @@ import java.io.UncheckedIOException;
 import java.text.DecimalFormat;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
@@ -1167,7 +1168,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     log.info("populateStatus begin");
     JsonObject status = new JsonObject()
         .put("id", agreementId.toString())
-        .put("lastUpdated", LocalDateTime.now().toString())
+        .put("lastUpdated", LocalDateTime.now(ZoneOffset.UTC).toString())
         .put("active", active);
     return pool.preparedQuery("INSERT INTO " + statusTable(pool)
             + "(id, status) VALUES($1, $2) ON CONFLICT(id) DO UPDATE SET status = $2")
