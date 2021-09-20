@@ -380,28 +380,31 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
   }
 
   Future<UUID> updateTitleEntryByKbTitle(TenantPgPool pool, SqlConnection con, UUID kbTitleId,
-                                         String counterReportTitle, String printIssn,
-                                         String onlineIssn, String isbn, String doi) {
+      String counterReportTitle, String printIssn, String onlineIssn, String isbn, String doi,
+      String publicationType) {
+
     if (kbTitleId == null) {
       return Future.succeededFuture(null);
     }
     return con.preparedQuery("SELECT id FROM " + titleEntriesTable(pool)
-        + " WHERE kbTitleId = $1")
+            + " WHERE kbTitleId = $1")
         .execute(Tuple.of(kbTitleId)).compose(res -> {
           if (!res.iterator().hasNext()) {
             return Future.succeededFuture(null);
           }
           Row row = res.iterator().next();
-          UUID id = row.getUUID(0);
+          UUID id = row.getUUID("id");
           return con.preparedQuery("UPDATE " + titleEntriesTable(pool)
-              + " SET"
-              + " counterReportTitle = $2,"
-              + " printISSN = $3,"
-              + " onlineISSN = $4,"
-              + " ISBN = $5,"
-              + " DOI = $6"
-              + " WHERE id = $1")
-              .execute(Tuple.of(id, counterReportTitle, printIssn, onlineIssn, isbn, doi))
+                  + " SET"
+                  + " counterReportTitle = $2,"
+                  + " printISSN = $3,"
+                  + " onlineISSN = $4,"
+                  + " ISBN = $5,"
+                  + " DOI = $6,"
+                  + " publicationType = $7"
+                  + " WHERE id = $1")
+              .execute(Tuple.of(id, counterReportTitle, printIssn, onlineIssn, isbn, doi,
+                  publicationType))
               .map(id);
         });
   }
@@ -428,9 +431,9 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
           }
           if (res1.iterator().hasNext()) {
             Row row = res1.iterator().next();
-            UUID id = row.getUUID(0);
-            Boolean kbManualMatch = row.getBoolean(4);
-            if (row.getUUID(3) != null || Boolean.TRUE.equals(kbManualMatch)) {
+            UUID id = row.getUUID("id");
+            Boolean kbManualMatch = row.getBoolean("kbmanualmatch");
+            if (row.getUUID("kbtitleid") != null || Boolean.TRUE.equals(kbManualMatch)) {
               return Future.succeededFuture(id);
             }
             return ermTitleLookup2(ctx, identifier, type).compose(erm -> {
@@ -439,13 +442,14 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
               }
               UUID kbTitleId = erm.getUUID(0);
               String kbTitleName = erm.getString(1);
+              String publicationType = erm.getString(2);
               return con.preparedQuery("UPDATE " + titleEntriesTable(pool)
                   + " SET"
                   + " kbTitleName = $2,"
                   + " kbTitleId = $3,"
                   + " publicationType = $4"
                   + " WHERE id = $1")
-                  .execute(Tuple.of(id, kbTitleName, kbTitleId, erm.getString(2))).map(id);
+                  .execute(Tuple.of(id, kbTitleName, kbTitleId, publicationType)).map(id);
             });
           }
           return ermTitleLookup2(ctx, identifier, type).compose(erm -> {
@@ -454,7 +458,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
             String publicationType = erm != null ? erm.getString(2) : null;
 
             return updateTitleEntryByKbTitle(pool, con, kbTitleId,
-                counterReportTitle, printIssn, onlineIssn, isbn, doi)
+                counterReportTitle, printIssn, onlineIssn, isbn, doi, publicationType)
                 .compose(id -> {
                   if (id != null) {
                     return Future.succeededFuture(id);
@@ -472,7 +476,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
                           con.preparedQuery("SELECT id FROM " + titleEntriesTable(pool)
                               + " WHERE counterReportTitle = $1")
                               .execute(Tuple.of(counterReportTitle))
-                              .map(res2 -> res2.iterator().next().getUUID(0)));
+                              .map(res2 -> res2.iterator().next().getUUID("id")));
                 });
           });
         });
