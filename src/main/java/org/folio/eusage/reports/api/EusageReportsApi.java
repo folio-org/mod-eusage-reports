@@ -286,6 +286,31 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
         });
   }
 
+  Future<Void> getReportPackages(Vertx vertx, RoutingContext ctx) {
+    PgCqlQuery pgCqlQuery = PgCqlQuery.query();
+    pgCqlQuery.addField(new PgCqlField("kbPackageId", PgCqlField.Type.UUID));
+    pgCqlQuery.addField(new PgCqlField("kbPackageName", PgCqlField.Type.FULLTEXT));
+    pgCqlQuery.addField(new PgCqlField("kbTitleId", PgCqlField.Type.UUID));
+
+    RequestParameters params = ctx.get(ValidationHandler.REQUEST_CONTEXT_KEY);
+    final String tenant = stringOrNull(params.headerParameter(XOkapiHeaders.TENANT));
+    final TenantPgPool pool = TenantPgPool.pool(vertx, tenant);
+
+    pgCqlQuery.parse(stringOrNull(params.queryParameter("query")));
+    String cqlWhere = pgCqlQuery.getWhereClause();
+
+    String from = packageEntriesTable(pool);
+    if (cqlWhere != null) {
+      from = from + " WHERE " + cqlWhere;
+    }
+    return streamResult(ctx, pool, null, from, "packages",
+        row -> new JsonObject()
+            .put("kbPackageId", row.getUUID(0))
+            .put("kbPackageName", row.getString(1))
+            .put("kbTitleId", row.getUUID(2))
+    );
+  }
+
   Future<Void> getTitleData(Vertx vertx, RoutingContext ctx) {
     RequestParameters params = ctx.get(ValidationHandler.REQUEST_CONTEXT_KEY);
     String tenant = stringOrNull(params.headerParameter(XOkapiHeaders.TENANT));
@@ -1841,6 +1866,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
         .map(routerBuilder -> {
           add(routerBuilder, "getReportTitles", ctx -> getReportTitles(vertx, ctx));
           add(routerBuilder, "postReportTitles", ctx -> postReportTitles(vertx, ctx));
+          add(routerBuilder, "getReportPackages", ctx -> getReportPackages(vertx, ctx));
           add(routerBuilder, "postFromCounter", ctx -> postFromCounter(vertx, ctx));
           add(routerBuilder, "getTitleData", ctx -> getTitleData(vertx, ctx));
           add(routerBuilder, "getReportData", ctx -> getReportData(vertx, ctx));

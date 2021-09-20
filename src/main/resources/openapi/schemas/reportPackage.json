@@ -1,0 +1,24 @@
+{
+  "description": "KB package entry",
+  "type": "object",
+  "properties": {
+    "kbPackageId": {
+      "type": "string",
+      "description" : "KB package identifier",
+      "format": "uuid"
+    },
+    "kbPackageName": {
+      "type": "string",
+      "description": "KB package name"
+    },
+    "kbTitleId": {
+      "type": "string",
+      "description": "KB title identifier",
+      "format": "uuid"
+    }
+  },
+  "additionalProperties": false,
+  "required": [
+    "kbPackageId"
+  ]
+}
