@@ -32,6 +32,11 @@
           "permissionsRequired": [ "eusage-reports-report-titles.collection.post" ]
         },
         {
+          "methods": [ "GET" ],
+          "pathPattern": "/eusage-reports/report-packages",
+          "permissionsRequired": [ "eusage-reports-report-packages.collection.get" ]
+        },
+        {
           "methods": [ "POST" ],
           "pathPattern": "/eusage-reports/report-titles/from-counter",
           "permissionsRequired": [ "eusage-reports-report-titles-from-counter.post" ],
@@ -167,6 +172,11 @@
       "description": "Post Counter report titles"
     },
     {
+      "permissionName": "eusage-reports-report-packages.collection.get",
+      "displayName": "eUsage reports - packages get",
+      "description": "Get report packages"
+    },
+    {
       "permissionName": "eusage-reports-report-titles-from-counter.post",
       "displayName": "eUsage reports - Counter reports parse",
       "description": "Parse counter reports and return them"
@@ -217,6 +227,7 @@
       "description": "Entire set of permissions needed to use all eUsage report GET APIs",
       "subPermissions": [
         "eusage-reports-report-titles.collection.get",
+        "eusage-reports-report-packages.collection.get",
         "eusage-reports-title-data.collection.get",
         "eusage-reports-report-data.collection.get",
         "eusage-reports-report-use-over-time.get",
