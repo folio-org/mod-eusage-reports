@@ -530,7 +530,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
 
   Future<Void> createPackageFromAgreement(TenantPgPool pool, SqlConnection con, UUID kbPackageId,
       String kbPackageName, RoutingContext ctx) {
-    log.info("AD: createPackageFromAgreement {}", kbPackageId);
+
     if (kbPackageId == null) {
       return Future.succeededFuture();
     }

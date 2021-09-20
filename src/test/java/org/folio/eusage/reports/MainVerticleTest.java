@@ -1506,7 +1506,6 @@ public class MainVerticleTest {
         .header(XOkapiHeaders.URL, "http://localhost:" + MOCK_PORT)
         .get("/eusage-reports/report-data/status/" + goodAgreementId)
         .then().statusCode(200).extract().body().asString();
-    log.info("AD: {}", b);
 
     RestAssured.given()
         .header(XOkapiHeaders.TENANT, tenant)
