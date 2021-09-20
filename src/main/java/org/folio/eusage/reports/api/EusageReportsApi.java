@@ -33,8 +33,6 @@ import java.text.DecimalFormat;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.time.format.DateTimeFormatterBuilder;
-import java.time.temporal.ChronoField;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -305,9 +303,9 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     }
     return streamResult(ctx, pool, null, from, "packages",
         row -> new JsonObject()
-            .put("kbPackageId", row.getUUID(0))
-            .put("kbPackageName", row.getString(1))
-            .put("kbTitleId", row.getUUID(2))
+            .put("kbPackageId", row.getUUID("kbpackageid"))
+            .put("kbPackageName", row.getString("kbpackagename"))
+            .put("kbTitleId", row.getUUID("kbtitleid"))
     );
   }
 
@@ -390,7 +388,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
 
   Future<List<UUID>> ermPackageContentLookup(RoutingContext ctx, UUID id) {
     // example: /erm/packages/dfb61870-1252-4ece-8f75-db02faf4ab82/content
-    String uri = "/erm/packages/" + id + "/content";
+    String uri = "/erm/packages/" + id + "/content?perPage=200000";
     return getRequestSend(ctx, uri)
         .map(res -> {
           JsonArray ar = res.bodyAsJsonArray();
@@ -531,32 +529,26 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
   }
 
   Future<Void> createPackageFromAgreement(TenantPgPool pool, SqlConnection con, UUID kbPackageId,
-                                          String kbPackageName, RoutingContext ctx) {
+      String kbPackageName, RoutingContext ctx) {
+    log.info("AD: createPackageFromAgreement {}", kbPackageId);
     if (kbPackageId == null) {
       return Future.succeededFuture();
     }
-    return con.preparedQuery("SELECT * FROM " + packageEntriesTable(pool)
-        + " WHERE kbPackageId = $1")
-        .execute(Tuple.of(kbPackageId))
-        .compose(res -> {
-          if (res.iterator().hasNext()) {
-            return Future.succeededFuture();
-          }
-          return ermPackageContentLookup(ctx, kbPackageId)
-              .compose(list -> {
-                Future<Void> future = Future.succeededFuture();
-                for (UUID kbTitleId : list) {
-                  future = future.compose(x -> createTitleFromAgreement(pool, con, kbTitleId, ctx));
-                  future = future.compose(x ->
-                    con.preparedQuery("INSERT INTO " + packageEntriesTable(pool)
+    return ermPackageContentLookup(ctx, kbPackageId)
+        .compose(list -> {
+          Future<Void> future = con.preparedQuery("DELETE FROM " + packageEntriesTable(pool)
+              + " WHERE kbPackageId = $1").execute(Tuple.of(kbPackageId)).mapEmpty();
+          for (UUID kbTitleId : list) {
+            future = future.compose(x -> createTitleFromAgreement(pool, con, kbTitleId, ctx));
+            future = future.compose(x ->
+                con.preparedQuery("INSERT INTO " + packageEntriesTable(pool)
                         + "(kbPackageId, kbPackageName, kbTitleId)"
                         + "VALUES ($1, $2, $3)")
-                        .execute(Tuple.of(kbPackageId, kbPackageName, kbTitleId))
-                        .mapEmpty()
-                  );
-                }
-                return future;
-              });
+                    .execute(Tuple.of(kbPackageId, kbPackageName, kbTitleId))
+                    .mapEmpty()
+            );
+          }
+          return future;
         });
   }
 
@@ -1150,7 +1142,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
                   // expand agreement to get agreement lines, now that we know the ID is good.
                   // the call below returns 500 with a stacktrace if agreement ID is no good.
                   // example: /erm/entitlements?filters=owner%3D3b6623de-de39-4b43-abbc-998bed892025
-                  String uri = "/erm/entitlements?filters=owner%3D" + agreementId;
+                  String uri = "/erm/entitlements?perPage=200000&filters=owner%3D" + agreementId;
                   return populateStatus(pool, agreementId, true)
                       .compose(x -> clearAgreement(pool, con, agreementId))
                       .compose(x -> getRequestSend(ctx, uri))
