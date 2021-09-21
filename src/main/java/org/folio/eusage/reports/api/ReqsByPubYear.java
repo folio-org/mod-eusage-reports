@@ -35,7 +35,8 @@ public class ReqsByPubYear {
       Long totalAccessCount = row.getLong("totalaccesscount");
       if (totalAccessCount > 0L) {
         LocalDate publicationDate = row.getLocalDate("publicationdate");
-        String pubPeriodLabel = Periods.periodLabelFloor(publicationDate, pubPeriodInMonths, "nopub");
+        String pubPeriodLabel = Periods.periodLabelFloor(publicationDate,
+            pubPeriodInMonths, "nopub");
         pubPeriodsSet.add(pubPeriodLabel);
       }
     });
