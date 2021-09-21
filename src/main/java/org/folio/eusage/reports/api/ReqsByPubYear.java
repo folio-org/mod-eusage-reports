@@ -32,9 +32,12 @@ public class ReqsByPubYear {
     SortedSet<String> pubPeriodsSet = new TreeSet<>();
 
     rowSet.forEach(row -> {
-      LocalDate publicationDate = row.getLocalDate("publicationdate");
-      String pubPeriodLabel = Periods.periodLabelFloor(publicationDate, pubPeriodInMonths, "nopub");
-      pubPeriodsSet.add(pubPeriodLabel);
+      Long totalAccessCount = row.getLong("totalaccesscount");
+      if (totalAccessCount > 0L) {
+        LocalDate publicationDate = row.getLocalDate("publicationdate");
+        String pubPeriodLabel = Periods.periodLabelFloor(publicationDate, pubPeriodInMonths, "nopub");
+        pubPeriodsSet.add(pubPeriodLabel);
+      }
     });
     Map<String,Integer> pubYearIndexMap = new HashMap<>();
     JsonArray accessCountsPeriods = new JsonArray();
@@ -51,7 +54,7 @@ public class ReqsByPubYear {
       String usageDateRange = row.getString("usagedaterange");
       Long totalAccessCount = row.getLong("totalaccesscount");
       Long uniqueAccessCount = row.getLong("uniqueaccesscount");
-      if (usageDateRange != null && totalAccessCount > 0L) {
+      if (totalAccessCount > 0L) {
         LocalDate usageStart = usePeriods.floorMonths(LocalDate.parse(
             usageDateRange.substring(1, 11)));
         final String usePeriodLabel = usePeriods.periodLabel(usageStart);
