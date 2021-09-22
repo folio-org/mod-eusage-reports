@@ -277,6 +277,7 @@ public class EusageReportsApiTest {
         .compose(x -> insertTitleData(te12, "2020-03-01", "2020-04-01", "2010", false, 11, 12))
         .compose(x -> insertTitleData(te12, "2020-04-01", "2020-05-01", "2010", false, 15, 16))
         .compose(x -> insertTitleData(te12, "2020-05-01", "2020-06-01", "2010", false, 14, 22))
+        .compose(x -> insertTitleData(te21, "2020-03-01", "2020-04-01", "2010", false, 0, 0))
         .compose(x -> insertTitleData(te21, "2020-05-01", "2020-06-01", "2010", false, 20, 40))
         .compose(x -> insertTitleData(te21, "2020-06-01", "2020-07-01", "2010", true, 1, 2))
         .compose(x -> insertTitleData(te31, "2020-05-01", "2020-06-01", "0001", false, 20, 40))
