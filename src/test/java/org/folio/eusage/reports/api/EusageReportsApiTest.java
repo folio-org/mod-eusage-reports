@@ -273,10 +273,10 @@ public class EusageReportsApiTest {
         .compose(x -> insertTitleData(te11, "2020-04-15", "2020-05-01", "2000", false, 3, 3))
         .compose(x -> insertTitleData(te11, "2020-05-01", "2020-06-01", "2000", false, 4, 12))
         .compose(x -> insertTitleData(te11, "2020-06-01", "2020-07-01", "2000", false, 9, 29))
+        .compose(x -> insertTitleData(te12, "2020-02-01", "2020-03-01", "1843", false, 0, 0))
         .compose(x -> insertTitleData(te12, "2020-03-01", "2020-04-01", "2010", false, 11, 12))
         .compose(x -> insertTitleData(te12, "2020-04-01", "2020-05-01", "2010", false, 15, 16))
         .compose(x -> insertTitleData(te12, "2020-05-01", "2020-06-01", "2010", false, 14, 22))
-        .compose(x -> insertTitleData(te21, "2020-03-01", "2020-04-01", "2010", false, 0, 0))
         .compose(x -> insertTitleData(te21, "2020-05-01", "2020-06-01", "2010", false, 20, 40))
         .compose(x -> insertTitleData(te21, "2020-06-01", "2020-07-01", "2010", true, 1, 2))
         .compose(x -> insertTitleData(te31, "2020-05-01", "2020-06-01", "0001", false, 20, 40))
@@ -1006,7 +1006,7 @@ assertThat(json.getJsonArray("items").size(), is(4));
           ArgumentCaptor<String> body = ArgumentCaptor.forClass(String.class);
           verify(routingContext.response()).end(body.capture());
           JsonObject json = new JsonObject(body.getValue());
-          System.out.println(json.encodePrettily());
+          assertThat(json.getJsonArray("items").size(), is(4));
           assertThat((List<?>) json.getJsonArray("accessCountPeriods").getList(),
               contains("1998 - 1999", "2000 - 2001", "2010 - 2011"));
           assertThat(json.getLong("totalItemRequestsTotal"), is(99L));

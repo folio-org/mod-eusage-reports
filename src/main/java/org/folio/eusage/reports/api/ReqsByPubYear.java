@@ -55,23 +55,22 @@ public class ReqsByPubYear {
       String usageDateRange = row.getString("usagedaterange");
       Long totalAccessCount = row.getLong("totalaccesscount");
       Long uniqueAccessCount = row.getLong("uniqueaccesscount");
-      if (totalAccessCount > 0L) {
-        LocalDate usageStart = usePeriods.floorMonths(LocalDate.parse(
-            usageDateRange.substring(1, 11)));
-        final String usePeriodLabel = usePeriods.periodLabel(usageStart);
+      LocalDate usageStart = usePeriods.floorMonths(LocalDate.parse(
+          usageDateRange.substring(1, 11)));
+      final String usePeriodLabel = usePeriods.periodLabel(usageStart);
 
-        LocalDate publicationDate = row.getLocalDate("publicationdate");
-        String pubPeriodLabel = Periods.periodLabelFloor(publicationDate, pubPeriodInMonths,
-            "nopub");
-        int idx = pubYearIndexMap.get(pubPeriodLabel);
+      LocalDate publicationDate = row.getLocalDate("publicationdate");
+      String pubPeriodLabel = Periods.periodLabelFloor(publicationDate, pubPeriodInMonths,
+          "nopub");
 
-        pubPeriodsSet.add(pubPeriodLabel);
-        String accessType = row.getBoolean("openaccess") ? "OA_Gold" : "Controlled";
-        String itemKey = row.getUUID("kbid").toString() + "," + usePeriodLabel + "," + accessType;
-        String dupKey = itemKey + "," + publicationDate + "," + usageDateRange;
-        if (!dup.add(dupKey)) {
-          return;
-        }
+      String accessType = row.getBoolean("openaccess") ? "OA_Gold" : "Controlled";
+      String itemKey = row.getUUID("kbid").toString() + "," + usePeriodLabel + "," + accessType;
+      String dupKey = itemKey + "," + publicationDate + "," + usageDateRange;
+      if (!dup.add(dupKey)) {
+        return;
+      }
+      Integer idx = pubYearIndexMap.get(pubPeriodLabel);
+      if (idx != null) {
         totalItemRequestsByPeriod.set(idx, totalAccessCount
             + totalItemRequestsByPeriod.get(idx));
 
@@ -85,36 +84,40 @@ public class ReqsByPubYear {
         o = uniqueRequestsPeriodsOfUseByPeriod.getJsonObject(idx);
         Long uniqueAccessCountPeriod = o.getLong(usePeriodLabel, 0L);
         o.put(usePeriodLabel, uniqueAccessCountPeriod + uniqueAccessCount);
+      }
 
-        JsonObject totalItem = totalItems.get(itemKey);
-        JsonArray accessCountsByPeriod;
-        if (totalItem != null) {
-          accessCountsByPeriod = totalItem.getJsonArray("accessCountsByPeriod");
-          totalItem.put("accessCountTotal", totalAccessCount
-              + totalItem.getLong("accessCountTotal"));
-        } else {
-          accessCountsByPeriod = new JsonArray();
-          totalItem = UseOverTime.createTotalItem(row, accessType,
-              totalAccessCount, accessCountsByPeriod, pubYearIndexMap.size());
-          totalItem.put("periodOfUse", usePeriodLabel);
-          items.add(totalItem);
-          totalItems.put(itemKey, totalItem);
-        }
+      JsonObject totalItem = totalItems.get(itemKey);
+      JsonArray accessCountsByPeriod;
+      if (totalItem != null) {
+        accessCountsByPeriod = totalItem.getJsonArray("accessCountsByPeriod");
+        totalItem.put("accessCountTotal", totalAccessCount
+            + totalItem.getLong("accessCountTotal"));
+      } else {
+        accessCountsByPeriod = new JsonArray();
+        totalItem = UseOverTime.createTotalItem(row, accessType,
+            totalAccessCount, accessCountsByPeriod, pubYearIndexMap.size());
+        totalItem.put("periodOfUse", usePeriodLabel);
+        items.add(totalItem);
+        totalItems.put(itemKey, totalItem);
+      }
+      if (idx != null) {
         accessCountsByPeriod.set(idx, accessCountsByPeriod.getLong(idx) + totalAccessCount);
+      }
 
-        JsonObject uniqueItem = uniqueItems.get(itemKey);
-        if (uniqueItem != null) {
-          accessCountsByPeriod = uniqueItem.getJsonArray("accessCountsByPeriod");
-          uniqueItem.put("accessCountTotal", uniqueAccessCount
-              + uniqueItem.getLong("accessCountTotal"));
-        } else {
-          accessCountsByPeriod = new JsonArray();
-          uniqueItem = UseOverTime.createUniqueItem(row, accessType,
-              uniqueAccessCount, accessCountsByPeriod, pubYearIndexMap.size());
-          uniqueItem.put("periodOfUse", usePeriodLabel);
-          uniqueItems.put(itemKey, uniqueItem);
-          items.add(uniqueItem);
-        }
+      JsonObject uniqueItem = uniqueItems.get(itemKey);
+      if (uniqueItem != null) {
+        accessCountsByPeriod = uniqueItem.getJsonArray("accessCountsByPeriod");
+        uniqueItem.put("accessCountTotal", uniqueAccessCount
+            + uniqueItem.getLong("accessCountTotal"));
+      } else {
+        accessCountsByPeriod = new JsonArray();
+        uniqueItem = UseOverTime.createUniqueItem(row, accessType,
+            uniqueAccessCount, accessCountsByPeriod, pubYearIndexMap.size());
+        uniqueItem.put("periodOfUse", usePeriodLabel);
+        uniqueItems.put(itemKey, uniqueItem);
+        items.add(uniqueItem);
+      }
+      if (idx != null) {
         accessCountsByPeriod.set(idx, accessCountsByPeriod.getLong(idx) + uniqueAccessCount);
       }
     });
