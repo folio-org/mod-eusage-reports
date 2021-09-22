@@ -519,7 +519,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
             + " WHERE kbTitleId = $1")
         .execute(Tuple.of(kbTitleId))
         .compose(res -> {
-          Row row = res.rowCount() != 0 ? res.iterator().next() : null;
+          Row row = res.iterator().hasNext() ? res.iterator().next() : null;
           if (row != null && row.getString("publicationtype") != null) {
             return Future.succeededFuture();
           }
