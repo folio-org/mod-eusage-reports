@@ -140,6 +140,7 @@ public class MainVerticleTest {
                 )
                 .add(new JsonObject()
                     .put("YOP", pubYearSample)
+                    .put("Access_Type", "OA_Gold")
                     .put("Title", cnt == -1 ? "The other journal" : "The dogs journal")
                     .put("itemDataType", "JOURNAL")
                     .put("Item_ID", new JsonArray()
@@ -1267,6 +1268,7 @@ public class MainVerticleTest {
       if (pubDate != null) {
         noWithPubDate++;
         String title = item.getString("counterReportTitle");
+        context.assertEquals("The dogs journal".equals(title), item.getBoolean("openAccess"));
         if ("The dogs journal".equals(title)) {
           context.assertEquals(pubYearSample + "-01-01", pubDate);
         } else {

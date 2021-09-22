@@ -579,7 +579,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
       UUID counterReportId, String counterReportTitle,
       UUID providerId, LocalDate publicationDate,
       String usageDateRange,
-      int uniqueAccessCount, int totalAccessCount) {
+      int uniqueAccessCount, int totalAccessCount, boolean openAccess) {
     return con.preparedQuery("INSERT INTO " + titleDataTable(pool)
             + "(id, titleEntryId,"
             + " counterReportId, counterReportTitle, providerId,"
@@ -589,7 +589,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
         .execute(Tuple.of(UUID.randomUUID(), titleEntryId,
             counterReportId, counterReportTitle, providerId,
             publicationDate, usageDateRange,
-            uniqueAccessCount, totalAccessCount, false))
+            uniqueAccessCount, totalAccessCount, openAccess))
         .mapEmpty();
   }
 
@@ -679,6 +679,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
       return Future.succeededFuture();
     }
     final String yopString = reportItem.getString("YOP");
+    final String accessType = reportItem.getString("Access_Type");
     final String usageDateRange = getUsageDate(reportItem);
     final JsonObject identifiers = getIssnIdentifiers(reportItem);
     final String onlineIssn = identifiers.getString("onlineISSN");
@@ -697,11 +698,12 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     log.debug("handleReport title={} match={}", counterReportTitle, onlineIssn);
     final int totalAccessCount = getTotalCount(reportItem, "Total_Item_Requests");
     final int uniqueAccessCount = getTotalCount(reportItem, "Unique_Item_Requests");
+    final boolean openAccess = "OA_Gold".equals(accessType);
     return upsertTitleEntryCounterReport(pool, con, ctx, counterReportTitle,
         printIssn, onlineIssn, isbn, doi)
         .compose(titleEntryId -> insertTdEntry(pool, con, titleEntryId, counterReportId,
             counterReportTitle, providerId, pubdate, usageDateRange,
-            uniqueAccessCount, totalAccessCount));
+            uniqueAccessCount, totalAccessCount, openAccess));
   }
 
   HttpRequest<Buffer> getRequest(RoutingContext ctx, String uri) {
