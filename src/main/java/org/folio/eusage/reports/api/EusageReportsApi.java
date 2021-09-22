@@ -519,18 +519,27 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
             + " WHERE kbTitleId = $1")
         .execute(Tuple.of(kbTitleId))
         .compose(res -> {
-          if (res.iterator().hasNext()) {
+          Row row = res.iterator().hasNext() ? res.iterator().next() : null;
+          if (row != null && row.getString("publicationtype") != null) {
             return Future.succeededFuture();
           }
+          final UUID id = row != null ? row.getUUID("id") : null;
           return ermTitleLookup(ctx, kbTitleId).compose(erm -> {
             String kbTitleName = erm.getString(1);
             String publicationType = erm.getString(2);
-            return con.preparedQuery("INSERT INTO " + titleEntriesTable(pool)
-                    + "(id, kbTitleName, kbTitleId, kbManualMatch, publicationType)"
-                    + " VALUES ($1, $2, $3, $4, $5)")
-                .execute(Tuple.of(UUID.randomUUID(), kbTitleName, kbTitleId, false,
-                    publicationType))
-                .mapEmpty();
+            if (id == null) {
+              return con.preparedQuery("INSERT INTO " + titleEntriesTable(pool)
+                      + "(id, kbTitleName, kbTitleId, kbManualMatch, publicationType)"
+                      + " VALUES ($1, $2, $3, $4, $5)")
+                  .execute(Tuple.of(UUID.randomUUID(), kbTitleName, kbTitleId, false,
+                      publicationType))
+                  .mapEmpty();
+            } else {
+              return con.preparedQuery("UPDATE " + titleEntriesTable(pool)
+                      + " SET publicationType = $2 WHERE id = $1")
+                  .execute(Tuple.of(id, publicationType))
+                  .mapEmpty();
+            }
           });
         });
   }
