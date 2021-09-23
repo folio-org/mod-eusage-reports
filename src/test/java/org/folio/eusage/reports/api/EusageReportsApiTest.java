@@ -40,7 +40,6 @@ import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 import org.mockito.quality.Strictness;
 import org.testcontainers.containers.PostgreSQLContainer;
-
 import java.io.IOException;
 import java.io.StringReader;
 import java.time.LocalDate;
@@ -805,6 +804,7 @@ assertThat(json.getJsonArray("items").size(), is(4));
                   .add(new JsonObject().put("2020-04", 3).put("2020-05", 4).put("2020-06", 9))
                   .add(new JsonObject().put("2020-03", 11).put("2020-04", 15).put("2020-05", 14))
                   .encodePrettily()));
+          assertThat(json.getJsonArray("items").size(), is(16));
           assertThat(json.getJsonArray("items").getJsonObject(0).encodePrettily(),
               is(new JsonObject()
                   .put("kbId", "11000000-0000-4000-8000-000000000000")
@@ -828,6 +828,7 @@ assertThat(json.getJsonArray("items").size(), is(4));
           assertThat(json.getLong("uniqueItemRequestsTotal"), is(59L));
           assertThat((List<?>) json.getJsonArray("totalItemRequestsByPeriod").getList(), contains(0L, 14L, 22L, 34L, 29L));
           assertThat((List<?>) json.getJsonArray("uniqueItemRequestsByPeriod").getList(), contains(0L, 12L, 20L, 18L, 9L));
+          assertThat(json.getJsonArray("items").size(), is(4));
         }));
   }
 
@@ -845,6 +846,7 @@ assertThat(json.getJsonArray("items").size(), is(4));
           ArgumentCaptor<String> body = ArgumentCaptor.forClass(String.class);
           verify(routingContext.response()).end(body.capture());
           JsonObject json = new JsonObject(body.getValue());
+          assertThat(json.getJsonArray("items").size(), is(2));
         }));
   }
 
@@ -1130,6 +1132,7 @@ assertThat(json.getJsonArray("items").size(), is(4));
           assertThat(json.getDouble("amountEncumberedTotal"), is(41.67));
           assertThat(json.getJsonArray("items").size(), is(2));
           assertThat(json.getJsonArray("items").getJsonObject(0).getString("kbId"), is(t11));
+          assertThat(json.getJsonArray("items").getJsonObject(0).getBoolean("derivedTitle"), is(false));
           assertThat(json.getJsonArray("items").getJsonObject(0).getLong("totalItemRequests"), is(47L));
           assertThat(json.getJsonArray("items").getJsonObject(0).getLong("uniqueItemRequests"), is(18L));
           assertThat(json.getJsonArray("items").getJsonObject(0).getDouble("amountEncumbered"), is(50.0));
@@ -1137,6 +1140,7 @@ assertThat(json.getJsonArray("items").size(), is(4));
           assertThat(json.getJsonArray("items").getJsonObject(0).getDouble("costPerTotalRequest"), is(1.17));
           assertThat(json.getJsonArray("items").getJsonObject(0).getDouble("costPerUniqueRequest"), is(3.06));
           assertThat(json.getJsonArray("items").getJsonObject(1).getString("kbId"), is(t12));
+          assertThat(json.getJsonArray("items").getJsonObject(0).getBoolean("derivedTitle"), is(false));
           assertThat(json.getJsonArray("items").getJsonObject(1).getLong("totalItemRequests"), is(38L));
           assertThat(json.getJsonArray("items").getJsonObject(1).getLong("uniqueItemRequests"), is(29L));
           assertThat(json.getJsonArray("items").getJsonObject(1).getDouble("amountEncumbered"), is(50.0));
@@ -1239,6 +1243,11 @@ assertThat(json.getJsonArray("items").size(), is(4));
               contains(null, 1.14, 1.34, null));
           assertThat((List<?>) json.getJsonArray("uniqueItemCostsPerRequestsByPeriod").getList(),
               contains(null, 2.15, 4.31, null));
+          JsonArray items = json.getJsonArray("items");
+          assertThat(items.size(), is(2));
+          assertThat(items.getJsonObject(0).getBoolean("derivedTitle"), is(true));
+          assertThat(items.getJsonObject(1).getBoolean("derivedTitle"), is(true));
+          System.out.println(json.encodePrettily());
         }));
   }
 

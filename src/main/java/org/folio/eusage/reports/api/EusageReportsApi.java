@@ -1606,6 +1606,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
 
     sql
         .append("SELECT DISTINCT ON (kbId) title_entries.kbTitleId AS kbId, kbTitleName AS title,")
+        .append(" kbPackageId,")
         .append(" printISSN, onlineISSN, ISBN, orderType, poLineNumber, invoiceNumber,")
         .append(" fiscalYearRange, subscriptionDateRange,")
         .append(" encumberedCost, invoicedCost");
@@ -1717,33 +1718,33 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     rowSet.forEach(row -> {
       log.info("cost per use row={}", row.deepToString());
       JsonObject item = new JsonObject()
-          .put("kbId", row.getUUID(0))
-          .put("title", row.getString(1))
-          .put("derivedTitle", false);
+          .put("kbId", row.getUUID("kbid"))
+          .put("title", row.getString("title"))
+          .put("derivedTitle", row.getUUID("kbpackageid") != null);
 
-      String printIssn = row.getString(2);
+      String printIssn = row.getString("printissn");
       if (printIssn != null) {
         item.put("printISSN", printIssn);
       }
-      String onlineIssn = row.getString(3);
+      String onlineIssn = row.getString("onlineissn");
       if (onlineIssn != null) {
         item.put("onlineISSN", onlineIssn);
       }
-      String isbn = row.getString(4);
+      String isbn = row.getString("isbn");
       if (isbn != null) {
         item.put("ISBN", isbn);
       }
-      String orderType = row.getString(5);
+      String orderType = row.getString("ordertype");
       item.put("orderType", orderType != null ? orderType : "Ongoing");
-      String poLineNumber = row.getString(6);
+      String poLineNumber = row.getString("polinenumber");
       if (poLineNumber != null) {
         item.put("poLineIDs", new JsonArray().add(poLineNumber));
       }
-      String invoiceNumbers = row.getString(7);
+      String invoiceNumbers = row.getString("invoicenumber");
       if (invoiceNumbers != null) {
         item.put("invoiceNumbers", new JsonArray().add(invoiceNumbers));
       }
-      String fiscalYearRange = row.getString(8);
+      String fiscalYearRange = row.getString("fiscalyearrange");
       int subscriptionMonths = 0;
       if (fiscalYearRange != null) {
         DateRange dateRange = new DateRange(fiscalYearRange);
@@ -1751,24 +1752,24 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
         item.put("fiscalDateEnd", dateRange.getEnd());
         subscriptionMonths = dateRange.getMonths();
       }
-      String subscriptionDateRange = row.getString(9);
+      String subscriptionDateRange = row.getString("subscriptiondaterange");
       if (subscriptionDateRange != null) {
         DateRange dateRange = new DateRange(subscriptionDateRange);
         item.put("subscriptionDateStart", dateRange.getStart());
         item.put("subscriptionDateEnd", dateRange.getEnd());
         subscriptionMonths = dateRange.getMonths();
       }
-      log.info("subscriptionMonths {}", subscriptionMonths);
       long totalItemRequests = 0L;
       long uniqueItemRequests = 0L;
-
+      final int offsetCol = 13;
+      final int uniqueCol = 14;
       for (int i = 0; i < periods.size(); i++) {
-        Long totalItemRequestsByPeriod = row.getLong(12 + i * 2);
+        Long totalItemRequestsByPeriod = row.getLong(offsetCol + i * 2);
         if (totalItemRequestsByPeriod != null) {
-          totalItemRequests += row.getLong(12 + i * 2);
+          totalItemRequests += row.getLong(offsetCol + i * 2);
           totalRequests.set(i, totalRequests.getLong(i) +  totalItemRequestsByPeriod);
         }
-        Long uniqueItemRequestsByPeriod = row.getLong(13 + i * 2);
+        Long uniqueItemRequestsByPeriod = row.getLong(uniqueCol + i * 2);
         if (uniqueItemRequestsByPeriod != null) {
           uniqueItemRequests += uniqueItemRequestsByPeriod;
           uniqueRequests.set(i, uniqueRequests.getLong(i) + uniqueItemRequestsByPeriod);
@@ -1785,14 +1786,14 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
       if (monthsAllPeriods > subscriptionMonths) {
         monthsAllPeriods = subscriptionMonths;
       }
-      Number encumberedCost = row.getNumeric(10);
+      Number encumberedCost = row.getNumeric("encumberedcost");
       if (encumberedCost != null) {
         item.put("amountEncumbered", formatCost(
             encumberedCost.doubleValue() / totalTitles));
         json.put("amountEncumberedTotal",
             formatCost(monthsAllPeriods * encumberedCost.doubleValue() / subscriptionMonths));
       }
-      Number amountPaid = row.getNumeric(11);
+      Number amountPaid = row.getNumeric("invoicedcost");
       if (amountPaid != null) {
         for (int i = 0; i < periods.size(); i++) {
           paidByPeriod.set(i, monthsInOnePeriod * amountPaid.doubleValue() / subscriptionMonths);
