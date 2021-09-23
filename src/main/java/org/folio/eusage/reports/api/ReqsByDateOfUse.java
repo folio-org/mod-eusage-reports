@@ -57,8 +57,6 @@ public class ReqsByDateOfUse {
         LocalDate publicationDate = row.getLocalDate("publicationdate");
         String pubPeriodLabel = Periods.periodLabelFloor(publicationDate, pubPeriodsInMonths,
             "nopub");
-        String accessType = row.getBoolean("openaccess") ? "OA_Gold" : "Controlled";
-        String itemKey = kbId + "," + pubPeriodLabel + "," + accessType;
         totalItemRequestsByPeriod.set(idx, totalAccessCount
             + totalItemRequestsByPeriod.get(idx));
 
@@ -73,6 +71,8 @@ public class ReqsByDateOfUse {
         Long uniqueAccessCountPeriod = o.getLong(pubPeriodLabel, 0L);
         o.put(pubPeriodLabel, uniqueAccessCountPeriod + uniqueAccessCount);
 
+        String accessType = row.getBoolean("openaccess") ? "OA_Gold" : "Controlled";
+        String itemKey = kbId + "," + pubPeriodLabel + "," + accessType;
         JsonObject totalItem = totalItems.get(itemKey);
         JsonArray accessCountsByPeriods;
         if (totalItem != null) {
