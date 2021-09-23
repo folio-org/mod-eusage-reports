@@ -1405,7 +1405,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     Periods usePeriods = new Periods(start, end, accessCountPeriod);
     int pubPeriodsInMonths = yopInterval == null || "auto".equals(yopInterval)
         ? 12 : Periods.getPeriodInMonths(yopInterval);
-    return getTitles(pool, isJournal, includeOA, agreementId, usePeriods,
+    return getTitles2(pool, isJournal, includeOA, agreementId, usePeriods,
         "title, publicationDate, openAccess")
         .map(rowSet -> ReqsByDateOfUse.titlesToJsonObject(rowSet, agreementId,
             usePeriods, pubPeriodsInMonths));
@@ -1453,7 +1453,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     int pubPeriodsInMonths = accessCountPeriod == null || "auto".equals(accessCountPeriod)
         ? 12 : Periods.getPeriodInMonths(accessCountPeriod);
 
-    return getTitles(pool, isJournal, includeOA, agreementId, usePeriods,
+    return getTitles2(pool, isJournal, includeOA, agreementId, usePeriods,
         "title, usageDateRange, openAccess")
         .map(rowSet -> ReqsByPubYear.titlesToJsonObject(rowSet, agreementId,
             usePeriods, pubPeriodsInMonths));

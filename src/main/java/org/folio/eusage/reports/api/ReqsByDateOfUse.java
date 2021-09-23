@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.UUID;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -24,7 +25,7 @@ public class ReqsByDateOfUse {
     List<Long> uniqueItemRequestsByPeriod = new ArrayList<>();
     Map<String,JsonObject> totalItems = new HashMap<>();
     Map<String,JsonObject> uniqueItems = new HashMap<>();
-    Set<String> dup = new TreeSet<>();
+    Set<UUID> kbIds = new TreeSet<>();
 
     JsonArray totalRequestsPublicationYearsByPeriod = new JsonArray();
     JsonArray uniqueRequestsPublicationYearsByPeriod = new JsonArray();
@@ -36,7 +37,16 @@ public class ReqsByDateOfUse {
       uniqueRequestsPublicationYearsByPeriod.add(new JsonObject());
     }
     rowSet.forEach(row -> {
+      UUID kbId = row.getUUID("kbid");
       String usageDateRange = row.getString("usagedaterange");
+      if (usageDateRange == null) {
+        if (kbIds.add(kbId)) {
+          JsonObject item = UseOverTime.createNonMatchedItem(row,usePeriods.size());
+          items.add(item);
+        }
+        return;
+      }
+      kbIds.add(kbId);
       Long totalAccessCount = row.getLong("totalaccesscount");
       Long uniqueAccessCount = row.getLong("uniqueaccesscount");
       if (usageDateRange != null && totalAccessCount > 0L) {
@@ -48,11 +58,7 @@ public class ReqsByDateOfUse {
         String pubPeriodLabel = Periods.periodLabelFloor(publicationDate, pubPeriodsInMonths,
             "nopub");
         String accessType = row.getBoolean("openaccess") ? "OA_Gold" : "Controlled";
-        String itemKey = row.getUUID("kbid").toString() + "," + pubPeriodLabel + "," + accessType;
-        String dupKey = itemKey + "," + usageDateRange + "," + publicationDate;
-        if (!dup.add(dupKey)) {
-          return;
-        }
+        String itemKey = kbId + "," + pubPeriodLabel + "," + accessType;
         totalItemRequestsByPeriod.set(idx, totalAccessCount
             + totalItemRequestsByPeriod.get(idx));
 

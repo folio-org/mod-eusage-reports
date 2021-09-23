@@ -12,6 +12,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
+import java.util.UUID;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -28,12 +29,12 @@ public class ReqsByPubYear {
     JsonArray items = new JsonArray();
     Map<String,JsonObject> totalItems = new HashMap<>();
     Map<String,JsonObject> uniqueItems = new HashMap<>();
-    Set<String> dup = new TreeSet<>();
+    Set<UUID> kbIds = new TreeSet<>();
     SortedSet<String> pubPeriodsSet = new TreeSet<>();
 
     rowSet.forEach(row -> {
       Long totalAccessCount = row.getLong("totalaccesscount");
-      if (totalAccessCount > 0L) {
+      if (totalAccessCount != null && totalAccessCount > 0L) {
         LocalDate publicationDate = row.getLocalDate("publicationdate");
         String pubPeriodLabel = Periods.periodLabelFloor(publicationDate,
             pubPeriodInMonths, "nopub");
@@ -52,7 +53,16 @@ public class ReqsByPubYear {
       accessCountsPeriods.add(p);
     }
     rowSet.forEach(row -> {
+      UUID kbId = row.getUUID("kbid");
       String usageDateRange = row.getString("usagedaterange");
+      if (usageDateRange == null) {
+        if (kbIds.add(kbId)) {
+          JsonObject item = UseOverTime.createNonMatchedItem(row, pubYearIndexMap.size());
+          items.add(item);
+        }
+        return;
+      }
+      kbIds.add(kbId);
       Long totalAccessCount = row.getLong("totalaccesscount");
       Long uniqueAccessCount = row.getLong("uniqueaccesscount");
       LocalDate usageStart = usePeriods.floorMonths(LocalDate.parse(
@@ -64,11 +74,8 @@ public class ReqsByPubYear {
           "nopub");
 
       String accessType = row.getBoolean("openaccess") ? "OA_Gold" : "Controlled";
-      String itemKey = row.getUUID("kbid").toString() + "," + usePeriodLabel + "," + accessType;
+      String itemKey = kbId + "," + usePeriodLabel + "," + accessType;
       String dupKey = itemKey + "," + publicationDate + "," + usageDateRange;
-      if (!dup.add(dupKey)) {
-        return;
-      }
       Integer idx = pubYearIndexMap.get(pubPeriodLabel);
       if (idx != null) {
         totalItemRequestsByPeriod.set(idx, totalAccessCount
