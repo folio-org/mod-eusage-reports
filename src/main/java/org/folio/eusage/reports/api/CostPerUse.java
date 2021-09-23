@@ -37,6 +37,7 @@ public class CostPerUse {
       titleCountByPeriod.add(0L);
     }
     JsonArray items = new JsonArray();
+    JsonObject json = new JsonObject();
     rowSet.forEach(row -> {
       log.info("AD: {}", row.deepToString());
       UUID kbId = row.getUUID("kbid");
@@ -59,7 +60,8 @@ public class CostPerUse {
       LocalDate publicationDate = row.getLocalDate("publicationdate");
       String pubPeriodLabel = Periods.periodLabelFloor(publicationDate, 12, "nopub");
       String accessType = row.getBoolean("openaccess") ? "OA_Gold" : "Controlled";
-      String itemKey = kbId + "," + pubPeriodLabel + "," + accessType;
+      String poLineNumber = row.getString("polinenumber");
+      String itemKey = kbId + "," + accessType + "," + poLineNumber;
       JsonObject item = totalItems.get(itemKey);
       if (item == null) {
         item = new JsonObject();
@@ -85,23 +87,10 @@ public class CostPerUse {
 
         item.put("poLineIDs", new JsonArray());
         item.put("invoiceNumbers", new JsonArray());
-
         item.put("amountPaid", 0.0);
         item.put("amountEncumbered", 0.0);
         item.put("totalItemRequests", 0L);
         item.put("uniqueItemRequests", 0L);
-      }
-      Long totalItemRequestsByPeriod = row.getLong("totalaccesscount");
-      if (totalItemRequestsByPeriod != null) {
-        totalRequests.set(idx, totalRequests.getLong(idx) + totalItemRequestsByPeriod);
-        item.put("uniqueItemRequests", item.getLong("uniqueItemRequests")
-            + totalItemRequestsByPeriod);
-      }
-      Long uniqueItemRequestsByPeriod = row.getLong("uniqueaccesscount");
-      if (uniqueItemRequestsByPeriod != null) {
-        uniqueRequests.set(idx, uniqueRequests.getLong(idx) + uniqueItemRequestsByPeriod);
-        item.put("totalItemRequests", item.getLong("totalItemRequests")
-            + uniqueItemRequestsByPeriod);
       }
       String fiscalYearRange = row.getString("fiscalyearrange");
       int subscriptionMonths = 0;
@@ -129,18 +118,19 @@ public class CostPerUse {
 
       Number amountPaid = row.getNumeric("invoicedcost");
       if (amountPaid != null) {
-        item.put("amountPaid", item.getDouble("amountPaid")
-            + amountPaid.doubleValue());
+        item.put("amountPaid", formatCost(amountPaid.doubleValue()));
         paidByPeriod.set(idx, monthsInOnePeriod * amountPaid.doubleValue() / subscriptionMonths);
+        json.put("amountPaidTotal",
+            formatCost(monthsAllPeriods * amountPaid.doubleValue() / subscriptionMonths));
 
       }
       Number encumberedCost = row.getNumeric("encumberedcost");
       if (encumberedCost != null) {
-        item.put("amountEncumbered", item.getDouble("amountEncumbered")
-            + encumberedCost.doubleValue());
+        item.put("amountEncumbered", formatCost(encumberedCost.doubleValue()));
+        json.put("amountEncumberedTotal",
+            formatCost(monthsAllPeriods * encumberedCost.doubleValue() / subscriptionMonths));
       }
       JsonArray poLineIDs = item.getJsonArray("poLineIDs");
-      String poLineNumber = row.getString("polinenumber");
       if (poLineNumber != null) {
         if (!poLineIDs.contains(poLineNumber)) {
           poLineIDs.add(poLineNumber);
@@ -152,6 +142,18 @@ public class CostPerUse {
         if (!invoiceNumbers.contains(invoiceNumber)) {
           invoiceNumbers.add(invoiceNumber);
         }
+      }
+      Long totalItemRequestsByPeriod = row.getLong("totalaccesscount");
+      if (totalItemRequestsByPeriod != null) {
+        totalRequests.set(idx, totalRequests.getLong(idx) + totalItemRequestsByPeriod);
+        item.put("uniqueItemRequests", item.getLong("uniqueItemRequests")
+            + totalItemRequestsByPeriod);
+      }
+      Long uniqueItemRequestsByPeriod = row.getLong("uniqueaccesscount");
+      if (uniqueItemRequestsByPeriod != null) {
+        uniqueRequests.set(idx, uniqueRequests.getLong(idx) + uniqueItemRequestsByPeriod);
+        item.put("totalItemRequests", item.getLong("totalItemRequests")
+            + uniqueItemRequestsByPeriod);
       }
       titleCountByPeriod.set(idx, titleCountByPeriod.getLong(idx) + 1);
     });
@@ -174,7 +176,6 @@ public class CostPerUse {
         uniqueItemCostsPerRequestsByPeriod.addNull();
       }
     }
-    JsonObject json = new JsonObject();
     json.put("items", items);
     json.put("accessCountPeriods", usePeriods.getAccessCountPeriods());
     json.put("totalItemCostsPerRequestsByPeriod", totalItemCostsPerRequestsByPeriod);
