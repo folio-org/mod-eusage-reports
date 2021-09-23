@@ -29,7 +29,6 @@ import io.vertx.sqlclient.Tuple;
 import java.io.IOException;
 import java.io.StringWriter;
 import java.io.UncheckedIOException;
-import java.text.DecimalFormat;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
@@ -39,7 +38,6 @@ import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVPrinter;
@@ -1509,6 +1507,31 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     return stringWriter.toString();
   }
 
+  static Future<RowSet<Row>> getTitlesCost(TenantPgPool pool, Boolean isJournal, boolean includeOA,
+      String agreementId, Periods usePeriods) {
+
+    String sql = "SELECT title_entries.kbTitleId AS kbId, kbTitleName AS title,"
+        + " kbPackageId, kbPackageName, printISSN, onlineISSN, ISBN, "
+        + " publicationDate, usageDateRange, uniqueAccessCount, totalAccessCount, openAccess, "
+        + " orderType, poLineNumber, invoiceNumber,"
+        + " fiscalYearRange, subscriptionDateRange,"
+        + " encumberedCost, invoicedCost"
+        + " FROM " + agreementEntriesTable(pool)
+        + " LEFT JOIN " + packageEntriesTable(pool) + " USING (kbPackageId)"
+        + " JOIN " + titleEntriesTable(pool) + " ON"
+        + " title_entries.kbTitleId = agreement_entries.kbTitleId OR"
+        + " title_entries.kbTitleId = package_entries.kbTitleId"
+        + " JOIN " + titleDataTable(pool) + " ON titleEntryId = title_entries.id"
+        + " WHERE agreementId = $1"
+        + limitJournal(isJournal)
+        + "   AND daterange($2, $3) @> lower(usageDateRange)"
+        +  (includeOA ? "" : " AND NOT openAccess")
+        + " ORDER BY title";
+    return pool.preparedQuery(sql)
+        .execute(Tuple.of(agreementId, usePeriods.startDate, usePeriods.endDate));
+  }
+
+
   private static void costPerUse(StringBuilder sql, TenantPgPool pool,
       Boolean isJournal, boolean includeOA, int periods) {
 
@@ -1565,8 +1588,10 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     sql.append(" ORDER BY kbId");
     log.debug("costPerUse SQL={}", sql.toString());
 
-    return pool.preparedQuery(sql.toString())
-        .execute(tuple)
+    return getTitlesCost(pool, isJournal, includeOA, agreementId, periods)
+        .map(rowSet -> CostPerUse.titlesToJsonObject2(rowSet, periods))
+        .compose(x -> pool.preparedQuery(sql.toString())
+            .execute(tuple))
         .map(rowSet -> CostPerUse.titlesToJsonObject(rowSet, periods));
   }
 

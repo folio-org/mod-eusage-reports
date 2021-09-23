@@ -94,8 +94,6 @@ public class UseOverTime {
           usageDateRange.substring(1, 11)));
       int idx = usePeriods.getPeriodEntry(usageStart);
 
-      LocalDate publicationDate = row.getLocalDate("publicationdate");
-      String dupKey = itemKey + "," + usageDateRange + "," + publicationDate;
       Long totalAccessCount = row.getLong("totalaccesscount");
       Long uniqueAccessCount = row.getLong("uniqueaccesscount");
 

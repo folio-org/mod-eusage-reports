@@ -6,6 +6,12 @@ import io.vertx.sqlclient.Row;
 import io.vertx.sqlclient.RowSet;
 import java.io.IOException;
 import java.text.DecimalFormat;
+import java.time.LocalDate;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
 import org.apache.commons.csv.CSVPrinter;
 import org.apache.logging.log4j.LogManager;
@@ -15,6 +21,169 @@ public class CostPerUse {
   private static final Logger log = LogManager.getLogger(CostPerUse.class);
 
   static DecimalFormat costDecimalFormat = new DecimalFormat("#.00");
+
+  static JsonObject titlesToJsonObject2(RowSet<Row> rowSet, Periods usePeriods) {
+
+    JsonArray paidByPeriod = new JsonArray();
+    JsonArray totalRequests = new JsonArray();
+    JsonArray uniqueRequests = new JsonArray();
+    JsonArray titleCountByPeriod = new JsonArray();
+    Map<String,JsonObject> totalItems = new HashMap<>();
+    Set<UUID> kbIds = new TreeSet<>();
+    for (int i = 0; i < usePeriods.size(); i++) {
+      paidByPeriod.add(0.0);
+      totalRequests.add(0L);
+      uniqueRequests.add(0L);
+      titleCountByPeriod.add(0L);
+    }
+    JsonArray items = new JsonArray();
+    rowSet.forEach(row -> {
+      log.info("AD: {}", row.deepToString());
+      UUID kbId = row.getUUID("kbid");
+      String usageDateRange = row.getString("usagedaterange");
+      if (usageDateRange == null) {
+        if (kbIds.add(kbId)) {
+          JsonObject item = new JsonObject()
+              .put("kbId", kbId)
+              .put("title", row.getString("title"))
+              .put("derivedTitle", row.getUUID("kbpackageid") != null);
+          items.add(item);
+        }
+        return;
+      }
+      kbIds.add(kbId);
+      LocalDate usageStart = usePeriods.floorMonths(LocalDate.parse(
+          usageDateRange.substring(1, 11)));
+      int idx = usePeriods.getPeriodEntry(usageStart);
+
+      LocalDate publicationDate = row.getLocalDate("publicationdate");
+      String pubPeriodLabel = Periods.periodLabelFloor(publicationDate, 12, "nopub");
+      String accessType = row.getBoolean("openaccess") ? "OA_Gold" : "Controlled";
+      String itemKey = kbId + "," + pubPeriodLabel + "," + accessType;
+      JsonObject item = totalItems.get(itemKey);
+      if (item == null) {
+        item = new JsonObject();
+        totalItems.put(itemKey, item);
+        items.add(item);
+        item.put("kbId", kbId)
+            .put("title", row.getString("title"))
+            .put("derivedTitle", row.getUUID("kbpackageid") != null);
+        String printIssn = row.getString("printissn");
+        if (printIssn != null) {
+          item.put("printISSN", printIssn);
+        }
+        String onlineIssn = row.getString("onlineissn");
+        if (onlineIssn != null) {
+          item.put("onlineISSN", onlineIssn);
+        }
+        String isbn = row.getString("isbn");
+        if (isbn != null) {
+          item.put("ISBN", isbn);
+        }
+        String orderType = row.getString("ordertype");
+        item.put("orderType", orderType != null ? orderType : "Ongoing");
+
+        item.put("poLineIDs", new JsonArray());
+        item.put("invoiceNumbers", new JsonArray());
+
+        item.put("amountPaid", 0.0);
+        item.put("amountEncumbered", 0.0);
+        item.put("totalItemRequests", 0L);
+        item.put("uniqueItemRequests", 0L);
+      }
+      Long totalItemRequestsByPeriod = row.getLong("totalaccesscount");
+      if (totalItemRequestsByPeriod != null) {
+        totalRequests.set(idx, totalRequests.getLong(idx) + totalItemRequestsByPeriod);
+        item.put("uniqueItemRequests", item.getLong("uniqueItemRequests")
+            + totalItemRequestsByPeriod);
+      }
+      Long uniqueItemRequestsByPeriod = row.getLong("uniqueaccesscount");
+      if (uniqueItemRequestsByPeriod != null) {
+        uniqueRequests.set(idx, uniqueRequests.getLong(idx) + uniqueItemRequestsByPeriod);
+        item.put("totalItemRequests", item.getLong("totalItemRequests")
+            + uniqueItemRequestsByPeriod);
+      }
+      String fiscalYearRange = row.getString("fiscalyearrange");
+      int subscriptionMonths = 0;
+      if (fiscalYearRange != null) {
+        DateRange dateRange = new DateRange(fiscalYearRange);
+        item.put("fiscalDateStart", dateRange.getStart());
+        item.put("fiscalDateEnd", dateRange.getEnd());
+        subscriptionMonths = dateRange.getMonths();
+      }
+      String subscriptionDateRange = row.getString("subscriptiondaterange");
+      if (subscriptionDateRange != null) {
+        DateRange dateRange = new DateRange(subscriptionDateRange);
+        item.put("subscriptionDateStart", dateRange.getStart());
+        item.put("subscriptionDateEnd", dateRange.getEnd());
+        subscriptionMonths = dateRange.getMonths();
+      }
+      int monthsInOnePeriod = usePeriods.getMonths();
+      if (monthsInOnePeriod > subscriptionMonths) {
+        subscriptionMonths = monthsInOnePeriod; // never more than full amount
+      }
+      int monthsAllPeriods = monthsInOnePeriod * usePeriods.size();
+      if (monthsAllPeriods > subscriptionMonths) {
+        monthsAllPeriods = subscriptionMonths;
+      }
+
+      Number amountPaid = row.getNumeric("invoicedcost");
+      if (amountPaid != null) {
+        item.put("amountPaid", item.getDouble("amountPaid")
+            + amountPaid.doubleValue());
+        paidByPeriod.set(idx, monthsInOnePeriod * amountPaid.doubleValue() / subscriptionMonths);
+
+      }
+      Number encumberedCost = row.getNumeric("encumberedcost");
+      if (encumberedCost != null) {
+        item.put("amountEncumbered", item.getDouble("amountEncumbered")
+            + encumberedCost.doubleValue());
+      }
+      JsonArray poLineIDs = item.getJsonArray("poLineIDs");
+      String poLineNumber = row.getString("polinenumber");
+      if (poLineNumber != null) {
+        if (!poLineIDs.contains(poLineNumber)) {
+          poLineIDs.add(poLineNumber);
+        }
+      }
+      String invoiceNumber = row.getString("invoicenumber");
+      if (invoiceNumber != null) {
+        JsonArray invoiceNumbers = item.getJsonArray("invoiceNumbers");
+        if (!invoiceNumbers.contains(invoiceNumber)) {
+          invoiceNumbers.add(invoiceNumber);
+        }
+      }
+      titleCountByPeriod.set(idx, titleCountByPeriod.getLong(idx) + 1);
+    });
+    JsonArray totalItemCostsPerRequestsByPeriod = new JsonArray();
+    JsonArray uniqueItemCostsPerRequestsByPeriod = new JsonArray();
+    for (int i = 0; i < usePeriods.size(); i++) {
+      Double p = paidByPeriod.getDouble(i);
+      Long n = totalRequests.getLong(i);
+      if (n > 0) {
+        log.info("totalItemCostsPerRequestsByPerid {} {}/{}", i, p, n);
+        totalItemCostsPerRequestsByPeriod.add(formatCost(p / n));
+      } else {
+        totalItemCostsPerRequestsByPeriod.addNull();
+      }
+      n = uniqueRequests.getLong(i);
+      if (n > 0) {
+        log.info("uniqueItemCostsPerRequestsByPerid {} {}/{}", i, p, n);
+        uniqueItemCostsPerRequestsByPeriod.add(formatCost(p / n));
+      } else {
+        uniqueItemCostsPerRequestsByPeriod.addNull();
+      }
+    }
+    JsonObject json = new JsonObject();
+    json.put("items", items);
+    json.put("accessCountPeriods", usePeriods.getAccessCountPeriods());
+    json.put("totalItemCostsPerRequestsByPeriod", totalItemCostsPerRequestsByPeriod);
+    json.put("uniqueItemCostsPerRequestsByPeriod", uniqueItemCostsPerRequestsByPeriod);
+    json.put("titleCountByPeriod", titleCountByPeriod);
+    log.info("AD: new JSON {}", json.encodePrettily());
+    return json;
+  }
+
 
   static JsonObject titlesToJsonObject(RowSet<Row> rowSet, Periods periods) {
     JsonArray paidByPeriod = new JsonArray();
