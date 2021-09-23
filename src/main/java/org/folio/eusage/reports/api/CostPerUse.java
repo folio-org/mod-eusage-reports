@@ -27,8 +27,8 @@ public class CostPerUse {
     }
     rowSet.forEach(row -> {
       for (int i = 0; i < periods.size(); i++) {
-        Long totalAccessCount = row.getLong(12 + i * 2);
-        Long uniqueAccessCount = row.getLong(13 + i * 2);
+        Long totalAccessCount = row.getLong("total" + i);
+        Long uniqueAccessCount = row.getLong("unique" + i);
         log.debug("Inspecting i={} totalAccessCount={} uniqueAccessCount={}",
             i, totalAccessCount, uniqueAccessCount);
         titleCountByPeriod.set(i, titleCountByPeriod.getLong(i) + 1L);
@@ -118,15 +118,13 @@ public class CostPerUse {
       }
       long totalItemRequests = 0L;
       long uniqueItemRequests = 0L;
-      final int offsetCol = 13;
-      final int uniqueCol = 14;
       for (int i = 0; i < periods.size(); i++) {
-        Long totalItemRequestsByPeriod = row.getLong(offsetCol + i * 2);
+        Long totalItemRequestsByPeriod = row.getLong("total" + i);
         if (totalItemRequestsByPeriod != null) {
-          totalItemRequests += row.getLong(offsetCol + i * 2);
+          totalItemRequests += totalItemRequestsByPeriod;
           totalRequests.set(i, totalRequests.getLong(i) + totalItemRequestsByPeriod);
         }
-        Long uniqueItemRequestsByPeriod = row.getLong(uniqueCol + i * 2);
+        Long uniqueItemRequestsByPeriod = row.getLong("unique" + i);
         if (uniqueItemRequestsByPeriod != null) {
           uniqueItemRequests += uniqueItemRequestsByPeriod;
           uniqueRequests.set(i, uniqueRequests.getLong(i) + uniqueItemRequestsByPeriod);
