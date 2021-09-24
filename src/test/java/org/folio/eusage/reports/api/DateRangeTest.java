@@ -62,13 +62,13 @@ public class DateRangeTest {
     new DateRange("[ 2020-01-09 , 2020-02-01 )");
   }
 
+  @Test
   public void testIncludes() {
-    DateRange d = new DateRange("[ 2020-01-09 , 2020-02-01 )");
+    DateRange d = new DateRange("[2020-01-09,2020-02-01)");
     Assert.assertFalse(d.includes(LocalDate.of(2019, 1, 8)));
     Assert.assertFalse(d.includes(LocalDate.of(2020, 1, 8)));
     Assert.assertTrue(d.includes(LocalDate.of(2020, 1, 9)));
-
-    Assert.assertTrue(d.includes(LocalDate.of(2020, 1, 31)));
+    Assert.assertTrue(d.includes(LocalDate.of(2020, 1, 30)));
     Assert.assertFalse(d.includes(LocalDate.of(2020, 2, 1)));
     Assert.assertFalse(d.includes(LocalDate.of(2021, 2, 1)));
   }
