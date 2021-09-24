@@ -1240,11 +1240,16 @@ assertThat(json.getJsonArray("items").size(), is(4));
               contains("2020-04", "2020-05", "2020-06", "2020-07"));
           assertThat((List<?>) json.getJsonArray("titleCountByPeriod").getList(),
               contains(0, 1, 1, 0));
+          assertThat((List<?>) json.getJsonArray("totalItemRequestsByPeriod").getList(),
+              contains(0, 34, 29, 0));
           assertThat((List<?>) json.getJsonArray("totalItemCostsPerRequestsByPeriod").getList(),
-              contains(1.76, 1.14, 1.34, null));
-          // First entry should be null below
+              contains(null, 1.14, 1.34, null));
           assertThat((List<?>) json.getJsonArray("uniqueItemCostsPerRequestsByPeriod").getList(),
-              contains(1.94, 2.15, 4.31, null));
+              contains(null, 2.15, 4.31, null));
+          assertThat((List<?>) json.getJsonArray("uniqueItemRequestsByPeriod").getList(),
+              contains(0, 18, 9, 0));
+          assertThat((List<?>) json.getJsonArray("costByPeriod").getList(),
+              contains(0.0, 38.75, 38.75, 0.0));
           JsonArray items = json.getJsonArray("items");
           assertThat(items.size(), is(2));
           assertThat(items.getJsonObject(0).getBoolean("derivedTitle"), is(true));

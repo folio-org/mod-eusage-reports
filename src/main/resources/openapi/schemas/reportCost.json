@@ -9,11 +9,59 @@
         "type": "string"
       }
     },
+    "amountEncumeredTotal": {
+      "description": "This number is sum of all encumbered amounts in the total access period",
+      "type": "number"
+    },
+    "amountPaidTotal": {
+      "description": "This number is sum of all paid amounts in the total access period",
+      "type": "number"
+    },
+    "costByPeriod": {
+      "type": "array",
+      "description": "Total cost for each period",
+      "items": {
+        "type": "number",
+        "nullable": true
+      }
+    },
+    "items": {
+      "description": "List of items, with access data per item",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "$ref": "reportCostRow.json"
+      }
+    },
+    "titleCountByPeriod": {
+      "type": "array",
+      "description": "Title count per period, total for all items",
+      "items": {
+        "type": "integer",
+        "nullable": true
+      }
+    },
+    "totalItemRequestsByPeriod": {
+      "type": "array",
+      "description": "Total access count per period",
+      "items": {
+        "type": "integer",
+        "nullable": true
+      }
+    },
     "totalItemCostsPerRequestsByPeriod": {
       "type": "array",
       "description": "Cost per period, total for all items",
       "items": {
         "type": "number",
+        "nullable": true
+      }
+    },
+    "uniqueItemRequestsByPeriod": {
+      "type": "array",
+      "description": "Unique access count per period",
+      "items": {
+        "type": "integer",
         "nullable": true
       }
     },
@@ -25,22 +73,6 @@
         "nullable": true
       }
     },
-    "titleCountByPeriod": {
-      "type": "array",
-      "description": "Title count per period, total for all items",
-      "items": {
-        "type": "integer",
-        "nullable": true
-      }
-    },
-    "items": {
-      "description": "List of items, with access data per item",
-      "type": "array",
-      "items": {
-        "type": "object",
-        "$ref": "reportCostRow.json"
-      }
-    }
   },
   "additionalProperties": false
 }

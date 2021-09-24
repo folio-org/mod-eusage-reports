@@ -48,7 +48,6 @@ public class CostPerUse {
     Map<UUID,Double> amountEncumberedTotalMap = new HashMap<>();
     Map<UUID,Double> amountPaidTotalMap = new HashMap<>();
     rowSet.forEach(row -> {
-      log.info("AD: {}", row.deepToString());
       UUID kbId = row.getUUID("kbid");
       UUID kbPackageId = row.getUUID("kbpackageid");
       String usageDateRange = row.getString("usagedaterange");
@@ -114,7 +113,9 @@ public class CostPerUse {
         DateRange dateRange = new DateRange(subscriptionDateRange);
         item.put("subscriptionDateStart", dateRange.getStart());
         item.put("subscriptionDateEnd", dateRange.getEnd());
-        // could check  (!dateRange.includes(usageStart)) and return ..
+        if (!dateRange.includes(usageStart)) {
+          return;
+        }
         subscriptionMonths = dateRange.getMonths();
       }
       int monthsInOnePeriod = usePeriods.getMonths();
@@ -180,13 +181,13 @@ public class CostPerUse {
     JsonArray uniqueItemCostsPerRequestsByPeriod = new JsonArray();
     JsonArray totalItemRequestsByPeriod = new JsonArray();
     JsonArray uniqueItemRequestsByPeriod = new JsonArray();
-    JsonArray costPerPeriod = new JsonArray();
+    JsonArray costByPeriod = new JsonArray();
     for (int i = 0; i < usePeriods.size(); i++) {
       Double p = 0.0;
       for (Double v : paidByPeriodMap.get(i).values()) {
         p += v;
       }
-      costPerPeriod.add(formatCost(p));
+      costByPeriod.add(formatCost(p));
       Long n = totalRequests.getLong(i);
       totalItemRequestsByPeriod.add(n);
       if (n > 0) {
@@ -216,7 +217,7 @@ public class CostPerUse {
     json.put("amountEncumberedTotal", formatCost(amountEncumberedTotal));
     json.put("amountPaidTotal", formatCost(amountPaidTotal));
     json.put("accessCountPeriods", usePeriods.getAccessCountPeriods());
-    json.put("costPerPeriod", costPerPeriod);
+    json.put("costByPeriod", costByPeriod);
     json.put("totalItemRequestsByPeriod", totalItemRequestsByPeriod);
     json.put("uniqueItemRequestsByPeriod", uniqueItemRequestsByPeriod);
     json.put("totalItemCostsPerRequestsByPeriod", totalItemCostsPerRequestsByPeriod);
