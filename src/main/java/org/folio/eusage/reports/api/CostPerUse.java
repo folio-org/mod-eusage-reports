@@ -27,14 +27,14 @@ public class CostPerUse {
 
     JsonArray totalRequests = new JsonArray();
     JsonArray uniqueRequests = new JsonArray();
-    JsonArray titleCountByPeriod = new JsonArray();
+    List<Set<UUID>> titlesByPeriod = new ArrayList<>();
     Map<String,JsonObject> totalItems = new HashMap<>();
     Set<UUID> kbIds = new TreeSet<>();
     List<Map<UUID,Double>> paidByPeriodMap = new ArrayList<>();
     for (int i = 0; i < usePeriods.size(); i++) {
       totalRequests.add(0L);
       uniqueRequests.add(0L);
-      titleCountByPeriod.add(0L);
+      titlesByPeriod.add(new TreeSet<>());
       paidByPeriodMap.add(new HashMap<>());
     }
     JsonArray items = new JsonArray();
@@ -70,9 +70,9 @@ public class CostPerUse {
       String poLineNumber = row.getString("polinenumber");
       String itemKey = kbId + "," + accessType + "," + poLineNumber;
       JsonObject item = totalItems.get(itemKey);
+      titlesByPeriod.get(idx).add(kbId);
       if (item == null) {
         item = new JsonObject();
-        titleCountByPeriod.set(idx, titleCountByPeriod.getLong(idx) + 1);
         totalItems.put(itemKey, item);
         items.add(item);
         item.put("kbId", kbId)
@@ -178,7 +178,9 @@ public class CostPerUse {
     JsonArray totalItemRequestsByPeriod = new JsonArray();
     JsonArray uniqueItemRequestsByPeriod = new JsonArray();
     JsonArray costByPeriod = new JsonArray();
+    JsonArray titleCountByPeriod = new JsonArray();
     for (int i = 0; i < usePeriods.size(); i++) {
+      titleCountByPeriod.add(titlesByPeriod.get(i).size());
       Double p = 0.0;
       for (Double v : paidByPeriodMap.get(i).values()) {
         p += v;
@@ -302,7 +304,7 @@ public class CostPerUse {
   private static long getTotalInLongArray(JsonArray ar, String key) {
     long n = 0;
     for (int i = 0; i < ar.size(); i++) {
-      n += ar.getJsonObject(i).getLong(key);
+      n += ar.getJsonObject(i).getLong(key, 0L);
     }
     return n;
   }

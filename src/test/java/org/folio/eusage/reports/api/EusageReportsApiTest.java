@@ -1124,7 +1124,7 @@ assertThat(json.getJsonArray("items").size(), is(4));
           assertThat((List<?>) json.getJsonArray("accessCountPeriods").getList(),
               contains("2020-04", "2020-05", "2020-06", "2020-07", "2020-08"));
           assertThat((List<?>) json.getJsonArray("titleCountByPeriod").getList(),
-              contains(0, 1, 1, 0, 0));
+              contains(2, 2, 1, 0, 0));
           assertThat((List<?>) json.getJsonArray("totalItemCostsPerRequestsByPeriod").getList(),
               contains(0.83, 0.54, 0.32, null, null));
           assertThat((List<?>) json.getJsonArray("uniqueItemCostsPerRequestsByPeriod").getList(),
@@ -1215,7 +1215,7 @@ assertThat(json.getJsonArray("items").size(), is(4));
           assertThat((List<?>) json.getJsonArray("accessCountPeriods").getList(),
               contains("2020-04", "2020-05", "2020-06"));
           assertThat((List<?>) json.getJsonArray("titleCountByPeriod").getList(),
-              contains(0, 1, 1));
+              contains(2, 2, 1));
           assertThat((List<?>) json.getJsonArray("totalItemCostsPerRequestsByPeriod").getList(),
               contains(1.41, 0.91, 1.07));
           assertThat((List<?>) json.getJsonArray("uniqueItemCostsPerRequestsByPeriod").getList(),
@@ -1239,7 +1239,7 @@ assertThat(json.getJsonArray("items").size(), is(4));
           assertThat((List<?>) json.getJsonArray("accessCountPeriods").getList(),
               contains("2020-04", "2020-05", "2020-06", "2020-07"));
           assertThat((List<?>) json.getJsonArray("titleCountByPeriod").getList(),
-              contains(0, 1, 1, 0));
+              contains(2, 2, 1, 0));
           assertThat((List<?>) json.getJsonArray("totalItemRequestsByPeriod").getList(),
               contains(0, 34, 29, 0));
           assertThat((List<?>) json.getJsonArray("totalItemCostsPerRequestsByPeriod").getList(),

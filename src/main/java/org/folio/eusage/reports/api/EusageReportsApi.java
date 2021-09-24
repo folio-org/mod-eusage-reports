@@ -1525,9 +1525,9 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
         + " WHERE agreementId = $1"
         + limitJournal(isJournal)
         + "   AND daterange($2, $3) @> lower(usageDateRange)"
-        +  (includeOA ? "" : " AND NOT openAccess")
-        + " ORDER BY title";
-    return pool.preparedQuery(sql)
+        +  (includeOA ? "" : " AND NOT openAccess");
+
+    return pool.preparedQuery(sql + " ORDER BY title, publicationDate")
         .execute(Tuple.of(agreementId, usePeriods.startDate, usePeriods.endDate));
   }
 
