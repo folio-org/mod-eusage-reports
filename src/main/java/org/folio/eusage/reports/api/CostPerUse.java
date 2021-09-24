@@ -126,22 +126,18 @@ public class CostPerUse {
       if (monthsAllPeriods > subscriptionMonths) {
         monthsAllPeriods = subscriptionMonths;
       }
-      Long totalItemRequestsByPeriod = row.getLong("totalaccesscount");
-      if (totalItemRequestsByPeriod != null) {
-        totalRequests.set(idx, totalRequests.getLong(idx) + totalItemRequestsByPeriod);
-        item.put("totalItemRequests", item.getLong("totalItemRequests")
-            + totalItemRequestsByPeriod);
-      }
-      Long uniqueItemRequestsByPeriod = row.getLong("uniqueaccesscount");
-      if (uniqueItemRequestsByPeriod != null) {
-        uniqueRequests.set(idx, uniqueRequests.getLong(idx) + uniqueItemRequestsByPeriod);
-        item.put("uniqueItemRequests", item.getLong("uniqueItemRequests")
-            + uniqueItemRequestsByPeriod);
-      }
+      long totalItemRequestsByPeriod = row.getLong("totalaccesscount");
+      totalRequests.set(idx, totalRequests.getLong(idx) + totalItemRequestsByPeriod);
+      item.put("totalItemRequests", item.getLong("totalItemRequests")
+          + totalItemRequestsByPeriod);
+      long uniqueItemRequestsByPeriod = row.getLong("uniqueaccesscount");
+      uniqueRequests.set(idx, uniqueRequests.getLong(idx) + uniqueItemRequestsByPeriod);
+      item.put("uniqueItemRequests", item.getLong("uniqueItemRequests")
+          + uniqueItemRequestsByPeriod);
 
       UUID paidId = kbPackageId != null ? kbPackageId : kbId;
       int titlesDivide = kbPackageId == null ? 1 : packageContent.get(kbPackageId).size();
-      Number encumberedCost = row.getNumeric("encumberedcost");
+      Number encumberedCost = row.getDouble("encumberedcost");
       if (encumberedCost != null) {
         Double amount = monthsAllPeriods * encumberedCost.doubleValue() / subscriptionMonths;
         item.put("amountEncumbered", formatCost(amount / titlesDivide));
