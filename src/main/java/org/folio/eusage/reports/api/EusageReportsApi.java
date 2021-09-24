@@ -1531,50 +1531,6 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
         .execute(Tuple.of(agreementId, usePeriods.startDate, usePeriods.endDate));
   }
 
-
-  private static void costPerUse(StringBuilder sql, TenantPgPool pool,
-      Boolean isJournal, boolean includeOA, int periods) {
-
-    sql
-        .append("SELECT DISTINCT ON (kbId) title_entries.kbTitleId AS kbId, kbTitleName AS title,")
-        .append(" kbPackageId,")
-        .append(" printISSN, onlineISSN, ISBN, orderType, poLineNumber, invoiceNumber,")
-        .append(" fiscalYearRange, subscriptionDateRange,")
-        .append(" encumberedCost, invoicedCost");
-
-    for (int i = 0; i < periods; i++) {
-      sql.append(", total").append(i);
-      sql.append(", unique").append(i);
-    }
-    sql
-        .append(" FROM ").append(agreementEntriesTable(pool))
-        .append(" LEFT JOIN ").append(packageEntriesTable(pool))
-        .append(" USING (kbPackageId)")
-        .append(" JOIN ").append(titleEntriesTable(pool)).append(" ON")
-        .append(" title_entries.kbTitleId = agreement_entries.kbTitleId OR")
-        .append(" title_entries.kbTitleId = package_entries.kbTitleId");
-    for (int i = 0; i < periods; i++) {
-      sql.append(" LEFT JOIN (")
-          .append(" SELECT titleEntryId")
-          .append(", sum(totalAccessCount) as total").append(i)
-          .append(", sum(uniqueAccessCount) as unique").append(i)
-          .append(" FROM ").append(titleDataTable(pool))
-          .append(" WHERE daterange($").append(2 + i).append(", $").append(2 + i + 1)
-          .append(") @> lower(usageDateRange)")
-          .append(includeOA ? "" : " AND NOT openAccess")
-          .append(" GROUP BY 1")
-          .append(" ) t").append(i).append(" ON t").append(i).append(".titleEntryId = ")
-          .append(titleEntriesTable(pool)).append(".id")
-          .append(" AND (subscriptionDateRange IS NULL")
-          .append(" OR subscriptionDateRange @> daterange($")
-          .append(2 + i).append(", $").append(2 + i + 1).append("))")
-      ;
-
-      // TODO  .append(" AND coverageDateRanges @> t").append(i).append(".publicationDate")
-    }
-    sql.append(" WHERE agreementId = $1").append(limitJournal(isJournal));
-  }
-
   Future<JsonObject> costPerUse(TenantPgPool pool, Boolean isJournal, boolean includeOA,
       String agreementId, String accessCountPeriod, String start, String end) {
 
@@ -1583,15 +1539,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     periods.addStartDates(tuple);
     periods.addEnd(tuple);
 
-    StringBuilder sql = new StringBuilder();
-    costPerUse(sql, pool, isJournal, includeOA, periods.size());
-    sql.append(" ORDER BY kbId");
-    log.debug("costPerUse SQL={}", sql.toString());
-
     return getTitlesCost(pool, isJournal, includeOA, agreementId, periods)
-        .map(rowSet -> CostPerUse.titlesToJsonObject2(rowSet, periods))
-        .compose(x -> pool.preparedQuery(sql.toString())
-            .execute(tuple))
         .map(rowSet -> CostPerUse.titlesToJsonObject(rowSet, periods));
   }
 

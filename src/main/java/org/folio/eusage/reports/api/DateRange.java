@@ -47,4 +47,8 @@ public class DateRange {
     Period age = Period.between(start, end.plusDays(1));
     return age.getYears() * 12 + age.getMonths();
   }
+
+  boolean includes(LocalDate d) {
+    return !start.isAfter(d) && end.isAfter(d);
+  }
 }

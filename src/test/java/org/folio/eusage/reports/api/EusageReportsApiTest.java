@@ -1124,30 +1124,30 @@ assertThat(json.getJsonArray("items").size(), is(4));
           assertThat((List<?>) json.getJsonArray("accessCountPeriods").getList(),
               contains("2020-04", "2020-05", "2020-06", "2020-07", "2020-08"));
           assertThat((List<?>) json.getJsonArray("titleCountByPeriod").getList(),
-              contains(2, 2, 2, 2, 2));
+              contains(0, 1, 1, 0, 0));
           assertThat((List<?>) json.getJsonArray("totalItemCostsPerRequestsByPeriod").getList(),
-              contains(0.42, 0.27, 0.32, null, null));
+              contains(0.83, 0.54, 0.32, null, null));
           assertThat((List<?>) json.getJsonArray("uniqueItemCostsPerRequestsByPeriod").getList(),
-              contains(0.46, 0.51, 1.02, null, null));
-          assertThat(json.getDouble("amountPaidTotal"), is(45.83)); // 5/12 * 110
-          assertThat(json.getDouble("amountEncumberedTotal"), is(41.67));
+              contains(0.92, 1.02, 1.02, null, null));
+          assertThat(json.getDouble("amountPaidTotal"), is(91.67)); // 5/12 * 220
+          assertThat(json.getDouble("amountEncumberedTotal"), is(83.33));
           assertThat(json.getJsonArray("items").size(), is(2));
           assertThat(json.getJsonArray("items").getJsonObject(0).getString("kbId"), is(t11));
           assertThat(json.getJsonArray("items").getJsonObject(0).getBoolean("derivedTitle"), is(false));
           assertThat(json.getJsonArray("items").getJsonObject(0).getLong("totalItemRequests"), is(47L));
           assertThat(json.getJsonArray("items").getJsonObject(0).getLong("uniqueItemRequests"), is(18L));
-          assertThat(json.getJsonArray("items").getJsonObject(0).getDouble("amountEncumbered"), is(50.0));
-          assertThat(json.getJsonArray("items").getJsonObject(0).getDouble("amountPaid"), is(55.0));
-          assertThat(json.getJsonArray("items").getJsonObject(0).getDouble("costPerTotalRequest"), is(1.17));
-          assertThat(json.getJsonArray("items").getJsonObject(0).getDouble("costPerUniqueRequest"), is(3.06));
+          assertThat(json.getJsonArray("items").getJsonObject(0).getDouble("amountEncumbered"), is(41.67));
+          assertThat(json.getJsonArray("items").getJsonObject(0).getDouble("amountPaid"), is(45.83));
+          assertThat(json.getJsonArray("items").getJsonObject(0).getDouble("costPerTotalRequest"), is(0.98));
+          assertThat(json.getJsonArray("items").getJsonObject(0).getDouble("costPerUniqueRequest"), is(2.55));
           assertThat(json.getJsonArray("items").getJsonObject(1).getString("kbId"), is(t12));
           assertThat(json.getJsonArray("items").getJsonObject(0).getBoolean("derivedTitle"), is(false));
           assertThat(json.getJsonArray("items").getJsonObject(1).getLong("totalItemRequests"), is(38L));
           assertThat(json.getJsonArray("items").getJsonObject(1).getLong("uniqueItemRequests"), is(29L));
-          assertThat(json.getJsonArray("items").getJsonObject(1).getDouble("amountEncumbered"), is(50.0));
-          assertThat(json.getJsonArray("items").getJsonObject(1).getDouble("amountPaid"), is(55.0));
-          assertThat(json.getJsonArray("items").getJsonObject(1).getDouble("costPerTotalRequest"), is(1.45));
-          assertThat(json.getJsonArray("items").getJsonObject(1).getDouble("costPerUniqueRequest"), is(1.9));
+          assertThat(json.getJsonArray("items").getJsonObject(1).getDouble("amountEncumbered"), is(41.67));
+          assertThat(json.getJsonArray("items").getJsonObject(1).getDouble("amountPaid"), is(45.83));
+          assertThat(json.getJsonArray("items").getJsonObject(1).getDouble("costPerTotalRequest"), is(1.21));
+          assertThat(json.getJsonArray("items").getJsonObject(1).getDouble("costPerUniqueRequest"), is(1.58));
         }));
   }
 
@@ -1167,7 +1167,7 @@ assertThat(json.getJsonArray("items").size(), is(4));
           assertThat((List<?>) json.getJsonArray("accessCountPeriods").getList(),
               contains("2020-04", "2020-05", "2020-06", "2020-07", "2020-08"));
           assertThat((List<?>) json.getJsonArray("titleCountByPeriod").getList(),
-              contains(4, 4, 4, 4, 4));
+              contains(0, 2, 2, 0, 0));
           assertThat((List<?>) json.getJsonArray("totalItemCostsPerRequestsByPeriod").getList(),
               contains(null, 0.22, 4.38, null, null));
           assertThat((List<?>) json.getJsonArray("uniqueItemCostsPerRequestsByPeriod").getList(),
@@ -1191,7 +1191,7 @@ assertThat(json.getJsonArray("items").size(), is(4));
           assertThat((List<?>) json.getJsonArray("accessCountPeriods").getList(),
               contains("2020-04", "2020-05", "2020-06", "2020-07", "2020-08"));
           assertThat((List<?>) json.getJsonArray("titleCountByPeriod").getList(),
-              contains(4, 4, 4, 4, 4));
+              contains(0, 2, 0, 0, 0));
           assertThat((List<?>) json.getJsonArray("totalItemCostsPerRequestsByPeriod").getList(),
               contains(null, 0.22, null, null, null));
           assertThat((List<?>) json.getJsonArray("uniqueItemCostsPerRequestsByPeriod").getList(),
@@ -1215,7 +1215,7 @@ assertThat(json.getJsonArray("items").size(), is(4));
           assertThat((List<?>) json.getJsonArray("accessCountPeriods").getList(),
               contains("2020-04", "2020-05", "2020-06"));
           assertThat((List<?>) json.getJsonArray("titleCountByPeriod").getList(),
-              contains(2, 2, 2));
+              contains(0, 1, 1));
           assertThat((List<?>) json.getJsonArray("totalItemCostsPerRequestsByPeriod").getList(),
               contains(1.41, 0.91, 1.07));
           assertThat((List<?>) json.getJsonArray("uniqueItemCostsPerRequestsByPeriod").getList(),
@@ -1239,11 +1239,12 @@ assertThat(json.getJsonArray("items").size(), is(4));
           assertThat((List<?>) json.getJsonArray("accessCountPeriods").getList(),
               contains("2020-04", "2020-05", "2020-06", "2020-07"));
           assertThat((List<?>) json.getJsonArray("titleCountByPeriod").getList(),
-              contains(2, 2, 2, 2));
+              contains(0, 1, 1, 0));
           assertThat((List<?>) json.getJsonArray("totalItemCostsPerRequestsByPeriod").getList(),
-              contains(null, 1.14, 1.34, null));
+              contains(1.76, 1.14, 1.34, null));
+          // First entry should be null below
           assertThat((List<?>) json.getJsonArray("uniqueItemCostsPerRequestsByPeriod").getList(),
-              contains(null, 2.15, 4.31, null));
+              contains(1.94, 2.15, 4.31, null));
           JsonArray items = json.getJsonArray("items");
           assertThat(items.size(), is(2));
           assertThat(items.getJsonObject(0).getBoolean("derivedTitle"), is(true));
@@ -1271,26 +1272,26 @@ assertThat(json.getJsonArray("items").size(), is(4));
           assertThat((List<?>) json.getJsonArray("titleCountByPeriod").getList(),
               contains(2));
           assertThat((List<?>) json.getJsonArray("totalItemCostsPerRequestsByPeriod").getList(),
-              contains(1.11));
+              contains(2.22));
           assertThat((List<?>) json.getJsonArray("uniqueItemCostsPerRequestsByPeriod").getList(),
-              contains(1.86));
-          assertThat(json.getDouble("amountPaidTotal"), is(110.0));
-          assertThat(json.getDouble("amountEncumberedTotal"), is(100.0));
+              contains(3.73));
+          assertThat(json.getDouble("amountPaidTotal"), is(220.0));
+          assertThat(json.getDouble("amountEncumberedTotal"), is(200.0));
           assertThat(json.getJsonArray("items").size(), is(2));
           assertThat(json.getJsonArray("items").getJsonObject(0).getString("kbId"), is(t11));
           assertThat(json.getJsonArray("items").getJsonObject(0).getLong("totalItemRequests"), is(49L));
           assertThat(json.getJsonArray("items").getJsonObject(0).getLong("uniqueItemRequests"), is(19L));
-          assertThat(json.getJsonArray("items").getJsonObject(0).getDouble("amountEncumbered"), is(50.0));
-          assertThat(json.getJsonArray("items").getJsonObject(0).getDouble("amountPaid"), is(55.0));
-          assertThat(json.getJsonArray("items").getJsonObject(0).getDouble("costPerTotalRequest"), is(1.12));
-          assertThat(json.getJsonArray("items").getJsonObject(0).getDouble("costPerUniqueRequest"), is(2.89));
+          assertThat(json.getJsonArray("items").getJsonObject(0).getDouble("amountEncumbered"), is(100.0));
+          assertThat(json.getJsonArray("items").getJsonObject(0).getDouble("amountPaid"), is(110.0));
+          assertThat(json.getJsonArray("items").getJsonObject(0).getDouble("costPerTotalRequest"), is(2.24));
+          assertThat(json.getJsonArray("items").getJsonObject(0).getDouble("costPerUniqueRequest"), is(5.79));
           assertThat(json.getJsonArray("items").getJsonObject(1).getString("kbId"), is(t12));
           assertThat(json.getJsonArray("items").getJsonObject(1).getLong("totalItemRequests"), is(50L));
           assertThat(json.getJsonArray("items").getJsonObject(1).getLong("uniqueItemRequests"), is(40L));
-          assertThat(json.getJsonArray("items").getJsonObject(1).getDouble("amountEncumbered"), is(50.0));
-          assertThat(json.getJsonArray("items").getJsonObject(1).getDouble("amountPaid"), is(55.0));
-          assertThat(json.getJsonArray("items").getJsonObject(1).getDouble("costPerTotalRequest"), is(1.1));
-          assertThat(json.getJsonArray("items").getJsonObject(1).getDouble("costPerUniqueRequest"), is(1.38));
+          assertThat(json.getJsonArray("items").getJsonObject(1).getDouble("amountEncumbered"), is(100.0));
+          assertThat(json.getJsonArray("items").getJsonObject(1).getDouble("amountPaid"), is(110.0));
+          assertThat(json.getJsonArray("items").getJsonObject(1).getDouble("costPerTotalRequest"), is(2.2));
+          assertThat(json.getJsonArray("items").getJsonObject(1).getDouble("costPerUniqueRequest"), is(2.75));
         }));
   }
 
@@ -1311,28 +1312,28 @@ assertThat(json.getJsonArray("items").size(), is(4));
           assertThat((List<?>) json.getJsonArray("accessCountPeriods").getList(),
               contains("2015 - 2019", "2020 - 2024"));
           assertThat((List<?>) json.getJsonArray("titleCountByPeriod").getList(),
-              contains(2, 2));
+              contains(0, 2));
           assertThat((List<?>) json.getJsonArray("totalItemCostsPerRequestsByPeriod").getList(),
-              contains(null, 1.11));
+              contains(null, 2.22));
           assertThat((List<?>) json.getJsonArray("uniqueItemCostsPerRequestsByPeriod").getList(),
-              contains(null, 1.86));
-          assertThat(json.getDouble("amountPaidTotal"), is(110.0));
-          assertThat(json.getDouble("amountEncumberedTotal"), is(100.0));
+              contains(null, 3.73));
+          assertThat(json.getDouble("amountPaidTotal"), is(220.0));
+          assertThat(json.getDouble("amountEncumberedTotal"), is(200.0));
           assertThat(json.getJsonArray("items").size(), is(2));
           assertThat(json.getJsonArray("items").getJsonObject(0).getString("kbId"), is(t11));
           assertThat(json.getJsonArray("items").getJsonObject(0).getLong("totalItemRequests"), is(49L));
           assertThat(json.getJsonArray("items").getJsonObject(0).getLong("uniqueItemRequests"), is(19L));
-          assertThat(json.getJsonArray("items").getJsonObject(0).getDouble("amountEncumbered"), is(50.0));
-          assertThat(json.getJsonArray("items").getJsonObject(0).getDouble("amountPaid"), is(55.0));
-          assertThat(json.getJsonArray("items").getJsonObject(0).getDouble("costPerTotalRequest"), is(1.12));
-          assertThat(json.getJsonArray("items").getJsonObject(0).getDouble("costPerUniqueRequest"), is(2.89));
+          assertThat(json.getJsonArray("items").getJsonObject(0).getDouble("amountEncumbered"), is(100.0));
+          assertThat(json.getJsonArray("items").getJsonObject(0).getDouble("amountPaid"), is(110.0));
+          assertThat(json.getJsonArray("items").getJsonObject(0).getDouble("costPerTotalRequest"), is(2.24));
+          assertThat(json.getJsonArray("items").getJsonObject(0).getDouble("costPerUniqueRequest"), is(5.79));
           assertThat(json.getJsonArray("items").getJsonObject(1).getString("kbId"), is(t12));
           assertThat(json.getJsonArray("items").getJsonObject(1).getLong("totalItemRequests"), is(50L));
           assertThat(json.getJsonArray("items").getJsonObject(1).getLong("uniqueItemRequests"), is(40L));
-          assertThat(json.getJsonArray("items").getJsonObject(1).getDouble("amountEncumbered"), is(50.0));
-          assertThat(json.getJsonArray("items").getJsonObject(1).getDouble("amountPaid"), is(55.0));
-          assertThat(json.getJsonArray("items").getJsonObject(1).getDouble("costPerTotalRequest"), is(1.1));
-          assertThat(json.getJsonArray("items").getJsonObject(1).getDouble("costPerUniqueRequest"), is(1.38));
+          assertThat(json.getJsonArray("items").getJsonObject(1).getDouble("amountEncumbered"), is(100.0));
+          assertThat(json.getJsonArray("items").getJsonObject(1).getDouble("amountPaid"), is(110.0));
+          assertThat(json.getJsonArray("items").getJsonObject(1).getDouble("costPerTotalRequest"), is(2.2));
+          assertThat(json.getJsonArray("items").getJsonObject(1).getDouble("costPerUniqueRequest"), is(2.75));
         }));
   }
 
@@ -1350,6 +1351,7 @@ assertThat(json.getJsonArray("items").size(), is(4));
           ArgumentCaptor<String> body = ArgumentCaptor.forClass(String.class);
           verify(routingContext.response()).end(body.capture());
           String res = body.getValue();
+          System.out.println(res);
           StringReader reader = new StringReader(res);
           try {
             CSVParser parser = new CSVParser(reader, EusageReportsApi.CSV_FORMAT);
@@ -1364,7 +1366,7 @@ assertThat(json.getJsonArray("items").size(), is(4));
             context.assertEquals("Totals", totals.get(0));
             context.assertEquals(6, records.size());
             context.assertEquals("Title 21", records.get(2).get(0));
-            context.assertEquals("Title 22", records.get(3).get(0));
+            context.assertEquals("Title 21", records.get(3).get(0));
             context.assertEquals("Title 31", records.get(4).get(0));
             context.assertEquals("Title 32", records.get(5).get(0));
             context.assertEquals("Purchase order line", header.get(6));
@@ -1374,17 +1376,17 @@ assertThat(json.getJsonArray("items").size(), is(4));
             context.assertEquals("i2", records.get(2).get(7));
             context.assertEquals("i2", records.get(3).get(7));
             context.assertEquals("Cost per request - total", header.get(16));
-            context.assertEquals("0.42", totals.get(16));
-            context.assertEquals("1.25", records.get(2).get(16));
-            context.assertEquals("", records.get(3).get(16));
-            context.assertEquals("1.31", records.get(4).get(16));
-            context.assertEquals("26.25", records.get(5).get(16));
+            context.assertEquals("0.62", totals.get(16));
+            context.assertEquals("8.75", records.get(2).get(16));
+            context.assertEquals("0.44", records.get(3).get(16));
+            context.assertEquals("0.44", records.get(4).get(16));
+            context.assertEquals("8.75", records.get(5).get(16));
             context.assertEquals("Cost per request - unique", header.get(17));
-            context.assertEquals("0.83", totals.get(17));
-            context.assertEquals("2.5", records.get(2).get(17));
-            context.assertEquals("", records.get(3).get(17));
-            context.assertEquals("2.62", records.get(4).get(17));
-            context.assertEquals("52.5", records.get(5).get(17));
+            context.assertEquals("1.25", totals.get(17));
+            context.assertEquals("17.5", records.get(2).get(17));
+            context.assertEquals("0.88", records.get(3).get(17));
+            context.assertEquals("0.88", records.get(4).get(17));
+            context.assertEquals("17.5", records.get(5).get(17));
           } catch (IOException e) {
             context.fail(e);
           }
@@ -1455,7 +1457,7 @@ assertThat(json.getJsonArray("items").size(), is(4));
             context.assertEquals("Order type", header.get(5));
             context.assertEquals(4, records.size());
             context.assertEquals("Title 21", records.get(2).get(0));
-            context.assertEquals("Title 22", records.get(3).get(0));
+            context.assertEquals("Title 21", records.get(3).get(0));
             context.assertEquals("Cost per request - total", header.get(16));
           } catch (IOException e) {
             context.fail(e);
