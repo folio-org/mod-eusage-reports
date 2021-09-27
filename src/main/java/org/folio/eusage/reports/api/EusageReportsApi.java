@@ -1,6 +1,7 @@
 package org.folio.eusage.reports.api;
 
 import io.vertx.core.Future;
+import io.vertx.core.MultiMap;
 import io.vertx.core.Promise;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
@@ -1298,8 +1299,8 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     }
   }
 
-  Boolean getJournalFromFormat(RoutingContext ctx, String def) {
-    String format = ctx.request().params().get("format");
+  Boolean getJournalFromFormat(MultiMap params, String def) {
+    String format = params.get("format");
     if (format == null) {
       format = def;
     }
@@ -1315,37 +1316,46 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     }
   }
 
+  static String getUseOverTimeResponse(JsonObject json, boolean groupByPublicationYear,
+      boolean periodOfUse, ContentType contentType) {
+
+    if (!contentType.isFull()) {
+      json.remove("items");
+    }
+    return contentType.isCsv()
+        ? getUseOverTime2Csv(json, groupByPublicationYear, periodOfUse)
+        : json.encodePrettily();
+
+  }
+
   Future<Void> getUseOverTime(Vertx vertx, RoutingContext ctx) {
     TenantPgPool pool = TenantPgPool.pool(vertx, TenantUtil.tenant(ctx));
-    Boolean isJournal = getJournalFromFormat(ctx, "ALL");
-    boolean csv = "true".equalsIgnoreCase(ctx.request().params().get("csv"));
-    String agreementId = ctx.request().params().get("agreementId");
-    String accessCountPeriod = ctx.request().params().get("accessCountPeriod");
-    String start = ctx.request().params().get("startDate");
-    String end = ctx.request().params().get("endDate");
-    boolean includeOA = "true".equalsIgnoreCase(ctx.request().params().get("includeOA"));
+    MultiMap params = ctx.request().params();
+    Boolean isJournal = getJournalFromFormat(params, "ALL");
+    ContentType contentType = new ContentType(params);
+    String agreementId = params.get("agreementId");
+    String accessCountPeriod = params.get("accessCountPeriod");
+    String start = params.get("startDate");
+    String end = params.get("endDate");
+    boolean includeOA = "true".equalsIgnoreCase(params.get("includeOA"));
 
     return getUseOverTime(pool, isJournal, includeOA, agreementId, accessCountPeriod,
-        start, end, csv)
+        start, end, contentType)
         .map(res -> {
           ctx.response().setStatusCode(200);
-          ctx.response().putHeader("Content-Type", csv ? "text/csv" : "application/json");
+          ctx.response().putHeader("Content-Type", contentType.getContentType());
           ctx.response().end(res);
           return null;
         });
   }
 
   Future<String> getUseOverTime(TenantPgPool pool, Boolean isJournal, boolean includeOA,
-      String agreementId, String accessCountPeriod, String start, String end, boolean csv) {
+      String agreementId, String accessCountPeriod, String start, String end,
+      ContentType contentType) {
 
     return getUseOverTime(pool, isJournal, includeOA, agreementId,
         accessCountPeriod, start, end)
-        .map(json -> {
-          if (!csv) {
-            return json.encodePrettily();
-          }
-          return getUseOverTime2Csv(json, false, false);
-        });
+        .map(json -> getUseOverTimeResponse(json, false, false, contentType));
   }
 
   Future<JsonObject> getUseOverTime(TenantPgPool pool, Boolean isJournal, boolean includeOA,
@@ -1362,34 +1372,30 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
 
   Future<String> getReqsByDateOfUse(TenantPgPool pool, Boolean isJournal, boolean includeOA,
       String agreementId, String accessCountPeriod,
-      String start, String end, String yopInterval, boolean csv) {
+      String start, String end, String yopInterval, ContentType contentType) {
 
     return getReqsByDateOfUse(pool, isJournal, includeOA, agreementId,
         accessCountPeriod, start, end, yopInterval)
-        .map(json -> {
-          if (!csv) {
-            return json.encodePrettily();
-          }
-          return getUseOverTime2Csv(json, true, false);
-        });
+        .map(json -> getUseOverTimeResponse(json, true, false, contentType));
   }
 
   Future<Void> getReqsByDateOfUse(Vertx vertx, RoutingContext ctx) {
     TenantPgPool pool = TenantPgPool.pool(vertx, TenantUtil.tenant(ctx));
-    boolean csv = "true".equalsIgnoreCase(ctx.request().params().get("csv"));
-    Boolean isJournal = getJournalFromFormat(ctx, "JOURNAL");
-    String agreementId = ctx.request().params().get("agreementId");
-    String accessCountPeriod = ctx.request().params().get("accessCountPeriod");
-    String start = ctx.request().params().get("startDate");
-    String end = ctx.request().params().get("endDate");
-    String yopInterval = ctx.request().params().get("yopInterval");
-    boolean includeOA = "true".equalsIgnoreCase(ctx.request().params().get("includeOA"));
+    MultiMap params = ctx.request().params();
+    ContentType contentType = new ContentType(params);
+    Boolean isJournal = getJournalFromFormat(params, "JOURNAL");
+    String agreementId = params.get("agreementId");
+    String accessCountPeriod = params.get("accessCountPeriod");
+    String start = params.get("startDate");
+    String end = params.get("endDate");
+    String yopInterval = params.get("yopInterval");
+    boolean includeOA = "true".equalsIgnoreCase(params.get("includeOA"));
 
     return getReqsByDateOfUse(pool, isJournal, includeOA, agreementId,
-        accessCountPeriod, start, end, yopInterval, csv)
+        accessCountPeriod, start, end, yopInterval, contentType)
         .map(res -> {
           ctx.response().setStatusCode(200);
-          ctx.response().putHeader("Content-Type", csv ? "text/csv" : "application/json");
+          ctx.response().putHeader("Content-Type", contentType.getContentType());
           ctx.response().end(res);
           return null;
         });
@@ -1409,20 +1415,21 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
 
   Future<Void> getReqsByPubYear(Vertx vertx, RoutingContext ctx) {
     TenantPgPool pool = TenantPgPool.pool(vertx, TenantUtil.tenant(ctx));
-    Boolean isJournal = getJournalFromFormat(ctx, "JOURNAL");
-    boolean csv = "true".equalsIgnoreCase(ctx.request().params().get("csv"));
-    boolean includeOA = "true".equalsIgnoreCase(ctx.request().params().get("includeOA"));
-    String agreementId = ctx.request().params().get("agreementId");
-    String accessCountPeriod = ctx.request().params().get("accessCountPeriod");
-    String start = ctx.request().params().get("startDate");
-    String end = ctx.request().params().get("endDate");
-    String periodOfUse = ctx.request().params().get("periodOfUse");
+    MultiMap params = ctx.request().params();
+    Boolean isJournal = getJournalFromFormat(params, "JOURNAL");
+    ContentType contentType = new ContentType(params);
+    boolean includeOA = "true".equalsIgnoreCase(params.get("includeOA"));
+    String agreementId = params.get("agreementId");
+    String accessCountPeriod = params.get("accessCountPeriod");
+    String start = params.get("startDate");
+    String end = params.get("endDate");
+    String periodOfUse = params.get("periodOfUse");
 
     return getReqsByPubYear(pool, isJournal, includeOA, agreementId,
-        accessCountPeriod, start, end, periodOfUse, csv)
+        accessCountPeriod, start, end, periodOfUse, contentType)
         .map(res -> {
           ctx.response().setStatusCode(200);
-          ctx.response().putHeader("Content-Type", csv ? "text/csv" : "application/json");
+          ctx.response().putHeader("Content-Type", contentType.getContentType());
           ctx.response().end(res);
           return null;
         });
@@ -1430,16 +1437,11 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
 
   Future<String> getReqsByPubYear(TenantPgPool pool, Boolean isJournal, boolean includeOA,
       String agreementId, String accessCountPeriod, String start, String end,
-      String periodOfUse, boolean csv) {
+      String periodOfUse, ContentType contentType) {
 
     return getReqsByPubYear(pool, isJournal, includeOA, agreementId,
         accessCountPeriod, start, end, periodOfUse)
-        .map(json -> {
-          if (!csv) {
-            return json.encodePrettily();
-          }
-          return getUseOverTime2Csv(json, false, true);
-        });
+        .map(json -> getUseOverTimeResponse(json, false, true, contentType));
   }
 
   Future<JsonObject> getReqsByPubYear(TenantPgPool pool, Boolean isJournal, boolean includeOA,
@@ -1544,32 +1546,34 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
   }
 
   Future<String> getCostPerUse(TenantPgPool pool, Boolean isJournal, boolean includeOA,
-      String agreementId, String accessCountPeriod, String start, String end, boolean csv) {
+      String agreementId, String accessCountPeriod, String start, String end,
+      ContentType contentType) {
 
     return costPerUse(pool, isJournal, includeOA, agreementId, accessCountPeriod, start, end)
         .map(json -> {
-          if (!csv) {
-            return json.encodePrettily();
+          if (!contentType.isFull()) {
+            json.remove("items");
           }
-          return getCostPerUse2Csv(json);
+          return contentType.isCsv() ? getCostPerUse2Csv(json) : json.encodePrettily();
         });
   }
 
   Future<Void> getCostPerUse(Vertx vertx, RoutingContext ctx) {
     TenantPgPool pool = TenantPgPool.pool(vertx, TenantUtil.tenant(ctx));
-    Boolean isJournal = getJournalFromFormat(ctx, "ALL");
-    boolean csv = "true".equalsIgnoreCase(ctx.request().params().get("csv"));
-    boolean includeOA = "true".equalsIgnoreCase(ctx.request().params().get("includeOA"));
-    String agreementId = ctx.request().params().get("agreementId");
-    String accessCountPeriod = ctx.request().params().get("accessCountPeriod");
-    String start = ctx.request().params().get("startDate");
-    String end = ctx.request().params().get("endDate");
+    final MultiMap params = ctx.request().params();
+    Boolean isJournal = getJournalFromFormat(params, "ALL");
+    ContentType contentType = new ContentType(params);
+    boolean includeOA = "true".equalsIgnoreCase(params.get("includeOA"));
+    String agreementId = params.get("agreementId");
+    String accessCountPeriod = params.get("accessCountPeriod");
+    String start = params.get("startDate");
+    String end = params.get("endDate");
 
     return getCostPerUse(pool, isJournal, includeOA, agreementId, accessCountPeriod,
-        start, end, csv)
+        start, end, contentType)
         .map(res -> {
           ctx.response().setStatusCode(200);
-          ctx.response().putHeader("Content-Type", csv ? "text/csv" : "application/json");
+          ctx.response().putHeader("Content-Type", contentType.getContentType());
           ctx.response().end(res);
           return null;
         });

@@ -395,7 +395,8 @@ assertThat(json.getJsonArray("items").size(), is(4));
 
   @Test
   public void useOverTimeCsv(TestContext context) {
-    new EusageReportsApi().getUseOverTime(pool, true, true, a1, null,"2020-04", "2020-05", true)
+    new EusageReportsApi().getUseOverTime(pool, true, true, a1, null,"2020-04", "2020-05",
+            new ContentType(true))
         .onComplete(context.asyncAssertSuccess(res -> {
           assertThat(res, containsString("Title,Print ISSN,Online ISSN,ISBN,Access type,Metric Type,Reporting period total,2020-04,2020-05"));
           assertThat(res, containsString("Totals - total item requests,,,,,,56,22,34"));
@@ -406,7 +407,8 @@ assertThat(json.getJsonArray("items").size(), is(4));
 
   @Test
   public void useOverTimeCsvAll(TestContext context) {
-    new EusageReportsApi().getUseOverTime(pool, null, true, a1, null,"2020-04", "2020-05", true)
+    new EusageReportsApi().getUseOverTime(pool, null, true, a1, null,"2020-04", "2020-05",
+            new ContentType(true))
         .onComplete(context.asyncAssertSuccess(res -> {
           assertThat(res, containsString("Title,Print ISSN,Online ISSN,ISBN,Access type,Metric Type,Reporting period total,2020-04,2020-05"));
           assertThat(res, containsString("Totals - total item requests,,,,,,56,22,34"));
@@ -417,7 +419,8 @@ assertThat(json.getJsonArray("items").size(), is(4));
 
   @Test
   public void useOverTimeCsvBook(TestContext context) {
-    new EusageReportsApi().getUseOverTime(pool, false, true, a2, null,"2020-05", "2020-06", true)
+    new EusageReportsApi().getUseOverTime(pool, false, true, a2, null,"2020-05", "2020-06",
+            new ContentType(true))
         .onComplete(context.asyncAssertSuccess(res -> {
           assertThat(res, containsString("Title,Print ISSN,Online ISSN,ISBN,Access type,Metric Type,Reporting period total,2020-05,2020-06"));
           assertThat(res, containsString("Totals - total item requests,,,,,,42,40,2"));
@@ -1472,7 +1475,7 @@ assertThat(json.getJsonArray("items").size(), is(4));
 
   @Test
   public void reqsByPubYearCsv(TestContext context) {
-    new EusageReportsApi().getReqsByPubYear(pool, true, true, a1, null, "2020-04", "2020-08", "6M", true)
+    new EusageReportsApi().getReqsByPubYear(pool, true, true, a1, null, "2020-04", "2020-08", "6M", new ContentType(true))
         .onComplete(context.asyncAssertSuccess(res -> {
           assertThat(res, containsString(",2020-01 - 2020-06,Controlled,"));
         }));

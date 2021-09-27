@@ -12,8 +12,8 @@ public class HealthApi implements RouterCreator {
   public Future<Router> createRouter(Vertx vertx, WebClient webClient) {
     Router router = Router.router(vertx);
     router.route(HttpMethod.GET, "/admin/health").handler(ctx -> {
-      ctx.response().putHeader("Content-Type", "text/plain");
-      ctx.response().end("OK");
+      ctx.response().putHeader("Content-Type", "application/summary+csv");
+      ctx.response().end("a,b,d");
     });
     return Future.succeededFuture(router);
   }
