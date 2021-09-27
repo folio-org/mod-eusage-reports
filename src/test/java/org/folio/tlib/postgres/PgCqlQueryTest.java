@@ -16,6 +16,14 @@ public class PgCqlQueryTest {
 
     pgCqlQuery.parse("dc.Title==value");
     Assert.assertEquals("title = 'value'", pgCqlQuery.getWhereClause());
+
+    pgCqlQuery.parse(null, "dc.Title==value2 OR dc.title==value3");
+    Assert.assertEquals("(title = 'value2' OR title = 'value3')",
+        pgCqlQuery.getWhereClause());
+
+    pgCqlQuery.parse("dc.Title==value1", "dc.Title==value2 OR dc.title==value3");
+    Assert.assertEquals("(title = 'value1' AND (title = 'value2' OR title = 'value3'))",
+        pgCqlQuery.getWhereClause());
   }
 
   static String ftResponse(String column, String term) {
