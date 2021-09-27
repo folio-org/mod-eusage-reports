@@ -9,13 +9,19 @@ Version 2.0. See the file "[LICENSE](LICENSE)" for more information.
 
 [mod-eusage-reports](https://github.com/folio-org/mod-eusage-reports)
 is a backend module for parsing and storing relationships between COUNTER
-report lines and KB items and for storing access statistics (access numbers
+report lines and KB items, and for storing access statistics (access numbers
 and cost) for specific periods.
+
+## Additional information
 
 ### Issue tracker
 
 See project [MODEUR](https://issues.folio.org/browse/MODEUR)
 at the [FOLIO issue tracker](https://dev.folio.org/guidelines/issue-tracker).
+
+### Code of Conduct
+
+Refer to the Wiki [FOLIO Code of Conduct](https://wiki.folio.org/display/COMMUNITY/FOLIO+Code+of+Conduct).
 
 ### ModuleDescriptor
 
@@ -23,12 +29,13 @@ See the [ModuleDescriptor](descriptors/ModuleDescriptor-template.json)
 for the interfaces that this module requires and provides, the permissions,
 and the additional module metadata.
 
-### Getting started
-
 ### API documentation
 
+API descriptions:
  * [OpenAPI](src/main/resources/openapi/)
  * [Schemas](src/main/resources/openapi/schemas/)
+
+Generated [API documentation](https://dev.folio.org/reference/api/#mod-eusage-reports).
 
 ### Code analysis
 
@@ -39,3 +46,4 @@ and the additional module metadata.
 The built artifacts for this module are available.
 See [configuration](https://dev.folio.org/download/artifacts) for repository access,
 and the [Docker image](https://hub.docker.com/r/folioorg/mod-eusage-reports/).
+

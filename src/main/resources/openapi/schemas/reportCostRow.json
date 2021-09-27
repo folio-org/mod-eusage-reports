@@ -12,7 +12,7 @@
     },
     "derivedTitle": {
       "type": "boolean",
-      "description": "Indicate whether the the resource is derived from an agreement line"
+      "description": "Indicate whether the resource is derived from an agreement line"
     },
     "printISSN": {
       "type": "string",
