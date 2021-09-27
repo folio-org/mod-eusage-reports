@@ -12,6 +12,7 @@ public class ContentTypeTest {
     ContentType m = new ContentType(h);
     Assert.assertFalse(m.isCsv());
     Assert.assertTrue(m.isFull());
+    Assert.assertEquals("application/json", m.getContentType());
 
     h.set("csv", "false");
     m = new ContentType(h);
@@ -25,38 +26,16 @@ public class ContentTypeTest {
     Assert.assertTrue(m.isFull());
     Assert.assertEquals("text/csv", m.getContentType());
 
-    h.set("contentType", "application/json");
-    m = new ContentType(h);
-    Assert.assertFalse(m.isCsv());
-    Assert.assertTrue(m.isFull());
-
-    h.set("contentType", "application/full+json");
-    m = new ContentType(h);
-    Assert.assertFalse(m.isCsv());
-    Assert.assertTrue(m.isFull());
-
-    h.set("contentType", "application/summary+json");
-    m = new ContentType(h);
-    Assert.assertFalse(m.isCsv());
-    Assert.assertFalse(m.isFull());
-
-    h.set("contentType", "text/csv");
+    h.set("full", "true");
     m = new ContentType(h);
     Assert.assertTrue(m.isCsv());
     Assert.assertTrue(m.isFull());
+    Assert.assertEquals("text/csv", m.getContentType());
 
-    h.set("contentType", "text/summary+csv");
+    h.set("full", "false");
     m = new ContentType(h);
     Assert.assertTrue(m.isCsv());
     Assert.assertFalse(m.isFull());
-
-    h.set("contentType", "text/full+csv");
-    m = new ContentType(h);
-    Assert.assertTrue(m.isCsv());
-    Assert.assertTrue(m.isFull());
-
-    h.set("contentType", "text/xx");
-    Throwable t = Assert.assertThrows(IllegalArgumentException.class, () -> new ContentType(h));
-    Assert.assertEquals("Bad value for contentType: text/xx", t.getMessage());
+    Assert.assertEquals("text/csv", m.getContentType());
   }
 }
