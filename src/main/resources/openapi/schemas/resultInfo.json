@@ -41,7 +41,7 @@
                   "description": "Value Object"
                 }
               }
-            },
+            }
           },
           "type": {
             "type": "string",
