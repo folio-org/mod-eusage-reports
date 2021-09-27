@@ -248,11 +248,6 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     pgCqlQuery.parse(query);
     fromList.add(getFromTitleDataForeignKey(pgCqlQuery, counterReportId, providerId, pool));
 
-    List<String[]> facets = new ArrayList<>(List.of(
-        new String [] {"status", "matched"},
-        new String [] {"status", "unmatched"},
-        new String [] {"status", "ignored"})
-    );
     // add query for each facet
     pgCqlQuery.parse(query, "kbTitleId <> \"\"");
     fromList.add(getFromTitleDataForeignKey(pgCqlQuery, counterReportId, providerId, pool));
@@ -263,6 +258,11 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     pgCqlQuery.parse(query, "kbTitleId = \"\" AND kbManualMatch = true");
     fromList.add(getFromTitleDataForeignKey(pgCqlQuery, counterReportId, providerId, pool));
 
+    List<String[]> facets = new ArrayList<>(List.of(
+        new String [] {"status", "matched"},
+        new String [] {"status", "unmatched"},
+        new String [] {"status", "ignored"})
+    );
     return streamResult(ctx, pool, distinct, fromList, facets, "titles",
         row -> new JsonObject()
             .put("id", row.getUUID("id"))
