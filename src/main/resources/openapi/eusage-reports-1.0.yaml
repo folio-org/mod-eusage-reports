@@ -24,7 +24,11 @@ paths:
         schema:
           type: string
     get:
-      description: Get titles with links to KB
+      description: Get titles with links to KB. The response contains facets response with facet type "status"
+        and counts for values "matched", "ignored", "unmatched. The resulting set can be limited by parameter
+        query (CQL) as well as counterReportId and providerId (these are NOT part of CQL). The CQL query itself
+        supports fields "cql.allRecords", "id", "counterReportTitle", "ISBN", "printISSN", "onlineISSN",
+        "kbTitleId" and "kbManualMatch".
       operationId: getReportTitles
       responses:
         "200":
@@ -61,7 +65,7 @@ paths:
       - $ref: parameters/limit.yaml
       - $ref: parameters/query.yaml
     get:
-      description: Get KB packages
+      description: Get KB title - package relationship.
       operationId: getReportPackages
       responses:
         "200":
@@ -110,7 +114,7 @@ paths:
       - $ref: parameters/offset.yaml
       - $ref: parameters/limit.yaml
     get:
-      description: Get title data
+      description: Get counter report title data.
       operationId: getTitleData
       responses:
         "200":
@@ -131,7 +135,7 @@ paths:
       - $ref: parameters/offset.yaml
       - $ref: parameters/limit.yaml
     get:
-      description: Return report data
+      description: This returns data for parsed agreements.
       operationId: getReportData
       responses:
         "200":

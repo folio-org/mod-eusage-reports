@@ -34,6 +34,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -113,21 +114,52 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     return n;
   }
 
-  static void resultFooter(RoutingContext ctx, Integer count, String diagnostic) {
+  static void resultFooter(RoutingContext ctx, RowSet<Row> rowSet, List<String[]> facets,
+      String diagnostic) {
+
     JsonObject resultInfo = new JsonObject();
+    int count = 0;
+    JsonArray facetArray = new JsonArray();
+    if (rowSet != null) {
+      RowIterator<Row> iterator = rowSet.iterator();
+      count = iterator.next().getInteger(0);
+      for (String [] facetEntry : facets) {
+        JsonObject facetObj = null;
+        final String facetType = facetEntry[0];
+        final String facetValue = facetEntry[1];
+        for (int i = 0; i < facetArray.size(); i++) {
+          facetObj = facetArray.getJsonObject(i);
+          if (facetType.equals(facetObj.getString("type"))) {
+            break;
+          }
+          facetObj = null;
+        }
+        if (facetObj == null) {
+          facetObj = new JsonObject();
+          facetObj.put("type", facetType);
+          facetObj.put("facetValues", new JsonArray());
+          facetArray.add(facetObj);
+        }
+        JsonArray facetValues = facetObj.getJsonArray("facetValues");
+        facetValues.add(new JsonObject()
+            .put("value", facetValue)
+            .put("count",iterator.next().getInteger(0)));
+      }
+    }
     resultInfo.put("totalRecords", count);
     JsonArray diagnostics = new JsonArray();
     if (diagnostic != null) {
       diagnostics.add(new JsonObject().put("message", diagnostic));
     }
     resultInfo.put("diagnostics", diagnostics);
-    resultInfo.put("facets", new JsonArray());
+    resultInfo.put("facets", facetArray);
     ctx.response().write("], \"resultInfo\": " + resultInfo.encode() + "}");
     ctx.response().end();
   }
 
   static Future<Void> streamResult(RoutingContext ctx, SqlConnection sqlConnection,
-      String query, String cnt, String property, Function<Row, JsonObject> handler) {
+      String query, String cnt, String property, List<String[]> facets,
+      Function<Row, JsonObject> handler) {
 
     return sqlConnection.prepare(query)
         .compose(pq ->
@@ -145,18 +177,15 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
                 ctx.response().write(copyWithoutNulls(response).encode());
               });
               stream.endHandler(end -> sqlConnection.query(cnt).execute()
-                  .onSuccess(cntRes -> {
-                    Integer count = cntRes.iterator().next().getInteger(0);
-                    resultFooter(ctx, count, null);
-                  })
+                  .onSuccess(cntRes -> resultFooter(ctx, cntRes, facets, null))
                   .onFailure(f -> {
                     log.error(f.getMessage(), f);
-                    resultFooter(ctx, 0, f.getMessage());
+                    resultFooter(ctx, null, facets, f.getMessage());
                   })
                   .eventually(x -> tx.commit().compose(y -> sqlConnection.close())));
               stream.exceptionHandler(e -> {
                 log.error("stream error {}", e.getMessage(), e);
-                resultFooter(ctx, 0, e.getMessage());
+                resultFooter(ctx, null, facets, e.getMessage());
                 tx.commit().compose(y -> sqlConnection.close());
               });
               return Future.succeededFuture();
@@ -164,20 +193,35 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
         );
   }
 
+  static Future<Void> streamResult(RoutingContext ctx, TenantPgPool pool, String distinct,
+      String from, String property, Function<Row, JsonObject> handler) {
+
+    return streamResult(ctx, pool, distinct, List.of(from), Collections.EMPTY_LIST,
+        property, handler);
+  }
+
   static Future<Void> streamResult(RoutingContext ctx, TenantPgPool pool,
-      String distinct, String from, String property, Function<Row, JsonObject> handler) {
+      String distinct, List<String> fromList, List<String[]> facets, String property,
+      Function<Row, JsonObject> handler) {
 
     RequestParameters params = ctx.get(ValidationHandler.REQUEST_CONTEXT_KEY);
     Integer offset = params.queryParameter("offset").getInteger();
     Integer limit = params.queryParameter("limit").getInteger();
     String query = "SELECT " + (distinct != null ? "DISTINCT ON (" + distinct + ")" : "")
-        + " * FROM " + from + " LIMIT " + limit + " OFFSET " + offset;
+        + " * FROM " + fromList.get(0) + " LIMIT " + limit + " OFFSET " + offset;
     log.info("query={}", query);
-    String cnt = "SELECT COUNT(" + (distinct != null ? "DISTINCT " + distinct : "*")
-        + ") FROM " + from;
-    log.info("cnt={}", cnt);
+    StringBuilder countQuery = new StringBuilder();
+    for (String from : fromList) {
+      if (countQuery.length() > 0) {
+        countQuery.append(" UNION ALL ");
+      }
+      countQuery.append("SELECT COUNT(" + (distinct != null ? "DISTINCT " + distinct : "*")
+          + ") FROM " + from);
+    }
+    log.info("cnt={}", countQuery.toString());
     return pool.getConnection()
-        .compose(sqlConnection -> streamResult(ctx, sqlConnection, query, cnt, property, handler)
+        .compose(sqlConnection -> streamResult(ctx, sqlConnection, query, countQuery.toString(),
+            property, facets, handler)
             .onFailure(x -> sqlConnection.close()));
   }
 
@@ -198,10 +242,45 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     final String providerId = stringOrNull(params.queryParameter("providerId"));
     final TenantPgPool pool = TenantPgPool.pool(vertx, tenant);
     final String distinct = titleEntriesTable(pool) + ".id";
+    String query = stringOrNull(params.queryParameter("query"));
 
-    pgCqlQuery.parse(stringOrNull(params.queryParameter("query")));
+    List<String> fromList = new ArrayList<>();
+    pgCqlQuery.parse(query);
+    fromList.add(getFromTitleDataForeignKey(pgCqlQuery, counterReportId, providerId, pool));
+
+    List<String[]> facets = new ArrayList<>();
+
+    facets.add(new String [] {"status", "matched"});
+    pgCqlQuery.parse(query, "kbTitleId <> \"\"");
+    fromList.add(getFromTitleDataForeignKey(pgCqlQuery, counterReportId, providerId, pool));
+
+    facets.add(new String [] {"status", "unmatched"});
+    pgCqlQuery.parse(query, "kbTitleId = \"\" AND kbManualMatch = false");
+    fromList.add(getFromTitleDataForeignKey(pgCqlQuery, counterReportId, providerId, pool));
+
+    facets.add(new String [] { "status", "ignored"});
+    pgCqlQuery.parse(query, "kbTitleId = \"\" AND kbManualMatch = true");
+    fromList.add(getFromTitleDataForeignKey(pgCqlQuery, counterReportId, providerId, pool));
+
+    return streamResult(ctx, pool, distinct, fromList, facets, "titles",
+        row -> new JsonObject()
+            .put("id", row.getUUID("id"))
+            .put("counterReportTitle", row.getString("counterreporttitle"))
+            .put("kbTitleName", row.getString("kbtitlename"))
+            .put("kbTitleId", row.getUUID("kbtitleid"))
+            .put("kbManualMatch", row.getBoolean("kbmanualmatch"))
+            .put("printISSN", row.getString("printissn"))
+            .put("onlineISSN", row.getString("onlineissn"))
+            .put("ISBN", row.getString("isbn"))
+            .put("DOI", row.getString("doi"))
+            .put("publicationType", row.getString("publicationtype"))
+    );
+  }
+
+  private String getFromTitleDataForeignKey(PgCqlQuery pgCqlQuery, String counterReportId,
+      String providerId, TenantPgPool pool) {
+
     String cqlWhere = pgCqlQuery.getWhereClause();
-
     String from = titleEntriesTable(pool);
     if (counterReportId != null) {
       from = from + " INNER JOIN " + titleDataTable(pool)
@@ -222,19 +301,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
         from = from + " WHERE " + cqlWhere;
       }
     }
-    return streamResult(ctx, pool, distinct, from, "titles",
-        row -> new JsonObject()
-            .put("id", row.getUUID("id"))
-            .put("counterReportTitle", row.getString("counterreporttitle"))
-            .put("kbTitleName", row.getString("kbtitlename"))
-            .put("kbTitleId", row.getUUID("kbtitleid"))
-            .put("kbManualMatch", row.getBoolean("kbmanualmatch"))
-            .put("printISSN", row.getString("printissn"))
-            .put("onlineISSN", row.getString("onlineissn"))
-            .put("ISBN", row.getString("isbn"))
-            .put("DOI", row.getString("doi"))
-            .put("publicationType", row.getString("publicationtype"))
-    );
+    return from;
   }
 
   Future<Void> postReportTitles(Vertx vertx, RoutingContext ctx) {

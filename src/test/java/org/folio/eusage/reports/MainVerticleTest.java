@@ -915,23 +915,27 @@ public class MainVerticleTest {
 
   void analyzeTitles(TestContext context, JsonObject resObject,
                      int expectTotal, int expectNumber, int expectUndef, int expectManual, int expectIgnored) {
-    context.assertEquals(expectTotal, resObject.getJsonObject("resultInfo").getInteger("totalRecords"));
-    context.assertEquals(0, resObject.getJsonObject("resultInfo").getJsonArray("diagnostics").size());
+    JsonObject resultInfo = resObject.getJsonObject("resultInfo");
+    context.assertEquals(expectTotal, resultInfo.getInteger("totalRecords"));
+    context.assertEquals(0, resultInfo.getJsonArray("diagnostics").size());
     JsonArray titlesAr = resObject.getJsonArray("titles");
     context.assertEquals(expectNumber, titlesAr.size());
     int noManual = 0;
     int noIgnored = 0;
     int noUndef = 0;
+    int noMatched = 0;
     for (int i = 0; i < titlesAr.size(); i++) {
       JsonObject title = titlesAr.getJsonObject(i);
-      if (title.getBoolean("kbManualMatch")) {
-        if (title.containsKey("kbTitleId")) {
+      if (title.containsKey("kbTitleId")) {
+        if (title.getBoolean("kbManualMatch")) {
           noManual++;
         } else {
-          noIgnored++;
+          noMatched++;
         }
       } else {
-        if (!title.containsKey("kbTitleId")) {
+        if (title.getBoolean("kbManualMatch")) {
+          noIgnored++;
+        } else {
           noUndef++;
         }
       }
@@ -948,6 +952,15 @@ public class MainVerticleTest {
     context.assertEquals(expectUndef, noUndef);
     context.assertEquals(expectManual, noManual);
     context.assertEquals(expectIgnored, noIgnored);
+    JsonArray facets = resultInfo.getJsonArray("facets");
+    context.assertEquals(1, facets.size());
+    context.assertEquals("status", facets.getJsonObject(0).getString("type"));
+    JsonArray facetValues = facets.getJsonObject(0).getJsonArray("facetValues");
+    context.assertEquals(3, facetValues.size());
+    context.assertEquals("matched", facetValues.getJsonObject(0).getString("value"));
+    context.assertEquals(noManual + noMatched, facetValues.getJsonObject(0).getInteger("count"));
+    context.assertEquals(noUndef, facetValues.getJsonObject(1).getInteger("count"));
+    context.assertEquals(noIgnored, facetValues.getJsonObject(2).getInteger("count"));
   }
 
   @Test

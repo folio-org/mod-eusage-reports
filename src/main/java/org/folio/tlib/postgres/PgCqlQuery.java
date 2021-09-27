@@ -12,9 +12,16 @@ public interface PgCqlQuery {
    * Parse CQL query string.
    * <p>Throws IllegalArgumentException on syntax error</p>
    * @param query CQL query string.
-   *
    */
   void parse(String query);
+
+  /**
+   * Parse CQL queries (combine with AND).
+   * <p>Throws IllegalArgumentException on syntax error</p>
+   * @param query CQL query string.
+   * @param q2 2nd CQL query string.
+   */
+  void parse(String query, String q2);
 
   /**
    * Get PostgresQL where clause (without WHERE).

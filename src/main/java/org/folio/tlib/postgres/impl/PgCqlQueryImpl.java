@@ -26,17 +26,31 @@ public class PgCqlQueryImpl implements PgCqlQuery {
   CQLNode cqlNodeRoot;
 
   @Override
-  public void parse(String query) {
-    if (query == null) {
+  public void parse(String query, String q2) {
+    String resultingQuery;
+
+    if (query == null && q2 == null) {
       cqlNodeRoot = null;
-    } else {
-      try {
-        log.debug("Parsing {}", query);
-        cqlNodeRoot = parser.parse(query);
-      } catch (CQLParseException | IOException e) {
-        throw new IllegalArgumentException(e.getMessage());
-      }
+      return;
     }
+    if (query != null && q2 != null) {
+      resultingQuery = "(" + query + ") AND (" + q2 + ")";
+    } else if (query != null) {
+      resultingQuery = query;
+    } else {
+      resultingQuery = q2;
+    }
+    try {
+      log.debug("Parsing {}", resultingQuery);
+      cqlNodeRoot = parser.parse(resultingQuery);
+    } catch (CQLParseException | IOException e) {
+      throw new IllegalArgumentException(e.getMessage());
+    }
+  }
+
+  @Override
+  public void parse(String query) {
+    parse(query, null);
   }
 
   @Override
