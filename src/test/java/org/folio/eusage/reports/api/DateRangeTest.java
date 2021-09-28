@@ -82,5 +82,6 @@ public class DateRangeTest {
     Assert.assertEquals(12L, d.commonMonths(new DateRange("[2020-01-01,2021-01-01)")));
     Assert.assertEquals(0L, d.commonMonths(new DateRange("[2019-01-01,2020-01-01)")));
     Assert.assertEquals(0L, d.commonMonths(new DateRange("[2021-07-01,2021-08-01)")));
+    Assert.assertEquals(0L, d.commonMonths(new DateRange("[2017-01-01,2018-01-01)")));
   }
 }

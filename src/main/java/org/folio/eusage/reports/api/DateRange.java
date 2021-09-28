@@ -64,7 +64,8 @@ public class DateRange {
   static long commonMonths(DateRange a, DateRange b) {
     LocalDate commonStart = a.start.isAfter(b.start) ? a.start : b.start;
     LocalDate commonEnd = a.end.isAfter(b.end) ? b.end : a.end;
-    return Period.between(commonStart, commonEnd.plusDays(1)).toTotalMonths();
+    long d = Period.between(commonStart, commonEnd.plusDays(1)).toTotalMonths();
+    return d < 0L ? 0L : d;
   }
 
   long commonMonths(DateRange a) {
