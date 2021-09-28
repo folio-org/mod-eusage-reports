@@ -62,9 +62,8 @@ public class CostPerUse {
           usageDateRange.substring(1, 11)));
       int idx = usePeriods.getPeriodEntry(usageStart);
 
-      String accessType = row.getBoolean("openaccess") ? "OA_Gold" : "Controlled";
       String poLineNumber = row.getString("polinenumber");
-      String itemKey = kbId + "," + accessType + "," + poLineNumber;
+      String itemKey = kbId + "," + poLineNumber;
       JsonObject item = totalItems.get(itemKey);
       titlesByPeriod.get(idx).add(kbId);
       if (item == null) {
