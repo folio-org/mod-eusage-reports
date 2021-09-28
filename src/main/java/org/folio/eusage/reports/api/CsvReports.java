@@ -9,13 +9,17 @@ import java.text.DecimalFormat;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVPrinter;
 
-public class CsvReports {
+public final class CsvReports {
   static final CSVFormat CSV_FORMAT = CSVFormat.RFC4180;
 
   static DecimalFormat costDecimalFormat = new DecimalFormat("#.00");
 
   static Number formatCost(Double n) {
     return Double.parseDouble(costDecimalFormat.format(n));
+  }
+
+  private CsvReports() {
+    throw new UnsupportedOperationException("Cannot instantiate utility class");
   }
 
   static String getUseOverTime2Csv(
@@ -50,8 +54,6 @@ public class CsvReports {
     writer.print("Reporting period total");
     JsonArray accessCountPeriods = json.getJsonArray("accessCountPeriods");
     for (int i = 0; i < accessCountPeriods.size(); i++) {
-      // TODO .. If year  prefix with "Published "
-      // MMMM-DD should be converted to "MON-YYYY"
       writer.print(accessCountPeriods.getString(i));
     }
     writer.println();
@@ -174,7 +176,7 @@ public class CsvReports {
     for (int i = 0; i < items.size(); i++) {
       JsonObject item = items.getJsonObject(i);
       writer.print(item.getString("title"));
-      writer.print(item.getBoolean("derivedTitle") ? "Y" : "N");
+      writer.print(Boolean.TRUE.equals(item.getBoolean("derivedTitle")) ? "Y" : "N");
       writer.print(item.getString("printISSN"));
       writer.print(item.getString("onlineISSN"));
       writer.print(item.getString("ISBN"));
