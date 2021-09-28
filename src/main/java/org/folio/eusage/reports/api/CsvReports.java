@@ -101,16 +101,9 @@ public final class CsvReports {
     writer.print(null);
     writer.print(null);
     writer.print(json.getLong(lead + "ItemRequestsTotal"));
-    try {
-      Long[] totalItemRequestsPeriod = (Long[]) json.getValue(lead + "ItemRequestsByPeriod");
-      for (Long requestsPeriod : totalItemRequestsPeriod) {
-        writer.print(requestsPeriod);
-      }
-    } catch (ClassCastException e) {
-      JsonArray totalItemRequestsPeriod = json.getJsonArray(lead + "ItemRequestsByPeriod");
-      for (int i = 0; i < totalItemRequestsPeriod.size(); i++) {
-        writer.print(totalItemRequestsPeriod.getLong(i));
-      }
+    JsonArray totalItemRequestsPeriod = json.getJsonArray(lead + "ItemRequestsByPeriod");
+    for (int i = 0; i < totalItemRequestsPeriod.size(); i++) {
+      writer.print(totalItemRequestsPeriod.getLong(i));
     }
     writer.println();
   }
