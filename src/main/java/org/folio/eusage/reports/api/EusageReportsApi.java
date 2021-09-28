@@ -26,9 +26,6 @@ import io.vertx.sqlclient.RowSet;
 import io.vertx.sqlclient.RowStream;
 import io.vertx.sqlclient.SqlConnection;
 import io.vertx.sqlclient.Tuple;
-import java.io.IOException;
-import java.io.StringWriter;
-import java.io.UncheckedIOException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
@@ -40,8 +37,6 @@ import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
-import org.apache.commons.csv.CSVFormat;
-import org.apache.commons.csv.CSVPrinter;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.folio.okapi.common.GenericCompositeFuture;
@@ -57,8 +52,6 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
   private static final Logger log = LogManager.getLogger(EusageReportsApi.class);
 
   private WebClient webClient;
-
-  static final CSVFormat CSV_FORMAT = CSVFormat.RFC4180;
 
   static final String LIMIT_ALL = "?limit=2147483647";
 
@@ -1297,100 +1290,6 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
         });
   }
 
-  static void getUseTotalsCsv(JsonObject json, boolean groupByPublicationYear,
-      boolean periodOfUse, CSVPrinter writer, String lead) throws IOException {
-
-    writer.print("Totals - " + lead + " item requests");
-    writer.print(null);
-    writer.print(null);
-    writer.print(null);
-    if (periodOfUse) {
-      writer.print(null);
-    }
-    if (groupByPublicationYear) {
-      writer.print(null);
-    }
-    writer.print(null);
-    writer.print(null);
-    writer.print(json.getLong(lead + "ItemRequestsTotal"));
-    try {
-      Long[] totalItemRequestsPeriod = (Long[]) json.getValue(lead + "ItemRequestsByPeriod");
-      for (Long requestsPeriod : totalItemRequestsPeriod) {
-        writer.print(requestsPeriod);
-      }
-    } catch (ClassCastException e) {
-      JsonArray totalItemRequestsPeriod = json.getJsonArray(lead + "ItemRequestsByPeriod");
-      for (int i = 0; i < totalItemRequestsPeriod.size(); i++) {
-        writer.print(totalItemRequestsPeriod.getLong(i));
-      }
-    }
-    writer.println();
-  }
-
-  static String getUseOverTime2Csv(JsonObject json, boolean groupByPublicationYear,
-      boolean periodOfUse) {
-
-    StringWriter stringWriter = new StringWriter();
-    try {
-      CSVPrinter writer = new CSVPrinter(stringWriter, CSV_FORMAT);
-      getUseOverTime2Csv(json, groupByPublicationYear, periodOfUse, writer);
-    } catch (IOException e) {
-      throw new UncheckedIOException(e);
-    }
-    return stringWriter.toString();
-  }
-
-  static void getUseOverTime2Csv(JsonObject json, boolean groupByPublicationYear,
-      boolean periodOfUse, CSVPrinter writer) throws IOException {
-
-    writer.print("Title");
-    writer.print("Print ISSN");
-    writer.print("Online ISSN");
-    writer.print("ISBN");
-    if (periodOfUse) {
-      writer.print("Period of use");
-    }
-    if (groupByPublicationYear) {
-      writer.print("Year of publication");
-    }
-    writer.print("Access type");
-    writer.print("Metric Type");
-    writer.print("Reporting period total");
-    JsonArray accessCountPeriods = json.getJsonArray("accessCountPeriods");
-    for (int i = 0; i < accessCountPeriods.size(); i++) {
-      // TODO .. If year  prefix with "Published "
-      // MMMM-DD should be converted to "MON-YYYY"
-      writer.print(accessCountPeriods.getString(i));
-    }
-    writer.println();
-
-    getUseTotalsCsv(json, groupByPublicationYear, periodOfUse, writer, "total");
-    getUseTotalsCsv(json, groupByPublicationYear, periodOfUse, writer, "unique");
-
-    JsonArray items = json.getJsonArray("items");
-    for (int j = 0; j < items.size(); j++) {
-      JsonObject item = items.getJsonObject(j);
-      writer.print(item.getString("title"));
-      writer.print(item.getString("printISSN"));
-      writer.print(item.getString("onlineISSN"));
-      writer.print(item.getString("ISBN"));
-      if (groupByPublicationYear) {
-        writer.print(item.getString("publicationYear"));
-      }
-      if (periodOfUse) {
-        writer.print(item.getString("periodOfUse"));
-      }
-      writer.print(item.getString("accessType"));
-      writer.print(item.getString("metricType"));
-      writer.print(item.getLong("accessCountTotal"));
-      JsonArray accessCountsByPeriod = item.getJsonArray("accessCountsByPeriod");
-      for (int i = 0; i < accessCountsByPeriod.size(); i++) {
-        writer.print(accessCountsByPeriod.getLong(i));
-      }
-      writer.println();
-    }
-  }
-
   Boolean getJournalFromFormat(RoutingContext ctx, String def) {
     String format = ctx.request().params().get("format");
     if (format == null) {
@@ -1437,7 +1336,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
           if (!csv) {
             return json.encodePrettily();
           }
-          return getUseOverTime2Csv(json, false, false);
+          return CsvReports.getUseOverTime2Csv(json, false, false);
         });
   }
 
@@ -1460,7 +1359,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
           if (!csv) {
             return json.encodePrettily();
           }
-          return getUseOverTime2Csv(json, true, false);
+          return CsvReports.getUseOverTime2Csv(json, true, false);
         });
   }
 
@@ -1528,7 +1427,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
           if (!csv) {
             return json.encodePrettily();
           }
-          return getUseOverTime2Csv(json, false, true);
+          return CsvReports.getUseOverTime2Csv(json, false, true);
         });
   }
 
@@ -1586,17 +1485,6 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
         : " AND publicationType = 'monograph'";
   }
 
-  static String getCostPerUse2Csv(JsonObject json) {
-    StringWriter stringWriter = new StringWriter();
-    try {
-      CSVPrinter writer = new CSVPrinter(stringWriter, CSV_FORMAT);
-      CostPerUse.getCostPerUse2Csv(json, writer);
-    } catch (IOException e) {
-      throw new UncheckedIOException(e);
-    }
-    return stringWriter.toString();
-  }
-
   static Future<RowSet<Row>> getTitlesCost(TenantPgPool pool, Boolean isJournal, boolean includeOA,
       String agreementId, Periods usePeriods) {
 
@@ -1638,7 +1526,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
           if (!csv) {
             return json.encodePrettily();
           }
-          return getCostPerUse2Csv(json);
+          return CsvReports.getCostPerUse2Csv(json);
         });
   }
 
