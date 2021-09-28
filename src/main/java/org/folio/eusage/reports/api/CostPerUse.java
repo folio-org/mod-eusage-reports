@@ -152,17 +152,18 @@ public class CostPerUse {
       Number amountPaid = row.getNumeric("invoicedcost");
       if (amountPaid != null) {
         Double amount = allPeriodsMonths * amountPaid.doubleValue() / subscriptionMonths;
-        item.put("amountPaid", formatCost(amount / titlesDivide));
+        Double amountTitle = amount / titlesDivide;
+        item.put("amountPaid", formatCost(amountTitle));
         paidByPeriodMap.get(idx).putIfAbsent(paidId, thisPeriodMonths * amountPaid.doubleValue()
             / subscriptionMonths);
         amountPaidTotalMap.putIfAbsent(paidId, amount);
         Long totalItemRequests = item.getLong("totalItemRequests");
         if (totalItemRequests != null && totalItemRequests > 0L) {
-          item.put("costPerTotalRequest", formatCost(amount / totalItemRequests));
+          item.put("costPerTotalRequest", formatCost(amountTitle / totalItemRequests));
         }
         Long uniqueItemRequests = item.getLong("uniqueItemRequests");
         if (uniqueItemRequests != null && uniqueItemRequests > 0L) {
-          item.put("costPerUniqueRequest", formatCost(amount / uniqueItemRequests));
+          item.put("costPerUniqueRequest", formatCost(amountTitle / uniqueItemRequests));
         }
       }
       JsonArray poLineIDs = item.getJsonArray("poLineIDs");
