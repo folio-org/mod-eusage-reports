@@ -1262,7 +1262,10 @@ assertThat(json.getJsonArray("items").size(), is(4));
           assertThat(items.size(), is(2));
           assertThat(items.getJsonObject(0).getBoolean("derivedTitle"), is(true));
           assertThat(items.getJsonObject(1).getBoolean("derivedTitle"), is(true));
-          System.out.println(json.encodePrettily());
+          assertThat(items.getJsonObject(0).getDouble("costPerTotalRequest"), is(1.42));
+          assertThat(items.getJsonObject(1).getDouble("costPerTotalRequest"), is(2.64));
+          assertThat(items.getJsonObject(0).getDouble("costPerUniqueRequest"), is(4.47));
+          assertThat(items.getJsonObject(1).getDouble("costPerUniqueRequest"), is(4.15));
         }));
   }
 
