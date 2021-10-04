@@ -47,8 +47,6 @@ public class CostPerUse {
       UUID kbPackageId = row.getUUID("kbpackageid");
       String poLineNumber = row.getString("polinenumber");
       String orderType = row.getString("ordertype");
-      String subscriptionDateRange = row.getString("subscriptiondaterange");
-      String fiscalYearRange = row.getString("fiscalyearrange");
       String usageDateRange = row.getString("usagedaterange");
       String itemKey = kbId + "," + poLineNumber;
       JsonObject item = totalItems.get(itemKey);
@@ -97,12 +95,14 @@ public class CostPerUse {
       }
       // deal with fiscal year range first, and save the that date range
       DateRange subscriptionPeriod = null;
+      String fiscalYearRange = row.getString("fiscalyearrange");
       if (fiscalYearRange != null) {
         subscriptionPeriod = new DateRange(fiscalYearRange);
         item.put("fiscalDateStart", subscriptionPeriod.getStart());
         item.put("fiscalDateEnd", subscriptionPeriod.getEnd());
       }
       // consider subscription date range, Overrides subscription period if present
+      String subscriptionDateRange = row.getString("subscriptiondaterange");
       if (subscriptionDateRange != null) {
         subscriptionPeriod = new DateRange(subscriptionDateRange);
         item.put("subscriptionDateStart", subscriptionPeriod.getStart());
