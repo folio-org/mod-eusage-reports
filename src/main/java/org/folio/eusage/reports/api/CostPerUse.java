@@ -24,7 +24,6 @@ public class CostPerUse {
     JsonArray uniqueRequests = new JsonArray();
     List<Set<UUID>> titlesByPeriod = new ArrayList<>();
     Map<String,JsonObject> totalItems = new HashMap<>();
-    Set<UUID> kbIds = new TreeSet<>();
     List<Map<UUID,Double>> paidByPeriodMap = new ArrayList<>();
     for (int i = 0; i < usePeriods.size(); i++) {
       totalRequests.add(0L);
@@ -51,45 +50,6 @@ public class CostPerUse {
       String subscriptionDateRange = row.getString("subscriptiondaterange");
       String fiscalYearRange = row.getString("fiscalyearrange");
       String usageDateRange = row.getString("usagedaterange");
-      if (usageDateRange == null) {
-        if (kbIds.add(kbId)) {
-          JsonObject item = new JsonObject()
-              .put("kbId", kbId)
-              .put("title", row.getString("title"))
-              .put("derivedTitle", row.getUUID("kbpackageid") != null)
-              .put("orderType", orderType != null ? orderType : "Ongoing")
-              .put("poLineIDs", new JsonArray())
-              .put("invoiceNumbers", new JsonArray());
-
-          if (subscriptionDateRange != null) {
-            DateRange subscriptionPeriod = new DateRange(subscriptionDateRange);
-            item.put("subscriptionDateStart", subscriptionPeriod.getStart());
-            item.put("subscriptionDateEnd", subscriptionPeriod.getEnd());
-          }
-          if (fiscalYearRange != null) {
-            DateRange subscriptionPeriod = new DateRange(fiscalYearRange);
-            item.put("fiscalDateStart", subscriptionPeriod.getStart());
-            item.put("fiscalDateEnd", subscriptionPeriod.getEnd());
-          }
-          JsonArray poLineIDs = item.getJsonArray("poLineIDs");
-          if (poLineNumber != null) {
-            if (!poLineIDs.contains(poLineNumber)) {
-              poLineIDs.add(poLineNumber);
-            }
-          }
-          String invoiceNumber = row.getString("invoicenumber");
-          if (invoiceNumber != null) {
-            JsonArray invoiceNumbers = item.getJsonArray("invoiceNumbers");
-            if (!invoiceNumbers.contains(invoiceNumber)) {
-              invoiceNumbers.add(invoiceNumber);
-            }
-          }
-          items.add(item);
-        }
-        return;
-      }
-      kbIds.add(kbId);
-
       String itemKey = kbId + "," + poLineNumber;
       JsonObject item = totalItems.get(itemKey);
       if (item == null) {
@@ -115,16 +75,26 @@ public class CostPerUse {
 
         item.put("poLineIDs", new JsonArray());
         item.put("invoiceNumbers", new JsonArray());
-        item.put("amountPaid", 0.0);
-        item.put("amountEncumbered", 0.0);
-        item.put("totalItemRequests", 0L);
-        item.put("uniqueItemRequests", 0L);
+        if (usageDateRange != null) {
+          item.put("amountPaid", 0.0);
+          item.put("amountEncumbered", 0.0);
+          item.put("totalItemRequests", 0L);
+          item.put("uniqueItemRequests", 0L);
+        }
       }
-      LocalDate usageStart = usePeriods.floorMonths(LocalDate.parse(
-          usageDateRange.substring(1, 11)));
-      int idx = usePeriods.getPeriodEntry(usageStart);
-      titlesByPeriod.get(idx).add(kbId);
-
+      JsonArray poLineIDs = item.getJsonArray("poLineIDs");
+      if (poLineNumber != null) {
+        if (!poLineIDs.contains(poLineNumber)) {
+          poLineIDs.add(poLineNumber);
+        }
+      }
+      String invoiceNumber = row.getString("invoicenumber");
+      if (invoiceNumber != null) {
+        JsonArray invoiceNumbers = item.getJsonArray("invoiceNumbers");
+        if (!invoiceNumbers.contains(invoiceNumber)) {
+          invoiceNumbers.add(invoiceNumber);
+        }
+      }
       // deal with fiscal year range first, and save the that date range
       DateRange subscriptionPeriod = null;
       if (fiscalYearRange != null) {
@@ -142,6 +112,14 @@ public class CostPerUse {
         // neither fiscal, nor subscription dates (shouldn't happen)
         return;
       }
+      if (usageDateRange == null) {
+        return;
+      }
+      LocalDate usageStart = usePeriods.floorMonths(LocalDate.parse(
+          usageDateRange.substring(1, 11)));
+      int idx = usePeriods.getPeriodEntry(usageStart);
+      titlesByPeriod.get(idx).add(kbId);
+
       // number of months in this period
       long thisPeriodMonths = subscriptionPeriod.commonMonths(
           new DateRange(usageStart, usageStart.plusMonths(usePeriods.getMonths())));
@@ -186,19 +164,6 @@ public class CostPerUse {
         Long uniqueItemRequests = item.getLong("uniqueItemRequests");
         if (uniqueItemRequests != null && uniqueItemRequests > 0L) {
           item.put("costPerUniqueRequest", CsvReports.formatCost(amountTitle / uniqueItemRequests));
-        }
-      }
-      JsonArray poLineIDs = item.getJsonArray("poLineIDs");
-      if (poLineNumber != null) {
-        if (!poLineIDs.contains(poLineNumber)) {
-          poLineIDs.add(poLineNumber);
-        }
-      }
-      String invoiceNumber = row.getString("invoicenumber");
-      if (invoiceNumber != null) {
-        JsonArray invoiceNumbers = item.getJsonArray("invoiceNumbers");
-        if (!invoiceNumbers.contains(invoiceNumber)) {
-          invoiceNumbers.add(invoiceNumber);
         }
       }
     });
