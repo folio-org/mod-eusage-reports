@@ -108,11 +108,9 @@ public class CostPerUse {
         item.put("subscriptionDateStart", subscriptionPeriod.getStart());
         item.put("subscriptionDateEnd", subscriptionPeriod.getEnd());
       }
-      if (subscriptionPeriod == null) {
+      if (subscriptionPeriod == null || usageDateRange == null) {
         // neither fiscal, nor subscription dates (shouldn't happen)
-        return;
-      }
-      if (usageDateRange == null) {
+        // or no counter report data
         return;
       }
       LocalDate usageStart = usePeriods.floorMonths(LocalDate.parse(
