@@ -114,9 +114,11 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     int count = 0;
     JsonArray facetArray = new JsonArray();
     if (rowSet != null) {
-      RowIterator<Row> iterator = rowSet.iterator();
-      count = iterator.next().getInteger(0);
+      int pos = 0;
+      Row row = rowSet.iterator().next();
+      count = row.getInteger(pos);
       for (String [] facetEntry : facets) {
+        pos++;
         JsonObject facetObj = null;
         final String facetType = facetEntry[0];
         final String facetValue = facetEntry[1];
@@ -136,7 +138,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
         JsonArray facetValues = facetObj.getJsonArray("facetValues");
         facetValues.add(new JsonObject()
             .put("value", facetValue)
-            .put("count",iterator.next().getInteger(0)));
+            .put("count", row.getInteger(pos)));
       }
     }
     resultInfo.put("totalRecords", count);
@@ -203,13 +205,15 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     String query = "SELECT " + (distinct != null ? "DISTINCT ON (" + distinct + ")" : "")
         + " * FROM " + fromList.get(0) + " LIMIT " + limit + " OFFSET " + offset;
     log.info("query={}", query);
-    StringBuilder countQuery = new StringBuilder();
+    StringBuilder countQuery = new StringBuilder("SELECT");
+    int pos = 0;
     for (String from : fromList) {
-      if (countQuery.length() > 0) {
-        countQuery.append(" UNION ALL ");
+      if (pos > 0) {
+        countQuery.append(",\n");
       }
-      countQuery.append("SELECT COUNT(" + (distinct != null ? "DISTINCT " + distinct : "*")
-          + ") FROM " + from);
+      countQuery.append("(SELECT COUNT(" + (distinct != null ? "DISTINCT " + distinct : "*")
+          + ") FROM " + from + ") AS cnt" + pos);
+      pos++;
     }
     log.info("cnt={}", countQuery.toString());
     return pool.getConnection()
