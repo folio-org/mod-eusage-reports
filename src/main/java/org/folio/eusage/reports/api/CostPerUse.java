@@ -46,26 +46,52 @@ public class CostPerUse {
       log.info("costPerUse row: {}", () -> row.deepToString());
       UUID kbId = row.getUUID("kbid");
       UUID kbPackageId = row.getUUID("kbpackageid");
+      String poLineNumber = row.getString("polinenumber");
+      String orderType = row.getString("ordertype");
+      String subscriptionDateRange = row.getString("subscriptiondaterange");
+      String fiscalYearRange = row.getString("fiscalyearrange");
       String usageDateRange = row.getString("usagedaterange");
       if (usageDateRange == null) {
         if (kbIds.add(kbId)) {
           JsonObject item = new JsonObject()
               .put("kbId", kbId)
               .put("title", row.getString("title"))
-              .put("derivedTitle", row.getUUID("kbpackageid") != null);
+              .put("derivedTitle", row.getUUID("kbpackageid") != null)
+              .put("orderType", orderType != null ? orderType : "Ongoing")
+              .put("poLineIDs", new JsonArray())
+              .put("invoiceNumbers", new JsonArray());
+
+          if (subscriptionDateRange != null) {
+            DateRange subscriptionPeriod = new DateRange(subscriptionDateRange);
+            item.put("subscriptionDateStart", subscriptionPeriod.getStart());
+            item.put("subscriptionDateEnd", subscriptionPeriod.getEnd());
+          }
+          if (fiscalYearRange != null) {
+            DateRange subscriptionPeriod = new DateRange(fiscalYearRange);
+            item.put("fiscalDateStart", subscriptionPeriod.getStart());
+            item.put("fiscalDateEnd", subscriptionPeriod.getEnd());
+          }
+          JsonArray poLineIDs = item.getJsonArray("poLineIDs");
+          if (poLineNumber != null) {
+            if (!poLineIDs.contains(poLineNumber)) {
+              poLineIDs.add(poLineNumber);
+            }
+          }
+          String invoiceNumber = row.getString("invoicenumber");
+          if (invoiceNumber != null) {
+            JsonArray invoiceNumbers = item.getJsonArray("invoiceNumbers");
+            if (!invoiceNumbers.contains(invoiceNumber)) {
+              invoiceNumbers.add(invoiceNumber);
+            }
+          }
           items.add(item);
         }
         return;
       }
       kbIds.add(kbId);
-      LocalDate usageStart = usePeriods.floorMonths(LocalDate.parse(
-          usageDateRange.substring(1, 11)));
-      int idx = usePeriods.getPeriodEntry(usageStart);
 
-      String poLineNumber = row.getString("polinenumber");
       String itemKey = kbId + "," + poLineNumber;
       JsonObject item = totalItems.get(itemKey);
-      titlesByPeriod.get(idx).add(kbId);
       if (item == null) {
         item = new JsonObject();
         totalItems.put(itemKey, item);
@@ -85,7 +111,6 @@ public class CostPerUse {
         if (isbn != null) {
           item.put("ISBN", isbn);
         }
-        String orderType = row.getString("ordertype");
         item.put("orderType", orderType != null ? orderType : "Ongoing");
 
         item.put("poLineIDs", new JsonArray());
@@ -95,8 +120,12 @@ public class CostPerUse {
         item.put("totalItemRequests", 0L);
         item.put("uniqueItemRequests", 0L);
       }
+      LocalDate usageStart = usePeriods.floorMonths(LocalDate.parse(
+          usageDateRange.substring(1, 11)));
+      int idx = usePeriods.getPeriodEntry(usageStart);
+      titlesByPeriod.get(idx).add(kbId);
+
       // deal with fiscal year range first, and save the that date range
-      String fiscalYearRange = row.getString("fiscalyearrange");
       DateRange subscriptionPeriod = null;
       if (fiscalYearRange != null) {
         subscriptionPeriod = new DateRange(fiscalYearRange);
@@ -104,7 +133,6 @@ public class CostPerUse {
         item.put("fiscalDateEnd", subscriptionPeriod.getEnd());
       }
       // consider subscription date range, Overrides subscription period if present
-      String subscriptionDateRange = row.getString("subscriptiondaterange");
       if (subscriptionDateRange != null) {
         subscriptionPeriod = new DateRange(subscriptionDateRange);
         item.put("subscriptionDateStart", subscriptionPeriod.getStart());

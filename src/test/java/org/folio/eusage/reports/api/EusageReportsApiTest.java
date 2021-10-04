@@ -1380,10 +1380,11 @@ assertThat(json.getJsonArray("items").size(), is(4));
             context.assertEquals("ISBN", header.get(4));
             context.assertEquals("Order type", header.get(5));
             context.assertEquals("Totals", totals.get(0));
-            context.assertEquals(5, records.size());
+            context.assertEquals(6, records.size());
             context.assertEquals("Title 21", records.get(2).get(0));
-            context.assertEquals("Title 31", records.get(3).get(0));
-            context.assertEquals("Title 32", records.get(4).get(0));
+            context.assertEquals("Title 22", records.get(3).get(0));
+            context.assertEquals("Title 31", records.get(4).get(0));
+            context.assertEquals("Title 32", records.get(5).get(0));
             context.assertEquals("Purchase order line", header.get(6));
             context.assertEquals("p2", records.get(2).get(6));
             context.assertEquals("p2", records.get(3).get(6));
@@ -1393,13 +1394,13 @@ assertThat(json.getJsonArray("items").size(), is(4));
             context.assertEquals("Cost per request - total", header.get(16));
             context.assertEquals("1.25", totals.get(16));
             context.assertEquals("0.83", records.get(2).get(16));
-            context.assertEquals("0.88", records.get(3).get(16));
-            context.assertEquals("17.5", records.get(4).get(16));
+            context.assertEquals("0.88", records.get(4).get(16));
+            context.assertEquals("17.5", records.get(5).get(16));
             context.assertEquals("Cost per request - unique", header.get(17));
             context.assertEquals("2.5", totals.get(17));
             context.assertEquals("1.67", records.get(2).get(17));
-            context.assertEquals("1.75", records.get(3).get(17));
-            context.assertEquals("35.0", records.get(4).get(17));
+            context.assertEquals("1.75", records.get(4).get(17));
+            context.assertEquals("35.0", records.get(5).get(17));
           } catch (IOException e) {
             context.fail(e);
           }
@@ -1468,14 +1469,61 @@ assertThat(json.getJsonArray("items").size(), is(4));
             context.assertEquals("Online ISSN", header.get(3));
             context.assertEquals("ISBN", header.get(4));
             context.assertEquals("Order type", header.get(5));
-            context.assertEquals(3, records.size());
+            context.assertEquals(4, records.size());
             context.assertEquals("Title 21", records.get(2).get(0));
             context.assertEquals("42", records.get(2).get(14));
             context.assertEquals("21", records.get(2).get(15));
+            context.assertEquals("Title 22", records.get(3).get(0));
+            context.assertEquals("", records.get(3).get(14));
+            context.assertEquals("", records.get(3).get(15));
             context.assertEquals("Cost per request - total", header.get(16));
           } catch (IOException e) {
             context.fail(e);
           }
+        }));
+  }
+
+  @Test
+  public void costPerUseFormatJournalJson(TestContext context) {
+    RoutingContext routingContext = mock(RoutingContext.class, RETURNS_DEEP_STUBS);
+    when(routingContext.request().getHeader("X-Okapi-Tenant")).thenReturn(tenant);
+    when(routingContext.request().params().get("agreementId")).thenReturn(a2);
+    when(routingContext.request().params().get("format")).thenReturn("JOURNAL");
+    when(routingContext.request().params().get("startDate")).thenReturn("2020-05");
+    when(routingContext.request().params().get("endDate")).thenReturn("2020-06");
+    when(routingContext.request().params().get("includeOA")).thenReturn("true");
+    new EusageReportsApi().getCostPerUse(vertx, routingContext)
+        .onComplete(context.asyncAssertSuccess(x -> {
+          ArgumentCaptor<String> body = ArgumentCaptor.forClass(String.class);
+          verify(routingContext.response()).end(body.capture());
+          JsonObject json = new JsonObject(body.getValue());
+          assertThat((List<?>) json.getJsonArray("accessCountPeriods").getList(),
+              contains("2020-05", "2020-06"));
+          assertThat((List<?>) json.getJsonArray("titleCountByPeriod").getList(),
+              contains(1, 1));
+          assertThat((List<?>) json.getJsonArray("totalItemCostsPerRequestsByPeriod").getList(),
+              contains(0.44, 8.75));
+          assertThat((List<?>) json.getJsonArray("uniqueItemCostsPerRequestsByPeriod").getList(),
+              contains(0.88, 17.5));
+          assertThat(json.getDouble("amountPaidTotal"), is(35.0));
+          assertThat(json.getDouble("amountEncumberedTotal"), is(33.33));
+          assertThat(json.getJsonArray("items").size(), is(2));
+          assertThat(json.getJsonArray("items").getJsonObject(0).getString("kbId"), is(t21));
+          assertThat(json.getJsonArray("items").getJsonObject(0).getJsonArray("poLineIDs"), is(new JsonArray().add("p2")));
+          assertThat(json.getJsonArray("items").getJsonObject(0).getJsonArray("invoiceNumbers"), is(new JsonArray().add("i2")));
+          assertThat(json.getJsonArray("items").getJsonObject(0).getString("fiscalDateStart"), is("2020-01-01"));
+          assertThat(json.getJsonArray("items").getJsonObject(0).getString("fiscalDateEnd"), is("2020-12-31"));
+          assertThat(json.getJsonArray("items").getJsonObject(0).getLong("totalItemRequests"), is(42L));
+          assertThat(json.getJsonArray("items").getJsonObject(0).getLong("uniqueItemRequests"), is(21L));
+          assertThat(json.getJsonArray("items").getJsonObject(0).getDouble("amountEncumbered"), is(33.33));
+          assertThat(json.getJsonArray("items").getJsonObject(0).getDouble("amountPaid"), is(35.0));
+          assertThat(json.getJsonArray("items").getJsonObject(0).getDouble("costPerTotalRequest"), is(0.83));
+          assertThat(json.getJsonArray("items").getJsonObject(0).getDouble("costPerUniqueRequest"), is(1.67));
+          assertThat(json.getJsonArray("items").getJsonObject(1).getString("kbId"), is(t22));
+          assertThat(json.getJsonArray("items").getJsonObject(1).getJsonArray("poLineIDs"), is(new JsonArray().add("p2")));
+          assertThat(json.getJsonArray("items").getJsonObject(1).getJsonArray("invoiceNumbers"), is(new JsonArray().add("i2")));
+          assertThat(json.getJsonArray("items").getJsonObject(1).getString("fiscalDateStart"), is("2020-01-01"));
+          assertThat(json.getJsonArray("items").getJsonObject(1).getString("fiscalDateEnd"), is("2020-12-31"));
         }));
   }
 
