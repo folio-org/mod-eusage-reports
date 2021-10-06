@@ -1392,12 +1392,12 @@ assertThat(json.getJsonArray("items").size(), is(4));
             context.assertEquals("i2", records.get(2).get(7));
             context.assertEquals("i2", records.get(3).get(7));
             context.assertEquals("Cost per request - total", header.get(16));
-            context.assertEquals("1.25", totals.get(16));
+            context.assertEquals("1.67", totals.get(16));
             context.assertEquals("0.83", records.get(2).get(16));
             context.assertEquals("0.88", records.get(4).get(16));
             context.assertEquals("17.5", records.get(5).get(16));
             context.assertEquals("Cost per request - unique", header.get(17));
-            context.assertEquals("2.5", totals.get(17));
+            context.assertEquals("3.33", totals.get(17));
             context.assertEquals("1.67", records.get(2).get(17));
             context.assertEquals("1.75", records.get(4).get(17));
             context.assertEquals("35.0", records.get(5).get(17));
@@ -1505,8 +1505,8 @@ assertThat(json.getJsonArray("items").size(), is(4));
               contains(0.44, 8.75));
           assertThat((List<?>) json.getJsonArray("uniqueItemCostsPerRequestsByPeriod").getList(),
               contains(0.88, 17.5));
-          assertThat(json.getDouble("amountPaidTotal"), is(35.0));
-          assertThat(json.getDouble("amountEncumberedTotal"), is(33.33));
+          assertThat(json.getDouble("amountPaidTotal"), is(70.0));
+          assertThat(json.getDouble("amountEncumberedTotal"), is(66.67));
           assertThat(json.getJsonArray("items").size(), is(2));
           assertThat(json.getJsonArray("items").getJsonObject(0).getString("kbId"), is(t21));
           assertThat(json.getJsonArray("items").getJsonObject(0).getJsonArray("poLineIDs"), is(new JsonArray().add("p2")));
@@ -1524,6 +1524,8 @@ assertThat(json.getJsonArray("items").size(), is(4));
           assertThat(json.getJsonArray("items").getJsonObject(1).getJsonArray("invoiceNumbers"), is(new JsonArray().add("i2")));
           assertThat(json.getJsonArray("items").getJsonObject(1).getString("fiscalDateStart"), is("2020-01-01"));
           assertThat(json.getJsonArray("items").getJsonObject(1).getString("fiscalDateEnd"), is("2020-12-31"));
+          assertThat(json.getJsonArray("items").getJsonObject(1).getDouble("amountEncumbered"), is(33.33));
+          assertThat(json.getJsonArray("items").getJsonObject(1).getDouble("amountPaid"), is(35.0));
         }));
   }
 
