@@ -241,19 +241,19 @@ public class EusageReportsApiTest {
         .compose(x -> insertAgreement(a2, t22, null)) // dup
         .compose(x -> insertAgreement(a2, t31, null)) // dup
         .compose(x -> insertAgreement(a2, t32, null)) // dup
-       .compose(x -> updateAgreement(a2, "orderType = 'One-Time', poLineNumber = '[\"p2\"]', invoiceNumber = '[\"i2\"]',"
+       .compose(x -> updateAgreement(a2, "orderType = 'One-Time', poLineNumber = 'p2', invoiceNumber = '[\"i2\"]',"
             + " fiscalYearRange='[2020-01-01,2021-01-01)',"
             + " coverageDateRanges='[1998-01-01,2021-01-01]',"
             + " encumberedCost = 200, invoicedCost = 210"
         ))
         .compose(x -> insertAgreement(a3, null, p11))
-        .compose(x -> updateAgreement(a3, "orderType = 'Ongoing', poLineNumber = '[\"p3\"]', invoiceNumber = '[\"i3\"]',"
+        .compose(x -> updateAgreement(a3, "orderType = 'Ongoing', poLineNumber = 'p3', invoiceNumber = '[\"i3\"]',"
             + " subscriptionDateRange = '[2020-03-03, 2021-01-15]', fiscalYearRange='[2020-01-01,2021-01-01)',"
             + " coverageDateRanges='[1998-01-01,2021-01-01]',"
             + " encumberedCost = 300, invoicedCost = 310"
         ))
         .compose(x -> insertAgreement(a4, null, p11))
-        .compose(x -> updateAgreement(a4, "orderType = 'Ongoing', poLineNumber = '[\"p3\"]', invoiceNumber = '[\"i3\"]',"
+        .compose(x -> updateAgreement(a4, "orderType = 'Ongoing', poLineNumber = 'p3', invoiceNumber = '[\"i3\"]',"
             + " subscriptionDateRange = '[2020-05-01, 2021-01-01]',"
             + " coverageDateRanges='[1998-01-01,2021-01-01]',"
             + " encumberedCost = 300, invoicedCost = 310"

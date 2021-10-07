@@ -943,7 +943,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
             .put("coverageDateRanges", row.getString("coveragedateranges"))
             .put("orderType", row.getString("ordertype"))
             .put("invoiceNumber", new JsonArray(row.getString("invoicenumber")))
-            .put("poLineNumber", new JsonArray(row.getString("polinenumber")))
+            .put("poLineNumber", row.getString("polinenumber"))
     );
   }
 
@@ -1082,11 +1082,9 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     result.put("invoicedCost", 0.0);
     JsonArray invoiceNumbers = new JsonArray();
     result.put("invoiceNumber", invoiceNumbers);
-    JsonArray poLineNumbers = new JsonArray();
-    result.put("poLineNumber", poLineNumbers);
     UUID poLineId = UUID.fromString(poLine.getString("poLineId"));
     Future<Void> future = lookupOrderLine(poLineId, ctx).compose(orderLine -> {
-      poLineNumbers.add(orderLine.getString("poLineNumber"));
+      result.put("poLineNumber", orderLine.getString("poLineNumber"));
       JsonObject cost = orderLine.getJsonObject("cost");
       result.put("currency", cost.getString("currency"));
       result.put("encumberedCost",
@@ -1200,7 +1198,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
               Number invoicedCost = poResult.getDouble("invoicedCost");
               String subScriptionDateRange = poResult.getString("subscriptionDateRange");
               String fiscalYearRange = poResult.getString("fiscalYear");
-              String poLineNumber = poResult.getJsonArray("poLineNumber").encode();
+              String poLineNumber = poResult.getString("poLineNumber");
               return con.preparedQuery("INSERT INTO " + agreementEntriesTable(pool)
                       + "(id, kbTitleId, kbPackageId, type,"
                       + " agreementId, agreementLineId, poLineId, encumberedCost, invoicedCost,"

@@ -92,7 +92,12 @@ public class CostPerUse {
           item.put("uniqueItemRequests", 0L);
         }
       }
-      mergeAr(poLineNumber, item.getJsonArray("poLineIDs"));
+      JsonArray poLineIDs = item.getJsonArray("poLineIDs");
+      if (poLineNumber != null) {
+        if (!poLineIDs.contains(poLineNumber)) {
+          poLineIDs.add(poLineNumber);
+        }
+      }
       mergeAr(row.getString("invoicenumber"), item.getJsonArray("invoiceNumbers"));
 
       // deal with fiscal year range first, and save the that date range

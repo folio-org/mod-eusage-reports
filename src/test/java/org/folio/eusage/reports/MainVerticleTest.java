@@ -1576,7 +1576,7 @@ public class MainVerticleTest {
         JsonArray invoiceNumber = item.getJsonArray("invoiceNumber");
         context.assertEquals("Ongoing".equals(item.getString("orderType")), "1".equals(invoiceNumber.getString(0)));
         context.assertEquals("One-Time".equals(item.getString("orderType")), "0".equals(invoiceNumber.getString(0)));
-        context.assertEquals(POLINE_NUMBER_SAMPLE, item.getJsonArray("poLineNumber").getString(0));
+        context.assertEquals(POLINE_NUMBER_SAMPLE, item.getString("poLineNumber"));
       }
     }
     context.assertEquals(1, noPackages);
