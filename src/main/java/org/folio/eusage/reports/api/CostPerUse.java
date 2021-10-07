@@ -108,6 +108,9 @@ public class CostPerUse {
         item.put("subscriptionDateStart", subscriptionPeriod.getStart());
         item.put("subscriptionDateEnd", subscriptionPeriod.getEnd());
       }
+      if (subscriptionPeriod == null) {
+        return;
+      }
       // number of months for subscription
       long allPeriodsMonths = subscriptionPeriod.commonMonths(
           new DateRange(usePeriods.startDate, usePeriods.endDate));
