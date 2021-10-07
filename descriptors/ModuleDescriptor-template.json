@@ -83,7 +83,8 @@
             "invoice-storage.invoice-lines.item.get",
             "finance-storage.funds.item.get",
             "finance-storage.ledgers.item.get",
-            "finance-storage.fiscal-years.item.get"
+            "finance-storage.fiscal-years.item.get",
+            "finance-storage.budgets.collections.get"
           ]
         },
         {

@@ -618,9 +618,6 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
   Future<Void> createPackageFromAgreement(TenantPgPool pool, SqlConnection con, UUID kbPackageId,
       String kbPackageName, RoutingContext ctx) {
 
-    if (kbPackageId == null) {
-      return Future.succeededFuture();
-    }
     return ermPackageContentLookup(ctx, kbPackageId)
         .compose(list -> {
           Future<Void> future = con.preparedQuery("DELETE FROM " + packageEntriesTable(pool)
@@ -791,8 +788,10 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
   Future<HttpResponse<Buffer>> getRequestSend(RoutingContext ctx, String uri, int other) {
     return getRequest(ctx, uri).send().map(res -> {
       if (res.statusCode() != 200 && res.statusCode() != other) {
+        log.error("GET {} returned status code {}: {}", uri, res.statusCode(), res.bodyAsString());
         throw new RuntimeException("GET " + uri + " returned status code " + res.statusCode());
       }
+      log.info("{}", res.bodyAsString());
       return res;
     });
   }
@@ -943,8 +942,8 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
             .put("subscriptionDateRange", row.getString("subscriptiondaterange"))
             .put("coverageDateRanges", row.getString("coveragedateranges"))
             .put("orderType", row.getString("ordertype"))
-            .put("invoiceNumber", row.getString("invoicenumber"))
-            .put("poLineNumber", row.getString("polinenumber"))
+            .put("invoiceNumber", new JsonArray(row.getString("invoicenumber")))
+            .put("poLineNumber", new JsonArray(row.getString("polinenumber")))
     );
   }
 
@@ -1022,31 +1021,13 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
   }
 
   /**
-   * Fetch fund by ID.
-   * @see <a
-   * href="https://github.com/folio-org/acq-models/blob/master/mod-finance/schemas/fund.json">
-   * fund schema</a>
-   * @param fundId fund UUID.
-   * @param ctx Routing Context.
-   * @return Fund object.
+   * Fetch budgets tied to fund.
+   * @param fundId fund identifier.
+   * @param ctx routing context.
+   * @return budget collection.
    */
-  Future<JsonObject> lookupFund(UUID fundId, RoutingContext ctx) {
-    String uri = "/finance-storage/funds/" + fundId;
-    return getRequestSend(ctx, uri)
-        .map(HttpResponse::bodyAsJsonObject);
-  }
-
-  /**
-   * Fetch ledger by ID.
-   * @see <a
-   * href="https://github.com/folio-org/acq-models/blob/master/mod-finance/schemas/ledger.json">
-   * ledger schema</a>
-   * @param ledgerId ledger UUID.
-   * @param ctx Routing Context.
-   * @return Ledger object.
-   */
-  Future<JsonObject> lookupLedger(UUID ledgerId, RoutingContext ctx) {
-    String uri = "/finance-storage/ledgers/" + ledgerId;
+  Future<JsonObject> lookupBudgets(UUID fundId, RoutingContext ctx) {
+    String uri = "/finance-storage/budgets" + LIMIT_ALL + "&query=fundId%3D%3D" + fundId;
     return getRequestSend(ctx, uri)
         .map(HttpResponse::bodyAsJsonObject);
   }
@@ -1075,72 +1056,68 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     for (int i = 0; i < fundDistribution.size(); i++) {
       // fundId is a required property
       UUID fundId = UUID.fromString(fundDistribution.getJsonObject(i).getString("fundId"));
-      future = future.compose(x -> lookupFund(fundId, ctx).compose(fund -> {
-        // fundStatus not checked. Should we ignore if Inactive?
-        // ledgerId is a required property
-        UUID ledgerId = UUID.fromString(fund.getString("ledgerId"));
-        return lookupLedger(ledgerId, ctx).compose(ledger -> {
-          // fiscalYearOneId is a required property
-          UUID fiscalYearId = UUID.fromString(ledger.getString("fiscalYearOneId"));
-          return lookupFiscalYear(fiscalYearId, ctx).compose(fiscalYear -> {
+      future = future.compose(x -> lookupBudgets(fundId, ctx)).compose(budgetCollection -> {
+        Future<Void> future1 = Future.succeededFuture();
+        JsonArray budgets = budgetCollection.getJsonArray("budgets");
+        for (int j = 0; j < budgetCollection.size(); j++) {
+          JsonObject budget = budgets.getJsonObject(j);
+          // fiscalYearId is a required property
+          UUID fiscalYearId = UUID.fromString(budget.getString("fiscalYearId"));
+          future1 = future1.compose(x -> lookupFiscalYear(fiscalYearId, ctx).map(fiscalYear -> {
             // TODO: determine what happens for multiple fiscalYear
             // periodStart, periodEnd are required properties
             result.put("fiscalYear", getRange(fiscalYear, "periodStart", "periodEnd"));
-            return Future.succeededFuture();
-          });
-        });
-      }));
+            return null;
+          }));
+        }
+        return future1;
+      });
     }
     return future;
   }
 
-  Future<JsonObject> parsePoLines(JsonArray poLinesAr, RoutingContext ctx) {
-    List<Future<Void>> futures = new ArrayList<>();
-
+  Future<JsonObject> parsePoLine(JsonObject poLine, RoutingContext ctx) {
     JsonObject result = new JsonObject();
     result.put("encumberedCost", 0.0);
     result.put("invoicedCost", 0.0);
-    for (int i = 0; i < poLinesAr.size(); i++) {
-      UUID poLineId = UUID.fromString(poLinesAr.getJsonObject(i).getString("poLineId"));
-      futures.add(lookupOrderLine(poLineId, ctx).compose(poLine -> {
-        result.put("poLineNumber", poLine.getString("poLineNumber"));
-        JsonObject cost = poLine.getJsonObject("cost");
-        String currency = result.getString("currency");
-        String newCurrency = cost.getString("currency");
-        if (currency != null && !currency.equals(newCurrency)) {
-          return Future.failedFuture("Mixed currencies (" + currency + ", " + newCurrency
-              + ") in order lines " + poLinesAr.encode());
+    JsonArray invoiceNumbers = new JsonArray();
+    result.put("invoiceNumber", invoiceNumbers);
+    JsonArray poLineNumbers = new JsonArray();
+    result.put("poLineNumber", poLineNumbers);
+    UUID poLineId = UUID.fromString(poLine.getString("poLineId"));
+    Future<Void> future = lookupOrderLine(poLineId, ctx).compose(orderLine -> {
+      poLineNumbers.add(orderLine.getString("poLineNumber"));
+      JsonObject cost = orderLine.getJsonObject("cost");
+      result.put("currency", cost.getString("currency"));
+      result.put("encumberedCost",
+          result.getDouble("encumberedCost") + cost.getDouble("listUnitPriceElectronic"));
+      return getFiscalYear(orderLine, ctx, result)
+          .compose(x -> getOrderType(orderLine, ctx, result));
+    });
+    future = future.compose(a -> lookupInvoiceLines(poLineId, ctx).compose(invoiceResponse -> {
+      JsonArray invoices = invoiceResponse.getJsonArray("invoiceLines");
+      log.info("AD: invoices {}", invoices.size());
+      for (int j = 0; j < invoices.size(); j++) {
+        JsonObject invoiceLine = invoices.getJsonObject(j);
+        String invoiceNumber = invoiceLine.getString("invoiceLineNumber");
+        if (invoiceNumber != null) {
+          invoiceNumbers.add(invoiceNumber);
         }
-        result.put("currency", newCurrency);
-        result.put("encumberedCost",
-            result.getDouble("encumberedCost") + cost.getDouble("listUnitPriceElectronic"));
-        return getFiscalYear(poLine, ctx, result)
-            .compose(x -> getOrderType(poLine, ctx, result));
-      }));
-      futures.add(lookupInvoiceLines(poLineId, ctx).compose(invoiceResponse -> {
-        JsonArray invoices = invoiceResponse.getJsonArray("invoiceLines");
-        log.info("AD: invoices {}", invoices.size());
-        for (int j = 0; j < invoices.size(); j++) {
-          JsonObject invoiceLine = invoices.getJsonObject(j);
-          String invoiceNumber = invoiceLine.getString("invoiceLineNumber");
-          if (invoiceNumber != null) {
-            result.put("invoiceNumber", invoiceNumber);
-          }
-          Double thisTotal = invoiceLine.getDouble("total");
-          if (thisTotal != null) {
-            result.put("invoicedCost", thisTotal + result.getDouble("invoicedCost"));
-          }
+        Double thisTotal = invoiceLine.getDouble("total");
+        if (thisTotal != null) {
+          result.put("invoicedCost", thisTotal + result.getDouble("invoicedCost"));
         }
-        result.put("subscriptionDateRange", getRanges(invoices,
-            "subscriptionStart", "subscriptionEnd"));
-        return Future.succeededFuture();
-      }));
-      // https://github.com/folio-org/acq-models/blob/master/mod-finance/schemas/fiscal_year.json
-      // https://github.com/folio-org/acq-models/blob/master/mod-finance/schemas/ledger.json
-      // https://github.com/folio-org/acq-models/blob/master/mod-finance/schemas/fund.json
-      // poline -> fund -> ledger -> fiscal_year
-    }
-    return GenericCompositeFuture.all(futures).map(result);
+      }
+      result.put("subscriptionDateRange", getRanges(invoices,
+          "subscriptionStart", "subscriptionEnd"));
+      return Future.succeededFuture();
+    }));
+    // https://github.com/folio-org/acq-models/blob/master/mod-finance/schemas/fiscal_year.json
+    // https://github.com/folio-org/acq-models/blob/master/mod-finance/schemas/ledger.json
+    // https://github.com/folio-org/acq-models/blob/master/mod-finance/schemas/budget.json
+    // https://github.com/folio-org/acq-models/blob/master/mod-finance/schemas/fund.json
+    // poline -> fund -> ledger -> fiscal_year
+    return future.map(result);
   }
 
   static String getRange(JsonObject o, String startProp, String endProp) {
@@ -1177,9 +1154,6 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
       JsonObject agreementLine, UUID agreementId, RoutingContext ctx) {
 
     try {
-      JsonArray poLines = agreementLine.getJsonArray("poLines");
-      UUID poLineId = poLines.isEmpty()
-          ? null : UUID.fromString(poLines.getJsonObject(0).getString("poLineId"));
       final UUID agreementLineId = UUID.fromString(agreementLine.getString("id"));
       JsonObject resourceObject = agreementLine.getJsonObject("resource");
       JsonObject underScoreObject = resourceObject.getJsonObject("_object");
@@ -1199,30 +1173,48 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
           ? UUID.fromString(resourceObject.getString("id")) : null;
       String kbPackageName = titleInstance == null
           ? resourceObject.getString("name") : null;
-      return createTitleFromAgreement(pool, con, kbTitleId, ctx)
-          .compose(x -> createPackageFromAgreement(pool, con, kbPackageId, kbPackageName, ctx))
-          .compose(x -> parsePoLines(poLines, ctx))
-          .compose(poResult -> {
-            UUID id = UUID.randomUUID();
-            String orderType = poResult.getString("orderType");
-            String invoiceNumber = poResult.getString("invoiceNumber");
-            Number encumberedCost = poResult.getDouble("encumberedCost");
-            Number invoicedCost = poResult.getDouble("invoicedCost");
-            String subScriptionDateRange = poResult.getString("subscriptionDateRange");
-            String fiscalYearRange = poResult.getString("fiscalYear");
-            String poLineNumber = poResult.getString("poLineNumber");
-            return con.preparedQuery("INSERT INTO " + agreementEntriesTable(pool)
-                    + "(id, kbTitleId, kbPackageId, type,"
-                    + " agreementId, agreementLineId, poLineId, encumberedCost, invoicedCost,"
-                    + " fiscalYearRange, subscriptionDateRange, coverageDateRanges, orderType,"
-                    + " invoiceNumber,poLineNumber) VALUES"
-                    + " ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)")
-                .execute(Tuple.of(id, kbTitleId, kbPackageId, type,
-                    agreementId, agreementLineId, poLineId, encumberedCost, invoicedCost,
-                    fiscalYearRange, subScriptionDateRange, coverageDateRanges, orderType,
-                    invoiceNumber, poLineNumber))
-                .mapEmpty();
-          });
+      Future<Void> future = createTitleFromAgreement(pool, con, kbTitleId, ctx);
+      if (kbPackageId != null) {
+        future = future.compose(x -> createPackageFromAgreement(pool, con, kbPackageId,
+            kbPackageName, ctx));
+      }
+      JsonArray poLines = agreementLine.getJsonArray("poLines");
+      JsonObject currencyObj = new JsonObject();
+      for (int i = 0; i < poLines.size(); i++) {
+        JsonObject poLine = poLines.getJsonObject(i);
+        UUID poLineId = UUID.fromString(poLine.getString("poLineId"));
+        future = future
+            .compose(x -> parsePoLine(poLine, ctx))
+            .compose(poResult -> {
+              String currency = currencyObj.getString("currency");
+              String newCurrency = poResult.getString("currency");
+              if (currency != null && !currency.equals(newCurrency)) {
+                return Future.failedFuture("Mixed currencies (" + currency + ", " + newCurrency
+                    + ") in PO lines " + poLine.encodePrettily());
+              }
+              currencyObj.put("currency", newCurrency);
+              UUID id = UUID.randomUUID();
+              String orderType = poResult.getString("orderType");
+              String invoiceNumber = poResult.getJsonArray("invoiceNumber").encode();
+              Number encumberedCost = poResult.getDouble("encumberedCost");
+              Number invoicedCost = poResult.getDouble("invoicedCost");
+              String subScriptionDateRange = poResult.getString("subscriptionDateRange");
+              String fiscalYearRange = poResult.getString("fiscalYear");
+              String poLineNumber = poResult.getJsonArray("poLineNumber").encode();
+              return con.preparedQuery("INSERT INTO " + agreementEntriesTable(pool)
+                      + "(id, kbTitleId, kbPackageId, type,"
+                      + " agreementId, agreementLineId, poLineId, encumberedCost, invoicedCost,"
+                      + " fiscalYearRange, subscriptionDateRange, coverageDateRanges, orderType,"
+                      + " invoiceNumber,poLineNumber) VALUES"
+                      + " ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)")
+                  .execute(Tuple.of(id, kbTitleId, kbPackageId, type,
+                      agreementId, agreementLineId, poLineId, encumberedCost, invoicedCost,
+                      fiscalYearRange, subScriptionDateRange, coverageDateRanges, orderType,
+                      invoiceNumber, poLineNumber))
+                  .mapEmpty();
+            });
+      }
+      return future;
     } catch (Exception e) {
       log.error("Failed to decode agreementLine: {}", e.getMessage(), e);
       return Future.failedFuture("Failed to decode agreement line: " + e.getMessage());

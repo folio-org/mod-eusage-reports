@@ -60,7 +60,6 @@ public class MainVerticleTest {
   static final UUID badStatusAgreementId2 = UUID.randomUUID();
   static final UUID usageProviderId = UUID.randomUUID();
   static final UUID goodFundId = UUID.randomUUID();
-  static final UUID goodLedgerId = UUID.randomUUID();
   static final UUID goodFiscalYearId = UUID.randomUUID();
   static final UUID[] agreementLineIds = {
       UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID()
@@ -421,6 +420,9 @@ public class MainVerticleTest {
         }
         if (i == 0) {
           // fake package
+          poLinesAr.add(new JsonObject()
+              .put("poLineId", poLineIds[0])
+          );
           ar.add(new JsonObject()
               .put("id", agreementLineIds[i])
               .put("owner", new JsonObject()
@@ -588,38 +590,24 @@ public class MainVerticleTest {
     ctx.response().end(ar.encode());
   }
 
-  static void getFund(RoutingContext ctx) {
-    String path = ctx.request().path();
-    int offset = path.lastIndexOf('/');
-    UUID id = UUID.fromString(path.substring(offset + 1));
-    if (id.equals(goodFundId)) {
-      ctx.response().setChunked(true);
-      ctx.response().putHeader("Content-Type", "application/json");
-      JsonObject fund = new JsonObject();
-      fund.put("ledgerId", goodLedgerId.toString());
-      ctx.response().end(fund.encode());
-    } else {
+  static void getBudgets(RoutingContext ctx) {
+    String query = ctx.request().getParam("query");
+    if (query == null || !query.startsWith("fundId==")) {
       ctx.response().putHeader("Content-Type", "text/plain");
-      ctx.response().setStatusCode(404);
-      ctx.response().end("not found");
+      ctx.response().setStatusCode(400);
+      ctx.response().end("query missing");
+      return;
     }
-  }
-
-  static void getLedger(RoutingContext ctx) {
-    String path = ctx.request().path();
-    int offset = path.lastIndexOf('/');
-    UUID id = UUID.fromString(path.substring(offset + 1));
-    if (id.equals(goodLedgerId)) {
-      ctx.response().setChunked(true);
-      ctx.response().putHeader("Content-Type", "application/json");
-      JsonObject ledger = new JsonObject();
-      ledger.put("fiscalYearOneId", goodFiscalYearId.toString());
-      ctx.response().end(ledger.encode());
-    } else {
-      ctx.response().putHeader("Content-Type", "text/plain");
-      ctx.response().setStatusCode(404);
-      ctx.response().end("not found");
+    UUID fundId = UUID.fromString(query.substring(8));
+    JsonArray budgets = new JsonArray();
+    if (fundId.equals(goodFundId)) {
+      JsonObject budget = new JsonObject();
+      budget.put("fiscalYearId", goodFiscalYearId.toString());
+      budgets.add(budget);
     }
+    ctx.response().setChunked(true);
+    ctx.response().putHeader("Content-Type", "application/json");
+    ctx.response().end(new JsonObject().put("budgets", budgets).encode());
   }
 
   static void getFiscalYear(RoutingContext ctx) {
@@ -670,8 +658,7 @@ public class MainVerticleTest {
     router.getWithRegex("/orders/order-lines/[-0-9a-z]*").handler(MainVerticleTest::getOrderLines);
     router.getWithRegex("/invoice-storage/invoice-lines").handler(MainVerticleTest::getInvoiceLines);
     router.getWithRegex("/erm/packages/[-0-9a-z]*/content").handler(MainVerticleTest::getPackageContent);
-    router.getWithRegex("/finance-storage/funds/[-0-9a-z]*").handler(MainVerticleTest::getFund);
-    router.getWithRegex("/finance-storage/ledgers/[-0-9a-z]*").handler(MainVerticleTest::getLedger);
+    router.getWithRegex("/finance-storage/budgets[-0-9a-z]*").handler(MainVerticleTest::getBudgets);
     router.getWithRegex("/finance-storage/fiscal-years/[-0-9a-z]*").handler(MainVerticleTest::getFiscalYear);
     router.getWithRegex("/orders/composite-orders/[-0-9a-z]*").handler(MainVerticleTest::getCompositeOrders);
     vertx.createHttpServer()
@@ -1573,7 +1560,7 @@ public class MainVerticleTest {
         .extract();
     resObject = new JsonObject(response.body().asString());
     items = resObject.getJsonArray("data");
-    context.assertEquals(4, items.size());
+    context.assertEquals(6, items.size());
     int noPackages = 0;
     for (int i = 0; i < items.size(); i++) {
       JsonObject item = items.getJsonObject(i);
@@ -1586,10 +1573,10 @@ public class MainVerticleTest {
         context.assertEquals("serial", type);
         context.assertFalse(item.containsKey("kbPackageId"));
         context.assertTrue(item.containsKey("kbTitleId"));
-        context.assertEquals("One-Time", item.getString("orderType"));
-        String invoiceNumber = item.getString("invoiceNumber");
-        context.assertTrue("0".equals(invoiceNumber) || "1".equals(invoiceNumber));
-        context.assertEquals(POLINE_NUMBER_SAMPLE, item.getString("poLineNumber"));
+        JsonArray invoiceNumber = item.getJsonArray("invoiceNumber");
+        context.assertEquals("Ongoing".equals(item.getString("orderType")), "1".equals(invoiceNumber.getString(0)));
+        context.assertEquals("One-Time".equals(item.getString("orderType")), "0".equals(invoiceNumber.getString(0)));
+        context.assertEquals(POLINE_NUMBER_SAMPLE, item.getJsonArray("poLineNumber").getString(0));
       }
     }
     context.assertEquals(1, noPackages);

@@ -18,6 +18,18 @@ import org.apache.logging.log4j.Logger;
 public class CostPerUse {
   private static final Logger log = LogManager.getLogger(CostPerUse.class);
 
+  private static void mergeAr(String invoiceNumber, JsonArray existingNumbers) {
+    if (invoiceNumber != null) {
+      JsonArray newNumbers = new JsonArray(invoiceNumber);
+      for (int k = 0; k < newNumbers.size(); k++) {
+        String n = newNumbers.getString(k);
+        if (!existingNumbers.contains(n)) {
+          existingNumbers.add(n);
+        }
+      }
+    }
+  }
+
   static JsonObject titlesToJsonObject(RowSet<Row> rowSet, Periods usePeriods) {
 
     JsonArray totalRequests = new JsonArray();
@@ -80,19 +92,9 @@ public class CostPerUse {
           item.put("uniqueItemRequests", 0L);
         }
       }
-      JsonArray poLineIDs = item.getJsonArray("poLineIDs");
-      if (poLineNumber != null) {
-        if (!poLineIDs.contains(poLineNumber)) {
-          poLineIDs.add(poLineNumber);
-        }
-      }
-      String invoiceNumber = row.getString("invoicenumber");
-      if (invoiceNumber != null) {
-        JsonArray invoiceNumbers = item.getJsonArray("invoiceNumbers");
-        if (!invoiceNumbers.contains(invoiceNumber)) {
-          invoiceNumbers.add(invoiceNumber);
-        }
-      }
+      mergeAr(poLineNumber, item.getJsonArray("poLineIDs"));
+      mergeAr(row.getString("invoicenumber"), item.getJsonArray("invoiceNumbers"));
+
       // deal with fiscal year range first, and save the that date range
       DateRange subscriptionPeriod = null;
       String fiscalYearRange = row.getString("fiscalyearrange");
