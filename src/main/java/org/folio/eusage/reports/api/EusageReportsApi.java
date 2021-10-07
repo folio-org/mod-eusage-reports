@@ -1050,6 +1050,8 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
   Future<Void> getFiscalYear(JsonObject poLine, RoutingContext ctx, JsonObject result) {
     Future<Void> future = Future.succeededFuture();
     JsonArray fundDistribution = poLine.getJsonArray("fundDistribution");
+    JsonArray fiscalYears = new JsonArray();
+    result.put("fiscalYear", fiscalYears);
     if (fundDistribution == null) {
       return future;
     }
@@ -1066,7 +1068,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
           future1 = future1.compose(x -> lookupFiscalYear(fiscalYearId, ctx).map(fiscalYear -> {
             // TODO: determine what happens for multiple fiscalYear
             // periodStart, periodEnd are required properties
-            result.put("fiscalYear", getRange(fiscalYear, "periodStart", "periodEnd"));
+            fiscalYears.add(getRange(fiscalYear, "periodStart", "periodEnd"));
             return null;
           }));
         }
@@ -1191,25 +1193,8 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
                     + ") in PO lines " + poLine.encodePrettily());
               }
               currencyObj.put("currency", newCurrency);
-              UUID id = UUID.randomUUID();
-              String orderType = poResult.getString("orderType");
-              String invoiceNumber = poResult.getJsonArray("invoiceNumber").encode();
-              Number encumberedCost = poResult.getDouble("encumberedCost");
-              Number invoicedCost = poResult.getDouble("invoicedCost");
-              String subScriptionDateRange = poResult.getString("subscriptionDateRange");
-              String fiscalYearRange = poResult.getString("fiscalYear");
-              String poLineNumber = poResult.getString("poLineNumber");
-              return con.preparedQuery("INSERT INTO " + agreementEntriesTable(pool)
-                      + "(id, kbTitleId, kbPackageId, type,"
-                      + " agreementId, agreementLineId, poLineId, encumberedCost, invoicedCost,"
-                      + " fiscalYearRange, subscriptionDateRange, coverageDateRanges, orderType,"
-                      + " invoiceNumber,poLineNumber) VALUES"
-                      + " ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)")
-                  .execute(Tuple.of(id, kbTitleId, kbPackageId, type,
-                      agreementId, agreementLineId, poLineId, encumberedCost, invoicedCost,
-                      fiscalYearRange, subScriptionDateRange, coverageDateRanges, orderType,
-                      invoiceNumber, poLineNumber))
-                  .mapEmpty();
+              return populateParsedPoLine(pool, con, agreementId, agreementLineId,
+                  coverageDateRanges, type, kbTitleId, kbPackageId, poLineId, poResult);
             });
       }
       return future;
@@ -1217,6 +1202,44 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
       log.error("Failed to decode agreementLine: {}", e.getMessage(), e);
       return Future.failedFuture("Failed to decode agreement line: " + e.getMessage());
     }
+  }
+
+  private Future<Void> populateParsedPoLine(TenantPgPool pool, SqlConnection con, UUID agreementId,
+      UUID agreementLineId, String coverageDateRanges, String type, UUID kbTitleId,
+      UUID kbPackageId, UUID poLineId, JsonObject poResult) {
+
+    JsonArray fiscalYears = poResult.getJsonArray("fiscalYear").isEmpty()
+        ? new JsonArray().add(null)
+        : poResult.getJsonArray("fiscalYear");
+
+    Future<Void> future = Future.succeededFuture();
+    for (int f = 0; f < fiscalYears.size(); f++) {
+      UUID id = UUID.randomUUID();
+      String orderType = poResult.getString("orderType");
+      String invoiceNumber = poResult.getJsonArray("invoiceNumber").encode();
+      Number encumberedCost = poResult.getDouble("encumberedCost");
+      Number invoicedCost = poResult.getDouble("invoicedCost");
+      String subScriptionDateRange = poResult.getString("subscriptionDateRange");
+      String fiscalYearRange = fiscalYears.getString(f);
+      String poLineNumber = poResult.getString("poLineNumber");
+      future = future.compose(x ->
+              con.preparedQuery(
+                      "INSERT INTO " + agreementEntriesTable(pool)
+                          + "(id, kbTitleId, kbPackageId, type,"
+                          + " agreementId, agreementLineId, poLineId,"
+                          + " encumberedCost, invoicedCost,"
+                          + " fiscalYearRange, subscriptionDateRange,"
+                          + " coverageDateRanges, orderType,"
+                          + " invoiceNumber,poLineNumber) VALUES"
+                          + " ($1, $2, $3, $4, $5, $6, $7, $8, $9,"
+                          + " $10, $11, $12, $13, $14, $15)")
+                  .execute(Tuple.of(id, kbTitleId, kbPackageId, type,
+                      agreementId, agreementLineId, poLineId, encumberedCost, invoicedCost,
+                      fiscalYearRange, subScriptionDateRange, coverageDateRanges, orderType,
+                      invoiceNumber, poLineNumber))
+                  .mapEmpty());
+    }
+    return future;
   }
 
   Future<Integer> populateAgreement(Vertx vertx, RoutingContext ctx) {
