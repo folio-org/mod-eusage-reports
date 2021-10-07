@@ -69,11 +69,8 @@
       }
     },
     "poLineNumber": {
-      "type": "array",
-      "description": "human readable PO line numbers",
-      "items" : {
-        "type" : "string"
-      }
+      "type": "string",
+      "description": "human readable PO line number"
     }
   },
   "additionalProperties": false,
