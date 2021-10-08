@@ -43,13 +43,31 @@ public class CostPerUse {
     Map<UUID,Double> amountPaidTotalMap = new HashMap<>();
     rowSet.forEach(row -> {
       log.info("costPerUse row: {}", () -> row.deepToString());
-      UUID kbId = row.getUUID("kbid");
       UUID kbPackageId = row.getUUID("kbpackageid");
-      String poLineNumber = row.getString("polinenumber");
       String orderType = row.getString("ordertype");
       String usageDateRange = row.getString("usagedaterange");
       String fiscalYearRange = row.getString("fiscalyearrange");
       String subscriptionDateRange = row.getString("subscriptiondaterange");
+      // deal with fiscal year range first, and save the that date range
+      DateRange subscriptionPeriod = null;
+      if (fiscalYearRange != null) {
+        subscriptionPeriod = new DateRange(fiscalYearRange);
+      }
+      // consider subscription date range, Overrides subscription period if present
+      if (subscriptionDateRange != null) {
+        subscriptionPeriod = new DateRange(subscriptionDateRange);
+      }
+      if (subscriptionPeriod == null) {
+        return;
+      }
+      // number of months for subscription
+      long allPeriodsMonths = subscriptionPeriod.commonMonths(
+          new DateRange(usePeriods.startDate, usePeriods.endDate));
+      if (allPeriodsMonths == 0) {
+        return;
+      }
+      String poLineNumber = row.getString("polinenumber");
+      UUID kbId = row.getUUID("kbid");
       String itemKey = kbId + "," + poLineNumber + "," + fiscalYearRange + ","
           + subscriptionDateRange;
       JsonObject item = totalItems.get(itemKey);
@@ -92,26 +110,18 @@ public class CostPerUse {
           item.put("totalItemRequests", 0L);
           item.put("uniqueItemRequests", 0L);
         }
+        if (fiscalYearRange != null) {
+          DateRange tmp = new DateRange(fiscalYearRange);
+          item.put("fiscalDateStart", tmp.getStart());
+          item.put("fiscalDateEnd", tmp.getEnd());
+        }
+        // consider subscription date range, Overrides subscription period if present
+        if (subscriptionDateRange != null) {
+          DateRange tmp = new DateRange(subscriptionDateRange);
+          item.put("subscriptionDateStart", tmp.getStart());
+          item.put("subscriptionDateEnd", tmp.getEnd());
+        }
       }
-      // deal with fiscal year range first, and save the that date range
-      DateRange subscriptionPeriod = null;
-      if (fiscalYearRange != null) {
-        subscriptionPeriod = new DateRange(fiscalYearRange);
-        item.put("fiscalDateStart", subscriptionPeriod.getStart());
-        item.put("fiscalDateEnd", subscriptionPeriod.getEnd());
-      }
-      // consider subscription date range, Overrides subscription period if present
-      if (subscriptionDateRange != null) {
-        subscriptionPeriod = new DateRange(subscriptionDateRange);
-        item.put("subscriptionDateStart", subscriptionPeriod.getStart());
-        item.put("subscriptionDateEnd", subscriptionPeriod.getEnd());
-      }
-      if (subscriptionPeriod == null) {
-        return;
-      }
-      // number of months for subscription
-      long allPeriodsMonths = subscriptionPeriod.commonMonths(
-          new DateRange(usePeriods.startDate, usePeriods.endDate));
       UUID paidId = kbPackageId != null ? kbPackageId : kbId;
       int titlesDivide = kbPackageId == null ? 1 : packageContent.get(kbPackageId).size();
       // number of months period in start - end also in subscribed period
