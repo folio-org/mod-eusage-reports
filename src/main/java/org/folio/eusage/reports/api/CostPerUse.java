@@ -18,18 +18,6 @@ import org.apache.logging.log4j.Logger;
 public class CostPerUse {
   private static final Logger log = LogManager.getLogger(CostPerUse.class);
 
-  private static void mergeAr(String invoiceNumber, JsonArray existingNumbers) {
-    if (invoiceNumber != null) {
-      JsonArray newNumbers = new JsonArray(invoiceNumber);
-      for (int k = 0; k < newNumbers.size(); k++) {
-        String n = newNumbers.getString(k);
-        if (!existingNumbers.contains(n)) {
-          existingNumbers.add(n);
-        }
-      }
-    }
-  }
-
   static JsonObject titlesToJsonObject(RowSet<Row> rowSet, Periods usePeriods) {
 
     JsonArray totalRequests = new JsonArray();
@@ -60,7 +48,10 @@ public class CostPerUse {
       String poLineNumber = row.getString("polinenumber");
       String orderType = row.getString("ordertype");
       String usageDateRange = row.getString("usagedaterange");
-      String itemKey = kbId + "," + poLineNumber;
+      String fiscalYearRange = row.getString("fiscalyearrange");
+      String subscriptionDateRange = row.getString("subscriptiondaterange");
+      String itemKey = kbId + "," + poLineNumber + "," + fiscalYearRange + ","
+          + subscriptionDateRange;
       JsonObject item = totalItems.get(itemKey);
       if (item == null) {
         item = new JsonObject();
@@ -83,8 +74,18 @@ public class CostPerUse {
         }
         item.put("orderType", orderType != null ? orderType : "Ongoing");
 
-        item.put("poLineIDs", new JsonArray());
-        item.put("invoiceNumbers", new JsonArray());
+        JsonArray poLineIDs = new JsonArray();
+        if (poLineNumber != null) {
+          poLineIDs.add(poLineNumber);
+        }
+        item.put("poLineIDs", poLineIDs);
+
+        JsonArray invoiceNumbers = new JsonArray();
+        String invoiceNumber = row.getString("invoicenumber");
+        if (invoiceNumber != null) {
+          invoiceNumbers.add(invoiceNumber);
+        }
+        item.put("invoiceNumbers", invoiceNumbers);
         if (usageDateRange != null) {
           item.put("amountPaid", 0.0);
           item.put("amountEncumbered", 0.0);
@@ -92,24 +93,14 @@ public class CostPerUse {
           item.put("uniqueItemRequests", 0L);
         }
       }
-      JsonArray poLineIDs = item.getJsonArray("poLineIDs");
-      if (poLineNumber != null) {
-        if (!poLineIDs.contains(poLineNumber)) {
-          poLineIDs.add(poLineNumber);
-        }
-      }
-      mergeAr(row.getString("invoicenumber"), item.getJsonArray("invoiceNumbers"));
-
       // deal with fiscal year range first, and save the that date range
       DateRange subscriptionPeriod = null;
-      String fiscalYearRange = row.getString("fiscalyearrange");
       if (fiscalYearRange != null) {
         subscriptionPeriod = new DateRange(fiscalYearRange);
         item.put("fiscalDateStart", subscriptionPeriod.getStart());
         item.put("fiscalDateEnd", subscriptionPeriod.getEnd());
       }
       // consider subscription date range, Overrides subscription period if present
-      String subscriptionDateRange = row.getString("subscriptiondaterange");
       if (subscriptionDateRange != null) {
         subscriptionPeriod = new DateRange(subscriptionDateRange);
         item.put("subscriptionDateStart", subscriptionPeriod.getStart());
@@ -127,16 +118,23 @@ public class CostPerUse {
       int subscriptionMonths = subscriptionPeriod.getMonths();
       Number encumberedCost = row.getDouble("encumberedcost");
       if (encumberedCost != null) {
-        Double amount = allPeriodsMonths * encumberedCost.doubleValue() / subscriptionMonths;
+        Double amount = subscriptionMonths > 0
+            ?  allPeriodsMonths * encumberedCost.doubleValue() / subscriptionMonths
+            :  encumberedCost.doubleValue();
         item.put("amountEncumbered", CsvReports.formatCost(amount / titlesDivide));
         amountEncumberedTotalMap.putIfAbsent(paidId, amount);
       }
       Number invoicedCost = row.getNumeric("invoicedcost");
       if (invoicedCost != null) {
-        Double amount = allPeriodsMonths * invoicedCost.doubleValue() / subscriptionMonths;
+        Double amount = subscriptionMonths > 0
+            ? allPeriodsMonths * invoicedCost.doubleValue() / subscriptionMonths
+            : invoicedCost.doubleValue();
         Double amountTitle = amount / titlesDivide;
         item.put("amountPaid", CsvReports.formatCost(amountTitle));
         amountPaidTotalMap.putIfAbsent(paidId, amount);
+      }
+      if (subscriptionMonths <= 0) {
+        return;
       }
       if (usageDateRange == null) {
         // or no counter report data
@@ -166,7 +164,6 @@ public class CostPerUse {
       if (invoicedCost != null) {
         Double amount = allPeriodsMonths * invoicedCost.doubleValue() / subscriptionMonths;
         Double amountTitle = amount / titlesDivide;
-        item.put("amountPaid", CsvReports.formatCost(amountTitle));
         paidByPeriodMap.get(idx).putIfAbsent(paidId, thisPeriodMonths * invoicedCost.doubleValue()
             / subscriptionMonths);
         Long totalItemRequests = item.getLong("totalItemRequests");

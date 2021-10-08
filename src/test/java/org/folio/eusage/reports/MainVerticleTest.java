@@ -1573,9 +1573,9 @@ public class MainVerticleTest {
         context.assertEquals("serial", type);
         context.assertFalse(item.containsKey("kbPackageId"));
         context.assertTrue(item.containsKey("kbTitleId"));
-        JsonArray invoiceNumber = item.getJsonArray("invoiceNumber");
-        context.assertEquals("Ongoing".equals(item.getString("orderType")), "1".equals(invoiceNumber.getString(0)));
-        context.assertEquals("One-Time".equals(item.getString("orderType")), "0".equals(invoiceNumber.getString(0)));
+        String invoiceNumber = item.getString("invoiceNumber");
+        context.assertEquals("Ongoing".equals(item.getString("orderType")), "1".equals(invoiceNumber));
+        context.assertEquals("One-Time".equals(item.getString("orderType")), "0".equals(invoiceNumber));
         context.assertEquals(POLINE_NUMBER_SAMPLE, item.getString("poLineNumber"));
       }
     }

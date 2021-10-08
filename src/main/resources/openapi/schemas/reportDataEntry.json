@@ -62,11 +62,8 @@
       "enum": [ "One-Time", "Ongoing"]
     },
     "invoiceNumber": {
-      "type": "array",
-      "description": "invoice line numbers",
-      "items" : {
-        "type" : "string"
-      }
+      "type": "string",
+      "description": "invoice line number"
     },
     "poLineNumber": {
       "type": "string",
