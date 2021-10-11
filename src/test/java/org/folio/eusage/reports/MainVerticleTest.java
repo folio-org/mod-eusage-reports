@@ -38,7 +38,7 @@ public class MainVerticleTest {
   static Vertx vertx;
   static final int MODULE_PORT = 9230;
   static final int MOCK_PORT = 9231;
-  static final String POLINE_NUMBER_SAMPLE = "121x-219";
+  static final String POLINE_NUMBER_SAMPLE = "121x-219-";
   static final String pubDateSample = "1998-05-01";
   static final String pubYearSample = "1999";
   static final UUID goodKbTitleId = UUID.randomUUID();
@@ -60,12 +60,13 @@ public class MainVerticleTest {
   static final UUID badStatusAgreementId2 = UUID.randomUUID();
   static final UUID usageProviderId = UUID.randomUUID();
   static final UUID goodFundId = UUID.randomUUID();
+  static final UUID goodInvoiceId = UUID.randomUUID();
   static final UUID goodFiscalYearId = UUID.randomUUID();
   static final UUID[] agreementLineIds = {
       UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID()
   };
   static final UUID[] poLineIds = {
-      UUID.randomUUID(), UUID.randomUUID()
+      UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID()
   };
   static final UUID goodPackageId = UUID.randomUUID();
   static final UUID[] packageTitles = {
@@ -413,16 +414,13 @@ public class MainVerticleTest {
     if (agreementId.equals(goodAgreementId)) {
       for (int i = 0; i < agreementLineIds.length; i++) {
         JsonArray poLinesAr = new JsonArray();
-        for (int j = 0; j < i && j < poLineIds.length; j++) {
+        for (int j = 0; j <= i && j < poLineIds.length; j++) {
           poLinesAr.add(new JsonObject()
               .put("poLineId", poLineIds[j])
           );
         }
         if (i == 0) {
           // fake package
-          poLinesAr.add(new JsonObject()
-              .put("poLineId", poLineIds[0])
-          );
           ar.add(new JsonObject()
               .put("id", agreementLineIds[i])
               .put("owner", new JsonObject()
@@ -499,18 +497,20 @@ public class MainVerticleTest {
         ctx.response().putHeader("Content-Type", "application/json");
         JsonObject orderLine = new JsonObject();
         orderLine.put("id", id);
-        orderLine.put("poLineNumber", POLINE_NUMBER_SAMPLE);
+        orderLine.put("poLineNumber", POLINE_NUMBER_SAMPLE + i);
         String currency = i < orderLinesCurrencies.size() ? orderLinesCurrencies.get(i) : "USD";
         orderLine.put("cost", new JsonObject()
             .put("currency", currency)
             .put("listUnitPriceElectronic", 100.0 + (i * i))
         );
-        if (i == 0) {
+        if (i != 2) {
           orderLine.put("fundDistribution", new JsonArray()
               .add(new JsonObject()
                   .put("fundId", goodFundId.toString())
               )
           );
+        }
+        if (i == 0) {
           orderLine.put("purchaseOrderId", UUID.randomUUID().toString());
         }
         ctx.response().end(orderLine.encode());
@@ -543,23 +543,21 @@ public class MainVerticleTest {
     for (int i = 0; i < poLineIds.length; i++) {
       if (poLineId.equals(poLineIds[i])) {
         {
-          JsonObject invoice = new JsonObject()
+          JsonObject invoiceLine = new JsonObject()
               .put("poLineId", poLineId)
+              .put("invoiceId", goodInvoiceId)
               .put("quantity", 1 + i)
               .put("subTotal", 10.0 + i * 5)
               .put("total", 12.0 + i * 6)
               .put("invoiceLineNumber", String.format("%d", i));
           if (i == 0) {
-            invoice.put("subscriptionStart", "2020-01-01T00:00:00.000+00:00");
-            invoice.put("subscriptionEnd", "2020-12-31T00:00:00.000+00:00");
+            invoiceLine.put("subscriptionStart", "2020-01-01T00:00:00.000+00:00");
+            invoiceLine.put("subscriptionEnd", "2020-12-31T00:00:00.000+00:00");
           }
-          ar.add(invoice);
+          ar.add(invoiceLine);
         }
       }
     }
-    ar.add(new JsonObject()
-        .put("poLineId", poLineId)
-    );
     ctx.response().setChunked(true);
     ctx.response().putHeader("Content-Type", "application/json");
     ctx.response().end(new JsonObject().put("invoiceLines", ar).encode());
@@ -589,6 +587,26 @@ public class MainVerticleTest {
     ctx.response().setStatusCode(200);
     ctx.response().end(ar.encode());
   }
+
+  static void getInvoice(RoutingContext ctx) {
+    String path = ctx.request().path();
+    int offset = path.lastIndexOf('/');
+    UUID id = UUID.fromString(path.substring(offset + 1));
+    if (id.equals(goodInvoiceId)) {
+      ctx.response().setChunked(true);
+      ctx.response().putHeader("Content-Type", "application/json");
+      JsonObject invoice = new JsonObject();
+      invoice.put("id", id.toString());
+      invoice.put("invoiceDate", "2017-06-18T00:00:00.000+00:00");
+      invoice.put("paymentDate", "2017-06-18T13:55:04.957+00:00");
+      ctx.response().end(invoice.encode());
+    } else {
+      ctx.response().putHeader("Content-Type", "text/plain");
+      ctx.response().setStatusCode(404);
+      ctx.response().end("not found");
+    }
+  }
+
 
   static void getBudgets(RoutingContext ctx) {
     String query = ctx.request().getParam("query");
@@ -657,6 +675,7 @@ public class MainVerticleTest {
     router.getWithRegex("/erm/entitlements").handler(MainVerticleTest::getEntitlements);
     router.getWithRegex("/orders/order-lines/[-0-9a-z]*").handler(MainVerticleTest::getOrderLines);
     router.getWithRegex("/invoice-storage/invoice-lines").handler(MainVerticleTest::getInvoiceLines);
+    router.getWithRegex("/invoice-storage/invoices/[-0-9a-z]*").handler(MainVerticleTest::getInvoice);
     router.getWithRegex("/erm/packages/[-0-9a-z]*/content").handler(MainVerticleTest::getPackageContent);
     router.getWithRegex("/finance-storage/budgets[-0-9a-z]*").handler(MainVerticleTest::getBudgets);
     router.getWithRegex("/finance-storage/fiscal-years/[-0-9a-z]*").handler(MainVerticleTest::getFiscalYear);
@@ -1593,7 +1612,7 @@ public class MainVerticleTest {
         .extract();
     resObject = new JsonObject(response.body().asString());
     items = resObject.getJsonArray("data");
-    context.assertEquals(6, items.size());
+    context.assertEquals(7, items.size());
     int noPackages = 0;
     for (int i = 0; i < items.size(); i++) {
       JsonObject item = items.getJsonObject(i);
@@ -1609,7 +1628,7 @@ public class MainVerticleTest {
         String invoiceNumber = item.getString("invoiceNumber");
         context.assertEquals("Ongoing".equals(item.getString("orderType")), "1".equals(invoiceNumber));
         context.assertEquals("One-Time".equals(item.getString("orderType")), "0".equals(invoiceNumber));
-        context.assertEquals(POLINE_NUMBER_SAMPLE, item.getString("poLineNumber"));
+        context.assertEquals(POLINE_NUMBER_SAMPLE + invoiceNumber, item.getString("poLineNumber"));
       }
     }
     context.assertEquals(1, noPackages);
