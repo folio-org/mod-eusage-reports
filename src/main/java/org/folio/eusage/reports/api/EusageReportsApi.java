@@ -1094,7 +1094,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
       future = future.compose(x -> lookupBudgets(fundId, ctx)).compose(budgetCollection -> {
         Future<Void> future1 = Future.succeededFuture();
         JsonArray budgets = budgetCollection.getJsonArray("budgets");
-        for (int j = 0; j < budgetCollection.size(); j++) {
+        for (int j = 0; j < budgets.size(); j++) {
           JsonObject budget = budgets.getJsonObject(j);
           // fiscalYearId is a required property
           UUID fiscalYearId = UUID.fromString(budget.getString("fiscalYearId"));

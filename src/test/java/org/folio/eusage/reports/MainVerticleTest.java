@@ -61,7 +61,9 @@ public class MainVerticleTest {
   static final UUID usageProviderId = UUID.randomUUID();
   static final UUID goodFundId = UUID.randomUUID();
   static final UUID goodInvoiceId = UUID.randomUUID();
-  static final UUID goodFiscalYearId = UUID.randomUUID();
+  static final UUID [] goodFiscalYearIds = {
+      UUID.randomUUID(), UUID.randomUUID()
+  };
   static final UUID[] agreementLineIds = {
       UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID()
   };
@@ -607,7 +609,6 @@ public class MainVerticleTest {
     }
   }
 
-
   static void getBudgets(RoutingContext ctx) {
     String query = ctx.request().getParam("query");
     if (query == null || !query.startsWith("fundId==")) {
@@ -619,9 +620,11 @@ public class MainVerticleTest {
     UUID fundId = UUID.fromString(query.substring(8));
     JsonArray budgets = new JsonArray();
     if (fundId.equals(goodFundId)) {
-      JsonObject budget = new JsonObject();
-      budget.put("fiscalYearId", goodFiscalYearId.toString());
-      budgets.add(budget);
+      for (UUID fiscalYearId : goodFiscalYearIds) {
+        JsonObject budget = new JsonObject();
+        budget.put("fiscalYearId", fiscalYearId.toString());
+        budgets.add(budget);
+      }
     }
     ctx.response().setChunked(true);
     ctx.response().putHeader("Content-Type", "application/json");
@@ -632,18 +635,21 @@ public class MainVerticleTest {
     String path = ctx.request().path();
     int offset = path.lastIndexOf('/');
     UUID id = UUID.fromString(path.substring(offset + 1));
-    if (id.equals(goodFiscalYearId)) {
-      ctx.response().setChunked(true);
-      ctx.response().putHeader("Content-Type", "application/json");
-      JsonObject fiscalYear = new JsonObject();
-      fiscalYear.put("periodStart", "2017-01-01T00:00:00Z");
-      fiscalYear.put("periodEnd", "2017-12-31T23:59:59Z");
-      ctx.response().end(fiscalYear.encode());
-    } else {
-      ctx.response().putHeader("Content-Type", "text/plain");
-      ctx.response().setStatusCode(404);
-      ctx.response().end("not found");
+    for (int i = 0; i < goodFiscalYearIds.length; i++) {
+      if (id.equals(goodFiscalYearIds[i])) {
+        ctx.response().setChunked(true);
+        ctx.response().putHeader("Content-Type", "application/json");
+        JsonObject fiscalYear = new JsonObject();
+        int year = 2016 + i;
+        fiscalYear.put("periodStart", year + "-01-01T00:00:00Z");
+        fiscalYear.put("periodEnd", year + "-12-31T23:59:59Z");
+        ctx.response().end(fiscalYear.encode());
+        return;
+      }
     }
+    ctx.response().putHeader("Content-Type", "text/plain");
+    ctx.response().setStatusCode(404);
+    ctx.response().end("not found");
   }
 
   static void getCompositeOrders(RoutingContext ctx) {
