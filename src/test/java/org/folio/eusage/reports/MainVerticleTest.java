@@ -503,7 +503,6 @@ public class MainVerticleTest {
         String currency = i < orderLinesCurrencies.size() ? orderLinesCurrencies.get(i) : "USD";
         orderLine.put("cost", new JsonObject()
             .put("currency", currency)
-            .put("listUnitPriceElectronic", 100.0 + (i * i))
         );
         if (i != 2) {
           orderLine.put("fundDistribution", new JsonArray()
@@ -623,6 +622,7 @@ public class MainVerticleTest {
       for (UUID fiscalYearId : goodFiscalYearIds) {
         JsonObject budget = new JsonObject();
         budget.put("fiscalYearId", fiscalYearId.toString());
+        budget.put("encumbered", 100.0);
         budgets.add(budget);
       }
     }
