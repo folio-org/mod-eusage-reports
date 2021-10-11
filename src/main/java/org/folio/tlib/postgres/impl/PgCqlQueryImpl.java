@@ -15,6 +15,8 @@ import org.z3950.zing.cql.CQLParser;
 import org.z3950.zing.cql.CQLPrefixNode;
 import org.z3950.zing.cql.CQLSortNode;
 import org.z3950.zing.cql.CQLTermNode;
+import org.z3950.zing.cql.Modifier;
+import org.z3950.zing.cql.ModifierSet;
 
 public class PgCqlQueryImpl implements PgCqlQuery {
   private static final Logger log = LogManager.getLogger(PgCqlQueryImpl.class);
@@ -29,18 +31,25 @@ public class PgCqlQueryImpl implements PgCqlQuery {
   public void parse(String query, String q2) {
     String resultingQuery;
 
-    if (query == null && q2 == null) {
-      cqlNodeRoot = null;
-      return;
-    }
-    if (query != null && q2 != null) {
-      resultingQuery = "(" + query + ") AND (" + q2 + ")";
-    } else if (query != null) {
-      resultingQuery = query;
-    } else {
-      resultingQuery = q2;
-    }
     try {
+      if (query == null && q2 == null) {
+        cqlNodeRoot = null;
+        return;
+      }
+      if (query != null && q2 != null) {
+        // get rid of sortby as it can't be combined and we don't
+        // it for sorting anyway.
+        CQLNode node = parser.parse(query);
+        if (node != null && node instanceof CQLSortNode) {
+          CQLSortNode cqlSortNode = (CQLSortNode) node;
+          node = cqlSortNode.getSubtree();
+        }
+        resultingQuery = "(" + node.toCQL() + ") AND (" + q2 + ")";
+      } else if (query != null) {
+        resultingQuery = query;
+      } else {
+        resultingQuery = q2;
+      }
       log.debug("Parsing {}", resultingQuery);
       cqlNodeRoot = parser.parse(resultingQuery);
     } catch (CQLParseException | IOException e) {
@@ -56,6 +65,16 @@ public class PgCqlQueryImpl implements PgCqlQuery {
   @Override
   public String getWhereClause() {
     return handleWhere(cqlNodeRoot);
+  }
+
+  @Override
+  public String getOrderByClause() {
+    return handleOrderBy(cqlNodeRoot, true);
+  }
+
+  @Override
+  public String getOrderByFields() {
+    return handleOrderBy(cqlNodeRoot, false);
   }
 
   static String basicOp(CQLTermNode termNode) {
@@ -321,13 +340,57 @@ public class PgCqlQueryImpl implements PgCqlQuery {
       }
     } else if (node instanceof CQLSortNode) {
       CQLSortNode sortNode = (CQLSortNode) node;
-      throw new IllegalArgumentException("Sorting unsupported: " + node.toCQL());
+      return handleWhere(sortNode.getSubtree());
     } else if (node instanceof CQLPrefixNode) {
       CQLPrefixNode prefixNode = (CQLPrefixNode) node;
       return handleWhere(prefixNode.getSubtree());
     }
     // other node types unsupported, for example proximity
     throw new IllegalArgumentException("Unsupported CQL construct: " + node.toCQL());
+  }
+
+  String handleOrderBy(CQLNode node, boolean includeOps) {
+    if (node == null) {
+      return null;
+    }
+    if (node instanceof CQLSortNode) {
+      StringBuilder res = new StringBuilder();
+      CQLSortNode sortNode = (CQLSortNode) node;
+      for (ModifierSet modifierSet: sortNode.getSortIndexes()) {
+        if (res.length() > 0) {
+          res.append(", ");
+        }
+        PgCqlField field = fields.get(modifierSet.getBase().toLowerCase());
+        if (field == null) {
+          throw new IllegalArgumentException("Unsupported CQL index: " + modifierSet.getBase());
+        }
+        res.append(field.getColumn());
+        if (includeOps) {
+          res.append(" ");
+          String desc = "ASC";
+          for (Modifier modifier : modifierSet.getModifiers()) {
+            switch (modifier.getType()) {
+              case "sort.ascending":
+                break;
+              case "sort.descending":
+                desc = "DESC";
+                break;
+              default:
+                throw new IllegalArgumentException("Unsupported sort modifier: "
+                    + modifier.getType());
+            }
+          }
+          res.append(desc);
+        }
+      }
+      return res.toString();
+    } else if (node instanceof CQLPrefixNode) {
+      CQLPrefixNode prefixNode = (CQLPrefixNode) node;
+      return handleOrderBy(prefixNode.getSubtree(), includeOps);
+    } else {
+      log.info("node is instance of {}", node.getClass());
+      return null;
+    }
   }
 
   @Override

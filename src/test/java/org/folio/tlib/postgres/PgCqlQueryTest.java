@@ -114,7 +114,7 @@ public class PgCqlQueryTest {
         { "id=6736bd11-5073-4026-81b5-b70b24179e02", "id='6736bd11-5073-4026-81b5-b70b24179e02'" },
         { "id=6736BD11-5073-4026-81B5-B70B24179E02", "id='6736bd11-5073-4026-81b5-b70b24179e02'" },
         { "id<>6736bd11-5073-4026-81b5-b70b24179e02", "id<>'6736bd11-5073-4026-81b5-b70b24179e02'" },
-        { "title==v1 sortby cost", "error: Sorting unsupported: title == v1 sortby cost"},
+        { "title==v1 sortby cost", "title = 'v1'"},
         { ">x = \"http://foo.org/p\" title==v1", "title = 'v1'"},
     };
     PgCqlQuery pgCqlQuery = PgCqlQuery.query();
@@ -134,6 +134,37 @@ public class PgCqlQueryTest {
         Assert.assertEquals(expect, "error: " + e.getMessage());
       }
     }
+  }
+
+  @Test
+  public void testSort() {
+    String[][] list = new String[][]{
+        {"isbn=1234 sortby foo", "error: Unsupported CQL index: foo", null},
+        {"paid=1234", null, null},
+        {"paid=1234 sortby isbn", "isbn ASC", "isbn"},
+        {"paid=1234 sortby cost/sort.descending title/sort.ascending", "cost DESC, title ASC", "cost, title"},
+    };
+
+    PgCqlQuery pgCqlQuery = PgCqlQuery.query();
+    pgCqlQuery.addField(new PgCqlField("cql.allRecords", PgCqlField.Type.ALWAYS_MATCHES));
+    pgCqlQuery.addField(new PgCqlField("title", PgCqlField.Type.FULLTEXT));
+    pgCqlQuery.addField(new PgCqlField("isbn", PgCqlField.Type.TEXT));
+    pgCqlQuery.addField(new PgCqlField("cost", PgCqlField.Type.NUMBER));
+    pgCqlQuery.addField(new PgCqlField("paid", PgCqlField.Type.BOOLEAN));
+    pgCqlQuery.addField(new PgCqlField("id", PgCqlField.Type.UUID));
+    for (String [] entry : list) {
+      String query = entry[0];
+      String expect = entry[1];
+      String fields = entry[2];
+      try {
+        pgCqlQuery.parse(query);
+        Assert.assertEquals("CQL: " + query, expect, pgCqlQuery.getOrderByClause());
+        Assert.assertEquals("CQL: " + query, fields, pgCqlQuery.getOrderByFields());
+      } catch (IllegalArgumentException e) {
+        Assert.assertEquals(expect, "error: " + e.getMessage());
+      }
+    }
+
   }
 
 }

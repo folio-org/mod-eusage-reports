@@ -1385,13 +1385,32 @@ public class MainVerticleTest {
     response = RestAssured.given()
         .header(XOkapiHeaders.TENANT, tenant)
         .header(XOkapiHeaders.URL, "http://localhost:" + MOCK_PORT)
-        .get("/eusage-reports/report-titles?query=kbTitleId<>\"\"")
+        .get("/eusage-reports/report-titles?query=kbTitleId<>\"\" sortby counterreporttitle")
         .then().statusCode(200)
         .header("Content-Type", is("application/json"))
         .extract();
     resObject = new JsonObject(response.body().asString());
     titlesAr = resObject.getJsonArray("titles");
     context.assertEquals(8, titlesAr.size());
+    for (int i = 1; i < titlesAr.size(); i++) {
+      context.assertTrue(titlesAr.getJsonObject(i).getString("counterReportTitle")
+          .compareTo(titlesAr.getJsonObject(i - 1).getString("counterReportTitle")) >= 0);
+    }
+
+    response = RestAssured.given()
+        .header(XOkapiHeaders.TENANT, tenant)
+        .header(XOkapiHeaders.URL, "http://localhost:" + MOCK_PORT)
+        .get("/eusage-reports/report-titles?query=kbTitleId<>\"\" sortby id/sort.descending")
+        .then().statusCode(200)
+        .header("Content-Type", is("application/json"))
+        .extract();
+    resObject = new JsonObject(response.body().asString());
+    titlesAr = resObject.getJsonArray("titles");
+    context.assertEquals(8, titlesAr.size());
+    for (int i = 1; i < titlesAr.size(); i++) {
+      context.assertTrue(titlesAr.getJsonObject(i).getString("id")
+          .compareTo(titlesAr.getJsonObject(i - 1).getString("id")) <= 0);
+    }
 
     response = RestAssured.given()
         .header(XOkapiHeaders.TENANT, tenant)
