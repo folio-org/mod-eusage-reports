@@ -24,6 +24,15 @@ public class PgCqlQueryTest {
     pgCqlQuery.parse("dc.Title==value1", "dc.Title==value2 OR dc.title==value3");
     Assert.assertEquals("(title = 'value1' AND (title = 'value2' OR title = 'value3'))",
         pgCqlQuery.getWhereClause());
+
+    pgCqlQuery.addField(new PgCqlField("cql.allRecords", PgCqlField.Type.ALWAYS_MATCHES));
+    pgCqlQuery.parse("cql.allRecords = 1", "dc.title==value1");
+    Assert.assertEquals("title = 'value1'",
+        pgCqlQuery.getWhereClause());
+
+    pgCqlQuery.parse("cql.allRecords = 1 sortby title", "dc.title==value1");
+    Assert.assertEquals("title = 'value1'",
+        pgCqlQuery.getWhereClause());
   }
 
   static String ftResponse(String column, String term) {
@@ -141,7 +150,9 @@ public class PgCqlQueryTest {
     String[][] list = new String[][]{
         {"isbn=1234 sortby foo", "error: Unsupported CQL index: foo", null},
         {"paid=1234", null, null},
+        {"paid=1234 sortby isbn/xx", "error: Unsupported sort modifier: xx", null},
         {"paid=1234 sortby isbn", "isbn ASC", "isbn"},
+        {">dc=\"http://foo.org/p\" paid=1234 sortby isbn", "isbn ASC", "isbn"},
         {"paid=1234 sortby cost/sort.descending title/sort.ascending", "cost DESC, title ASC", "cost, title"},
     };
 
