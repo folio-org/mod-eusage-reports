@@ -25,6 +25,10 @@ public class PgCqlQueryTest {
     Assert.assertEquals("(title = 'value1' AND (title = 'value2' OR title = 'value3'))",
         pgCqlQuery.getWhereClause());
 
+    pgCqlQuery.parse("dc.Title==value1 sortby title", "dc.Title==value2 OR dc.title==value3");
+    Assert.assertEquals("(title = 'value1' AND (title = 'value2' OR title = 'value3'))",
+        pgCqlQuery.getWhereClause());
+
     pgCqlQuery.addField(new PgCqlField("cql.allRecords", PgCqlField.Type.ALWAYS_MATCHES));
     pgCqlQuery.parse("cql.allRecords = 1", "dc.title==value1");
     Assert.assertEquals("title = 'value1'",
