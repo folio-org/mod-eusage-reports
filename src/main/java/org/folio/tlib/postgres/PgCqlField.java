@@ -6,8 +6,8 @@ public class PgCqlField {
     ALWAYS_MATCHES, UUID, TEXT, NUMBER, BOOLEAN, FULLTEXT
   }
 
-  final String name;
   final String column;
+  final String name;
   final Type type;
 
   /**
@@ -21,13 +21,13 @@ public class PgCqlField {
 
   /**
    * Define CQL field to Pg mapping.
-   * @param name name of index in CQL.
    * @param column Pg column.
+   * @param name name of index in CQL.
    * @param type data type.
    */
-  public PgCqlField(String name, String column, Type type) {
-    this.name = name;
+  public PgCqlField(String column, String name, Type type) {
     this.column = column;
+    this.name = name;
     this.type = type;
   }
 

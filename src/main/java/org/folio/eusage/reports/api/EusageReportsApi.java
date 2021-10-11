@@ -230,13 +230,13 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
   Future<Void> getReportTitles(Vertx vertx, RoutingContext ctx) {
     PgCqlQuery pgCqlQuery = PgCqlQuery.query();
     pgCqlQuery.addField(new PgCqlField("cql.allRecords", PgCqlField.Type.ALWAYS_MATCHES));
-    pgCqlQuery.addField(new PgCqlField("id", PgCqlField.Type.UUID));
-    pgCqlQuery.addField(new PgCqlField("counterReportTitle", PgCqlField.Type.FULLTEXT));
-    pgCqlQuery.addField(new PgCqlField("ISBN", PgCqlField.Type.TEXT));
-    pgCqlQuery.addField(new PgCqlField("printISSN", PgCqlField.Type.TEXT));
-    pgCqlQuery.addField(new PgCqlField("onlineISSN", PgCqlField.Type.TEXT));
-    pgCqlQuery.addField(new PgCqlField("kbTitleId", PgCqlField.Type.UUID));
-    pgCqlQuery.addField(new PgCqlField("kbManualMatch", PgCqlField.Type.BOOLEAN));
+    pgCqlQuery.addField(new PgCqlField("title_entries.id", "id", PgCqlField.Type.UUID));
+    pgCqlQuery.addField(new PgCqlField("title_entries.counterreporttitle", "counterReportTitle", PgCqlField.Type.FULLTEXT));
+    pgCqlQuery.addField(new PgCqlField("title_entries.isbn", "ISBN", PgCqlField.Type.TEXT));
+    pgCqlQuery.addField(new PgCqlField("title_entries.printissn", "printISSN", PgCqlField.Type.TEXT));
+    pgCqlQuery.addField(new PgCqlField("title_entries.onlineissn", "onlineISSN", PgCqlField.Type.TEXT));
+    pgCqlQuery.addField(new PgCqlField("title_entries.kbtitleid", "kbTitleId", PgCqlField.Type.UUID));
+    pgCqlQuery.addField(new PgCqlField("title_entries.kbmanualmatch", "kbManualMatch", PgCqlField.Type.BOOLEAN));
 
     RequestParameters params = ctx.get(ValidationHandler.REQUEST_CONTEXT_KEY);
     final String tenant = stringOrNull(params.headerParameter(XOkapiHeaders.TENANT));
