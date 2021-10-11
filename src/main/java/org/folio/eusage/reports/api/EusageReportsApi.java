@@ -189,21 +189,25 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
   }
 
   static Future<Void> streamResult(RoutingContext ctx, TenantPgPool pool, String distinct,
-      String from, String property, Function<Row, JsonObject> handler) {
+      String from, String orderByClause, String property, Function<Row, JsonObject> handler) {
 
-    return streamResult(ctx, pool, distinct, List.of(from), Collections.EMPTY_LIST,
-        property, handler);
+    return streamResult(ctx, pool, distinct, distinct, List.of(from), Collections.EMPTY_LIST,
+        orderByClause, property, handler);
   }
 
   static Future<Void> streamResult(RoutingContext ctx, TenantPgPool pool,
-      String distinct, List<String> fromList, List<String[]> facets, String property,
+      String distinctMain, String distinctCount,
+      List<String> fromList, List<String[]> facets, String orderByClause,
+      String property,
       Function<Row, JsonObject> handler) {
 
     RequestParameters params = ctx.get(ValidationHandler.REQUEST_CONTEXT_KEY);
     Integer offset = params.queryParameter("offset").getInteger();
     Integer limit = params.queryParameter("limit").getInteger();
-    String query = "SELECT " + (distinct != null ? "DISTINCT ON (" + distinct + ")" : "")
-        + " * FROM " + fromList.get(0) + " LIMIT " + limit + " OFFSET " + offset;
+    String query = "SELECT " + (distinctMain != null ? "DISTINCT ON (" + distinctMain + ")" : "")
+        + " * FROM " + fromList.get(0)
+        + (orderByClause == null ?  "" : " ORDER BY " + orderByClause)
+        + " LIMIT " + limit + " OFFSET " + offset;
     log.info("query={}", query);
     StringBuilder countQuery = new StringBuilder("SELECT");
     int pos = 0;
@@ -211,7 +215,8 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
       if (pos > 0) {
         countQuery.append(",\n");
       }
-      countQuery.append("(SELECT COUNT(" + (distinct != null ? "DISTINCT " + distinct : "*")
+      countQuery.append("(SELECT COUNT("
+          + (distinctCount != null ? "DISTINCT " + distinctCount : "*")
           + ") FROM " + from + ") AS cnt" + pos);
       pos++;
     }
@@ -225,34 +230,47 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
   Future<Void> getReportTitles(Vertx vertx, RoutingContext ctx) {
     PgCqlQuery pgCqlQuery = PgCqlQuery.query();
     pgCqlQuery.addField(new PgCqlField("cql.allRecords", PgCqlField.Type.ALWAYS_MATCHES));
-    pgCqlQuery.addField(new PgCqlField("id", PgCqlField.Type.UUID));
-    pgCqlQuery.addField(new PgCqlField("counterReportTitle", PgCqlField.Type.FULLTEXT));
-    pgCqlQuery.addField(new PgCqlField("ISBN", PgCqlField.Type.TEXT));
-    pgCqlQuery.addField(new PgCqlField("printISSN", PgCqlField.Type.TEXT));
-    pgCqlQuery.addField(new PgCqlField("onlineISSN", PgCqlField.Type.TEXT));
-    pgCqlQuery.addField(new PgCqlField("kbTitleId", PgCqlField.Type.UUID));
-    pgCqlQuery.addField(new PgCqlField("kbManualMatch", PgCqlField.Type.BOOLEAN));
+    pgCqlQuery.addField(new PgCqlField("title_entries.id", "id", PgCqlField.Type.UUID));
+    // must pass table name as there are joins involved
+    pgCqlQuery.addField(new PgCqlField("title_entries.counterreporttitle",
+        "counterReportTitle", PgCqlField.Type.FULLTEXT));
+    pgCqlQuery.addField(new PgCqlField("title_entries.isbn",
+        "ISBN", PgCqlField.Type.TEXT));
+    pgCqlQuery.addField(new PgCqlField("title_entries.printissn",
+        "printISSN", PgCqlField.Type.TEXT));
+    pgCqlQuery.addField(new PgCqlField("title_entries.onlineissn",
+        "onlineISSN", PgCqlField.Type.TEXT));
+    pgCqlQuery.addField(new PgCqlField("title_entries.kbtitleid",
+        "kbTitleId", PgCqlField.Type.UUID));
+    pgCqlQuery.addField(new PgCqlField("title_entries.kbmanualmatch",
+        "kbManualMatch", PgCqlField.Type.BOOLEAN));
 
     RequestParameters params = ctx.get(ValidationHandler.REQUEST_CONTEXT_KEY);
     final String tenant = stringOrNull(params.headerParameter(XOkapiHeaders.TENANT));
     final String counterReportId = stringOrNull(params.queryParameter("counterReportId"));
     final String providerId = stringOrNull(params.queryParameter("providerId"));
     final TenantPgPool pool = TenantPgPool.pool(vertx, tenant);
-    final String distinct = titleEntriesTable(pool) + ".id";
-    String query = stringOrNull(params.queryParameter("query"));
+    final String distinctCount = titleEntriesTable(pool) + ".id";
+    final String query = stringOrNull(params.queryParameter("query"));
 
     List<String> fromList = new ArrayList<>(); // main query and facet queries
     pgCqlQuery.parse(query);
+    String orderByFields = pgCqlQuery.getOrderByFields();
+    String distinctMain = distinctCount;
+    if (orderByFields != null) {
+      distinctMain = orderByFields + "," + distinctMain;
+    }
+    final String orderByClause = pgCqlQuery.getOrderByClause();
     fromList.add(getFromTitleDataForeignKey(pgCqlQuery, counterReportId, providerId, pool));
 
     // add query for each facet
-    pgCqlQuery.parse(query, "kbTitleId <> \"\"");
+    pgCqlQuery.parse(query, "kbTitleId = \"\"");
     fromList.add(getFromTitleDataForeignKey(pgCqlQuery, counterReportId, providerId, pool));
 
-    pgCqlQuery.parse(query, "kbTitleId = \"\" AND kbManualMatch = false");
+    pgCqlQuery.parse(query, "kbTitleId <> \"\" AND kbManualMatch = false");
     fromList.add(getFromTitleDataForeignKey(pgCqlQuery, counterReportId, providerId, pool));
 
-    pgCqlQuery.parse(query, "kbTitleId = \"\" AND kbManualMatch = true");
+    pgCqlQuery.parse(query, "kbTitleId <> \"\" AND kbManualMatch = true");
     fromList.add(getFromTitleDataForeignKey(pgCqlQuery, counterReportId, providerId, pool));
 
     List<String[]> facets = new ArrayList<>(List.of(
@@ -260,7 +278,8 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
         new String [] {"status", "unmatched"},
         new String [] {"status", "ignored"})
     );
-    return streamResult(ctx, pool, distinct, fromList, facets, "titles",
+    return streamResult(ctx, pool, distinctMain, distinctCount, fromList, facets,
+        orderByClause,"titles",
         row -> new JsonObject()
             .put("id", row.getUUID("id"))
             .put("counterReportTitle", row.getString("counterreporttitle"))
@@ -361,7 +380,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     if (cqlWhere != null) {
       from = from + " WHERE " + cqlWhere;
     }
-    return streamResult(ctx, pool, null, from, "packages",
+    return streamResult(ctx, pool, null, from, pgCqlQuery.getOrderByClause(), "packages",
         row -> new JsonObject()
             .put("kbPackageId", row.getUUID("kbpackageid"))
             .put("kbPackageName", row.getString("kbpackagename"))
@@ -386,7 +405,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
       from = from + " WHERE " + cqlWhere;
     }
 
-    return streamResult(ctx, pool, null, from, "data",
+    return streamResult(ctx, pool, null, from, pgCqlQuery.getOrderByClause(), "data",
         row -> {
           JsonObject obj = new JsonObject()
               .put("id", row.getUUID("id"))
@@ -927,23 +946,24 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
       from = from + " WHERE " + cqlWhere;
     }
 
-    return streamResult(ctx, pool, null, from, "data", row ->
-        new JsonObject()
-            .put("id", row.getUUID("id"))
-            .put("kbTitleId", row.getUUID("kbtitleid"))
-            .put("kbPackageId", row.getUUID("kbpackageid"))
-            .put("type", row.getString("type"))
-            .put("agreementId", row.getUUID("agreementid"))
-            .put("agreementLineId", row.getUUID("agreementlineid"))
-            .put("poLineId", row.getUUID("polineid"))
-            .put("encumberedCost", row.getNumeric("encumberedcost"))
-            .put("invoicedCost", row.getNumeric("invoicedcost"))
-            .put("fiscalYearRange", row.getString("fiscalyearrange"))
-            .put("subscriptionDateRange", row.getString("subscriptiondaterange"))
-            .put("coverageDateRanges", row.getString("coveragedateranges"))
-            .put("orderType", row.getString("ordertype"))
-            .put("invoiceNumber", row.getString("invoicenumber"))
-            .put("poLineNumber", row.getString("polinenumber"))
+    return streamResult(ctx, pool, null, from, pgCqlQuery.getOrderByClause(),
+        "data", row ->
+            new JsonObject()
+                .put("id", row.getUUID("id"))
+                .put("kbTitleId", row.getUUID("kbtitleid"))
+                .put("kbPackageId", row.getUUID("kbpackageid"))
+                .put("type", row.getString("type"))
+                .put("agreementId", row.getUUID("agreementid"))
+                .put("agreementLineId", row.getUUID("agreementlineid"))
+                .put("poLineId", row.getUUID("polineid"))
+                .put("encumberedCost", row.getNumeric("encumberedcost"))
+                .put("invoicedCost", row.getNumeric("invoicedcost"))
+                .put("fiscalYearRange", row.getString("fiscalyearrange"))
+                .put("subscriptionDateRange", row.getString("subscriptiondaterange"))
+                .put("coverageDateRanges", row.getString("coveragedateranges"))
+                .put("orderType", row.getString("ordertype"))
+                .put("invoiceNumber", row.getString("invoicenumber"))
+                .put("poLineNumber", row.getString("polinenumber"))
     );
   }
 

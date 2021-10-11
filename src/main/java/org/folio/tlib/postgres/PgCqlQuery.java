@@ -31,6 +31,20 @@ public interface PgCqlQuery {
   String getWhereClause();
 
   /**
+   * Get PostgresQL where ORDER BY - (without ORDER BY).
+   * <p>Throws IllegalArgumentException on syntax error</p>
+   * @return order by clause argument or null if no sorting (ORDER BY can be omitted)
+   */
+  String getOrderByClause();
+
+  /**
+   * Get PostgresQL where ORDER BY fields without asc/desc.
+   * <p>Throws IllegalArgumentException on syntax error</p>
+   * @return order by clause argument or null if no sorting (ORDER BY can be omitted)
+   */
+  String getOrderByFields();
+
+  /**
    * Add supported field.
    * @param field field.
    */
