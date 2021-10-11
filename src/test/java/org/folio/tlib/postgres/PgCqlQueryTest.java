@@ -12,7 +12,7 @@ public class PgCqlQueryTest {
     pgCqlQuery.parse(null);
     Assert.assertNull(pgCqlQuery.getWhereClause());
 
-    pgCqlQuery.addField(new PgCqlField("dc.title", "title", PgCqlField.Type.TEXT));
+    pgCqlQuery.addField(new PgCqlField("title", "dc.title", PgCqlField.Type.TEXT));
 
     pgCqlQuery.parse("dc.Title==value");
     Assert.assertEquals("title = 'value'", pgCqlQuery.getWhereClause());
