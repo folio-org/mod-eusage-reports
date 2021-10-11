@@ -1040,6 +1040,14 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
         .map(HttpResponse::bodyAsJsonObject);
   }
 
+  /**
+   * Fetch invoice by invoice ID.
+   * @see <a
+   * href="https://github.com/folio-org/acq-models/blob/master/mod-invoice-storage/schemas/invoice.json">invoice schema</a>
+   * @param invoiceId invoice ID
+   * @param ctx Routing context.
+   * @return invoice response JSON object.
+   */
   Future<JsonObject> lookupInvoice(UUID invoiceId, RoutingContext ctx) {
     String uri = "/invoice-storage/invoices/" + invoiceId;
     return getRequestSend(ctx, uri)
@@ -1149,6 +1157,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
           Future<Void> future1 = Future.succeededFuture();
           for (int j = 0; j < invoices.size(); j++) {
             JsonObject invoiceLine = invoices.getJsonObject(j);
+            // invoiceId is a required property
             UUID invoiceId = UUID.fromString(invoiceLine.getString("invoiceId"));
             future1 = future1.compose(x -> getFiscalYearInvoice(invoiceId, ctx, fiscalYears)
                 .compose(fiscalYear -> {
