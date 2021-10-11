@@ -40,7 +40,7 @@ public class PgCqlQueryImpl implements PgCqlQuery {
         // get rid of sortby as it can't be combined and we don't
         // it for sorting anyway.
         CQLNode node = parser.parse(query);
-        if (node != null && node instanceof CQLSortNode) {
+        if (node instanceof CQLSortNode) {
           CQLSortNode cqlSortNode = (CQLSortNode) node;
           node = cqlSortNode.getSubtree();
         }
