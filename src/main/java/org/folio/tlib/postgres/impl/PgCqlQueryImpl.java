@@ -120,11 +120,15 @@ public class PgCqlQueryImpl implements PgCqlQuery {
     }
     // convert to UUID so IllegalArgumentException is thrown if invalid
     // this also down-cases uppercase hex digits.
-    UUID id = UUID.fromString(termNode.getTerm());
+    try {
+      UUID id = UUID.fromString(termNode.getTerm());
 
-    String pgTerm = "'" + id + "'";
-    String op = basicOp(termNode);
-    return field.getColumn() + op + pgTerm;
+      String pgTerm = "'" + id + "'";
+      String op = basicOp(termNode);
+      return field.getColumn() + op + pgTerm;
+    } catch (IllegalArgumentException e) {
+      throw new IllegalArgumentException("Invalid UUID in " + termNode.toCQL());
+    }
   }
 
   /**
