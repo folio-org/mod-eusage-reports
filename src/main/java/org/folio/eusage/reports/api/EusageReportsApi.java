@@ -1020,6 +1020,12 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
         .map(HttpResponse::bodyAsJsonObject);
   }
 
+  Future<JsonObject> lookupInvoice(UUID invoiceId, RoutingContext ctx) {
+    String uri = "/invoice-storage/invoices/" + invoiceId;
+    return getRequestSend(ctx, uri)
+        .map(HttpResponse::bodyAsJsonObject);
+  }
+
   /**
    * Fetch budgets tied to fund.
    * @param fundId fund identifier.
@@ -1047,13 +1053,12 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
         .map(HttpResponse::bodyAsJsonObject);
   }
 
-  Future<Void> getFiscalYear(JsonObject poLine, RoutingContext ctx, JsonObject result) {
+  Future<JsonArray> getAllFiscalYears(JsonObject poLine, RoutingContext ctx) {
     Future<Void> future = Future.succeededFuture();
     JsonArray fundDistribution = poLine.getJsonArray("fundDistribution");
     JsonArray fiscalYears = new JsonArray();
-    result.put("fiscalYear", fiscalYears);
     if (fundDistribution == null) {
-      return future;
+      return Future.succeededFuture(new JsonArray());
     }
     for (int i = 0; i < fundDistribution.size(); i++) {
       // fundId is a required property
@@ -1074,7 +1079,27 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
         return future1;
       });
     }
-    return future;
+    return future.map(x -> fiscalYears);
+  }
+
+  Future<String> getFiscalYearInvoice(UUID invoiceId, RoutingContext ctx, JsonArray fiscalYears) {
+    return lookupInvoice(invoiceId, ctx).compose(invoice -> {
+      String date = invoice.getString("paymentDate");
+      if (date == null) {
+        date = invoice.getString("invoiceDate");
+      }
+      LocalDate localDate = LocalDate.parse(date.substring(0, 10));
+      for (int i = 0; i < fiscalYears.size(); i++) {
+        String fiscalYear = fiscalYears.getString(i);
+        if (fiscalYear != null) {
+          DateRange d = new DateRange(fiscalYears.getString(i));
+          if (d.includes(localDate)) {
+            return Future.succeededFuture(fiscalYears.getString(i));
+          }
+        }
+      }
+      return Future.succeededFuture(null);
+    });
   }
 
   Future<JsonObject> parsePoLine(JsonObject poLine, RoutingContext ctx) {
@@ -1085,46 +1110,49 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     JsonArray subscriptionPeriods = new JsonArray();
     result.put("subscriptionPeriods", subscriptionPeriods);
     JsonArray invoicedPeriods = new JsonArray();
+    result.put("fiscalYear", new JsonArray());
     result.put("invoicedPeriods", invoicedPeriods);
     JsonArray invoiceNumbers = new JsonArray();
     result.put("invoiceNumber", invoiceNumbers);
-    Future<Void> future = lookupOrderLine(poLineId, ctx).compose(orderLine -> {
+    Future<JsonArray> future = lookupOrderLine(poLineId, ctx).compose(orderLine -> {
       result.put("poLineNumber", orderLine.getString("poLineNumber"));
       JsonObject cost = orderLine.getJsonObject("cost");
       result.put("currency", cost.getString("currency"));
       result.put("encumberedCost",
           result.getDouble("encumberedCost") + cost.getDouble("listUnitPriceElectronic"));
-      return getFiscalYear(orderLine, ctx, result)
-          .compose(x -> getOrderType(orderLine, ctx, result));
+      return getOrderType(orderLine, ctx, result)
+          .compose(x -> getAllFiscalYears(orderLine, ctx));
     });
-    future = future.compose(a -> lookupInvoiceLines(poLineId, ctx).compose(invoiceResponse -> {
-      JsonArray invoices = invoiceResponse.getJsonArray("invoiceLines");
-      for (int j = 0; j < invoices.size(); j++) {
-        JsonObject invoiceLine = invoices.getJsonObject(j);
-        Double thisTotal = invoiceLine.getDouble("total");
-        if (thisTotal != null) {
-          result.put("invoicedCost", thisTotal + result.getDouble("invoicedCost"));
-        }
-        String range = getRange(invoiceLine, "subscriptionStart", "subscriptionEnd");
-        if (range != null) {
-          subscriptionPeriods.add(range);
-          invoicedPeriods.add(thisTotal != null ? thisTotal : 0.0);
-        }
-        String invoiceNumber = invoiceLine.getString("invoiceLineNumber");
-        if (invoiceNumbers.isEmpty() || range != null) {
-          if (invoiceNumber != null) {
-            invoiceNumbers.add(invoiceNumber);
+    return future.compose(fiscalYears -> lookupInvoiceLines(poLineId, ctx)
+        .compose(invoiceResponse -> {
+          JsonArray invoices = invoiceResponse.getJsonArray("invoiceLines");
+          Future<Void> future1 = Future.succeededFuture();
+          for (int j = 0; j < invoices.size(); j++) {
+            JsonObject invoiceLine = invoices.getJsonObject(j);
+            UUID invoiceId = UUID.fromString(invoiceLine.getString("invoiceId"));
+            future1 = future1.compose(x -> getFiscalYearInvoice(invoiceId, ctx, fiscalYears)
+                .compose(fiscalYear -> {
+                  Double thisTotal = invoiceLine.getDouble("total");
+                  if (thisTotal != null) {
+                    result.put("invoicedCost", thisTotal + result.getDouble("invoicedCost"));
+                  }
+                  String range = getRange(invoiceLine, "subscriptionStart", "subscriptionEnd");
+                  if (range != null || fiscalYear != null) {
+                    subscriptionPeriods.add(range);
+                    invoicedPeriods.add(thisTotal != null ? thisTotal : 0.0);
+                    result.getJsonArray("fiscalYear").add(fiscalYear);
+                    invoiceNumbers.add(invoiceLine.getString("invoiceLineNumber"));
+                  }
+                  return Future.succeededFuture();
+                }));
           }
-        }
-      }
-      return Future.succeededFuture();
-    }));
+          return future1.map(result);
+        }));
     // https://github.com/folio-org/acq-models/blob/master/mod-finance/schemas/fiscal_year.json
     // https://github.com/folio-org/acq-models/blob/master/mod-finance/schemas/ledger.json
     // https://github.com/folio-org/acq-models/blob/master/mod-finance/schemas/budget.json
     // https://github.com/folio-org/acq-models/blob/master/mod-finance/schemas/fund.json
     // poline -> fund -> ledger -> fiscal_year
-    return future.map(result);
   }
 
   static String getRange(JsonObject o, String startProp, String endProp) {
@@ -1222,28 +1250,12 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     JsonArray invoiceNumbers = poResult.getJsonArray("invoiceNumber");
     for (int i = 0; i < subscriptionPeriods.size(); i++) {
       String subscriptionDateRange = subscriptionPeriods.getString(i);
-      // TODO: below as an assumption that if both fiscal year and subscription is
-      // present they are in "order"..
-      String fiscalYear = i < fiscalYears.size() ? fiscalYears.getString(i) : null;
+      String fiscalYear = fiscalYears.getString(i);
       Double invoicedCost = invoicedPeriods.getDouble(i);
       String invoiceNumber = invoiceNumbers.getString(i);
       future = future.compose(x -> insertAgreementLine(pool, con, agreementId, agreementLineId,
           coverageDateRanges, type, kbTitleId, kbPackageId, poLineId, poResult,
           invoicedCost, invoiceNumber, fiscalYear, subscriptionDateRange));
-    }
-    if (subscriptionPeriods.isEmpty()) {
-      log.info("AD: subscription periods is empty and fiscal year size is {}", fiscalYears.size());
-      if (fiscalYears.isEmpty()) {
-        fiscalYears.add(null);
-      }
-      for (int i = 0; i < fiscalYears.size(); i++) {
-        String fiscalYear = fiscalYears.getString(i);
-        Double invoicedCost = poResult.getDouble("invoicedCost");
-        String invoiceNumber = invoiceNumbers.getString(0);
-        future = future.compose(x -> insertAgreementLine(pool, con, agreementId, agreementLineId,
-            coverageDateRanges, type, kbTitleId, kbPackageId, poLineId, poResult, invoicedCost,
-            invoiceNumber, fiscalYear, null));
-      }
     }
     return future;
   }

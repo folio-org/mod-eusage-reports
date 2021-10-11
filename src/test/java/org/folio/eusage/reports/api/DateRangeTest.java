@@ -47,7 +47,7 @@ public class DateRangeTest {
     new DateRange("[x,");
   }
 
-  @Test(expected = DateTimeParseException.class)
+  @Test(expected = StringIndexOutOfBoundsException.class)
   public void testDate1() {
     new DateRange("[2020-01-01,)");
   }
@@ -71,6 +71,12 @@ public class DateRangeTest {
     Assert.assertTrue(d.includes(LocalDate.of(2020, 1, 30)));
     Assert.assertFalse(d.includes(LocalDate.of(2020, 2, 1)));
     Assert.assertFalse(d.includes(LocalDate.of(2021, 2, 1)));
+  }
+
+  @Test
+  public void testFullDate() {
+    DateRange d = new DateRange("[2021-06-18T00:00:00.000+00:00,2022-06-18T13:55:04.957+00:00]");
+    Assert.assertEquals(12, d.getMonths());
   }
 
   @Test

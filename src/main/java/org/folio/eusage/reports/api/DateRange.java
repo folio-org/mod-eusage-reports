@@ -25,13 +25,13 @@ public class DateRange {
     }
     char last = s.charAt(s.length() - 1);
     if (last == ']') {
-      end = LocalDate.parse(s.substring(idx + 1, s.length() - 1));
+      end = LocalDate.parse(s.substring(idx + 1, idx + 11));
     } else if (last == ')') {
-      end = LocalDate.parse(s.substring(idx + 1, s.length() - 1)).minusDays(1);
+      end = LocalDate.parse(s.substring(idx + 1, idx + 11)).minusDays(1);
     } else {
       throw new IllegalArgumentException("Does not end with ] or ) in " + s);
     }
-    start = LocalDate.parse(s.substring(1, idx));
+    start = LocalDate.parse(s.substring(1, 11));
   }
 
   /**
