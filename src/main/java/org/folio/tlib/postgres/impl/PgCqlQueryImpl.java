@@ -124,9 +124,9 @@ public class PgCqlQueryImpl implements PgCqlQuery {
     String base = termNode.getRelation().getBase();
     switch (base) {
       case "=":
-        return field.getColumn() + " IS NULL";
-      case "<>":
         return field.getColumn() + " IS NOT NULL";
+      case "<>":
+        return field.getColumn() + " IS NULL";
       default:
         return null;
     }

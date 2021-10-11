@@ -257,13 +257,13 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     fromList.add(getFromTitleDataForeignKey(pgCqlQuery, counterReportId, providerId, pool));
 
     // add query for each facet
-    pgCqlQuery.parse(query, "kbTitleId <> \"\"");
+    pgCqlQuery.parse(query, "kbTitleId = \"\"");
     fromList.add(getFromTitleDataForeignKey(pgCqlQuery, counterReportId, providerId, pool));
 
-    pgCqlQuery.parse(query, "kbTitleId = \"\" AND kbManualMatch = false");
+    pgCqlQuery.parse(query, "kbTitleId <> \"\" AND kbManualMatch = false");
     fromList.add(getFromTitleDataForeignKey(pgCqlQuery, counterReportId, providerId, pool));
 
-    pgCqlQuery.parse(query, "kbTitleId = \"\" AND kbManualMatch = true");
+    pgCqlQuery.parse(query, "kbTitleId <> \"\" AND kbManualMatch = true");
     fromList.add(getFromTitleDataForeignKey(pgCqlQuery, counterReportId, providerId, pool));
 
     List<String[]> facets = new ArrayList<>(List.of(
