@@ -60,9 +60,6 @@ public class CostPerUse {
       if (subscriptionPeriod == null) {
         return;
       }
-      // number of months for subscription
-      long allPeriodsMonths = subscriptionPeriod.commonMonths(
-          new DateRange(usePeriods.startDate, usePeriods.endDate));
       String poLineNumber = row.getString("polinenumber");
       UUID kbId = row.getUUID("kbid");
       String itemKey = kbId + "," + poLineNumber + "," + fiscalYearRange + ","
@@ -121,6 +118,9 @@ public class CostPerUse {
       }
       UUID paidId = kbPackageId != null ? kbPackageId : kbId;
       int titlesDivide = kbPackageId == null ? 1 : packageContent.get(kbPackageId).size();
+      // number of months for subscription
+      long allPeriodsMonths = subscriptionPeriod.commonMonths(
+          new DateRange(usePeriods.startDate, usePeriods.endDate));
       // number of months period in start - end also in subscribed period
       int subscriptionMonths = subscriptionPeriod.getMonths();
       Number encumberedCost = row.getDouble("encumberedcost");
@@ -141,7 +141,7 @@ public class CostPerUse {
         item.put("amountPaid", CsvReports.formatCost(amountTitle));
         amountPaidTotalMap.putIfAbsent(paidId, amount);
       }
-      if (subscriptionMonths <= 0 || allPeriodsMonths == 0) {
+      if (subscriptionMonths <= 0) {
         return;
       }
       if (usageDateRange == null) {
