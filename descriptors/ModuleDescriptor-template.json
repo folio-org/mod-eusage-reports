@@ -82,7 +82,6 @@
             "invoice-storage.invoice-lines.collection.get",
             "invoice-storage.invoice-lines.item.get",
             "invoice-storage.invoices.item.get",
-            "finance-storage.funds.item.get",
             "finance-storage.fiscal-years.item.get",
             "finance-storage.budgets.collections.get",
             "finance-storage.transactions.item.get"
@@ -160,10 +159,6 @@
     {
       "id" : "finance-storage.fiscal-years",
       "version" : "2.1"
-    },
-    {
-      "id" : "finance-storage.funds",
-      "version" : "3.0"
     },
     {
       "id" : "finance-storage.transactions",
