@@ -39,8 +39,8 @@ public class CostPerUse {
       UUID kbId = row.getUUID("kbid");
       packageContent.computeIfAbsent(kbPackageId, x -> new TreeSet<>()).add(kbId);
     });
-    Map<UUID,Double> amountEncumberedTotalMap = new HashMap<>();
-    Map<UUID,Double> amountPaidTotalMap = new HashMap<>();
+    Map<String,Double> amountEncumberedTotalMap = new HashMap<>();
+    Map<String,Double> amountPaidTotalMap = new HashMap<>();
     rowSet.forEach(row -> {
       log.info("costPerUse row: {}", () -> row.deepToString());
       UUID kbPackageId = row.getUUID("kbpackageid");
@@ -128,8 +128,11 @@ public class CostPerUse {
         Double amount = subscriptionMonths > 0
             ?  allPeriodsMonths * encumberedCost.doubleValue() / subscriptionMonths
             :  encumberedCost.doubleValue();
-        item.put("amountEncumbered", CsvReports.formatCost(amount / titlesDivide));
-        amountEncumberedTotalMap.putIfAbsent(paidId, amount);
+        Double amountTitle = amount / titlesDivide;
+        item.put("amountEncumbered", CsvReports.formatCost(amountTitle));
+        if (subscriptionMonths > 0) {
+          amountEncumberedTotalMap.putIfAbsent(itemKey, amountTitle);
+        }
       }
       Number invoicedCost = row.getNumeric("invoicedcost");
       if (invoicedCost != null) {
@@ -138,7 +141,9 @@ public class CostPerUse {
             : invoicedCost.doubleValue();
         Double amountTitle = amount / titlesDivide;
         item.put("amountPaid", CsvReports.formatCost(amountTitle));
-        amountPaidTotalMap.putIfAbsent(paidId, amount);
+        if (subscriptionMonths > 0) {
+          amountPaidTotalMap.putIfAbsent(itemKey, amountTitle);
+        }
       }
       if (subscriptionMonths <= 0) {
         return;
