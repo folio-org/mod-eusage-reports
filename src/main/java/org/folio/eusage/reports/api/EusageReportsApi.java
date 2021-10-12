@@ -1009,8 +1009,11 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
   /**
    * Fetch PO line by ID.
    * @see <a
-   * href="https://github.com/folio-org/acq-models/blob/master/mod-orders-storage/schemas/po_line.json">
+   * href="https://github.com/folio-org/acq-models/blob/master/mod-orders/schemas/composite_po_line.json">
    * po line schema</a>
+   * @see <a
+   * href="https://github.com/folio-org/acq-models/blob/master/mod-orders-storage/schemas/fund_distribution.json">
+   * fund distribution</a>
    * @param poLineId PO line ID.
    * @param ctx Routing context.
    * @return PO line JSON object.
@@ -1082,13 +1085,47 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
         .map(HttpResponse::bodyAsJsonObject);
   }
 
+  /**
+   * Fetch transaction by ID.
+   * @see <a
+   * href="https://github.com/folio-org/acq-models/blob/master/mod-finance/schemas/transaction.json">
+   * transaction schema</a>
+   * @param id encumbrance identifier.
+   * @param ctx Routing Context.
+   * @return Transaction object.
+   */
+  Future<JsonObject> lookupTransaction(UUID id, RoutingContext ctx) {
+    String uri = "/finance-storage/transactions/" + id;
+    return getRequestSend(ctx, uri)
+        .map(HttpResponse::bodyAsJsonObject);
+  }
+
+  Future<Void> getEncumbrance(JsonArray fundDistribution, JsonObject result, RoutingContext ctx) {
+    result.put("encumberedCost", 0.0);
+    Future<Void> future = Future.succeededFuture();
+    if (fundDistribution == null) {
+      return future;
+    }
+    for (int i = 0; i < fundDistribution.size(); i++) {
+      JsonObject fund = fundDistribution.getJsonObject(i);
+      String encumbrance = fund.getString("encumbrance");
+      if (encumbrance != null) {
+        future = future.compose(x -> lookupTransaction(UUID.fromString(encumbrance), ctx)
+            .map(transaction -> {
+              result.put("encumberedCost",
+                  result.getDouble("encumberedCost") + transaction.getDouble("amount"));
+              return null;
+            }));
+      }
+    }
+    return future;
+  }
+
   Future<Void> getAllFiscalYears(JsonObject poLine, JsonObject result, RoutingContext ctx) {
     Future<Void> future = Future.succeededFuture();
     JsonArray fundDistribution = poLine.getJsonArray("fundDistribution");
     JsonArray fiscalYears = new JsonArray();
     result.put("allFiscalYears", fiscalYears);
-    JsonArray encumbered = new JsonArray();
-    result.put("allEncumbered", encumbered);
     if (fundDistribution == null) {
       return Future.succeededFuture();
     }
@@ -1100,7 +1137,6 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
         JsonArray budgets = budgetCollection.getJsonArray("budgets");
         for (int j = 0; j < budgets.size(); j++) {
           JsonObject budget = budgets.getJsonObject(j);
-          encumbered.add(budget.getDouble("encumbered"));
           // fiscalYearId is a required property
           UUID fiscalYearId = UUID.fromString(budget.getString("fiscalYearId"));
           future1 = future1.compose(x -> lookupFiscalYear(fiscalYearId, ctx).map(fiscalYear -> {
@@ -1151,10 +1187,10 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
       result.put("poLineNumber", orderLine.getString("poLineNumber"));
       JsonObject cost = orderLine.getJsonObject("cost");
       result.put("currency", cost.getString("currency"));
-      result.put("encumberedCosts", new JsonArray());
       return getOrderType(orderLine, ctx, result)
+          .compose(x -> getEncumbrance(orderLine.getJsonArray("fundDistribution"), result, ctx))
           .compose(x -> getAllFiscalYears(orderLine, result, ctx))
-          .compose(y -> lookupInvoiceLines(poLineId, ctx))
+          .compose(x -> lookupInvoiceLines(poLineId, ctx))
           .compose(invoiceResponse -> {
             JsonArray invoices = invoiceResponse.getJsonArray("invoiceLines");
             Future<Void> future = Future.succeededFuture();
@@ -1166,8 +1202,6 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
                   .compose(index -> {
                     String fiscalYear = index != null
                         ? result.getJsonArray("allFiscalYears").getString(index) : null;
-                    Double encumbered = index != null
-                        ? result.getJsonArray("allEncumbered").getDouble(index) : 0.0;
                     Double thisTotal = invoiceLine.getDouble("total");
                     if (thisTotal != null) {
                       result.put("invoicedCost", thisTotal + result.getDouble("invoicedCost"));
@@ -1178,7 +1212,6 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
                       invoicedPeriods.add(thisTotal != null ? thisTotal : 0.0);
                       result.getJsonArray("fiscalYear").add(fiscalYear);
                       invoiceNumbers.add(invoiceLine.getString("invoiceLineNumber"));
-                      result.getJsonArray("encumberedCosts").add(encumbered);
                     }
                     return Future.succeededFuture();
                   });
@@ -1286,16 +1319,14 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     JsonArray subscriptionPeriods = poResult.getJsonArray("subscriptionPeriods");
     JsonArray invoicedPeriods = poResult.getJsonArray("invoicedPeriods");
     JsonArray invoiceNumbers = poResult.getJsonArray("invoiceNumber");
-    JsonArray encumberedCosts = poResult.getJsonArray("encumberedCosts");
     for (int i = 0; i < subscriptionPeriods.size(); i++) {
       String subscriptionDateRange = subscriptionPeriods.getString(i);
       String fiscalYear = fiscalYears.getString(i);
       Double invoicedCost = invoicedPeriods.getDouble(i);
-      Double encumberedCost = encumberedCosts.getDouble(i);
       String invoiceNumber = invoiceNumbers.getString(i);
       future = future.compose(x -> insertAgreementLine(pool, con, agreementId, agreementLineId,
           coverageDateRanges, type, kbTitleId, kbPackageId, poLineId, poResult,
-          invoicedCost, encumberedCost, invoiceNumber, fiscalYear, subscriptionDateRange));
+          invoicedCost, invoiceNumber, fiscalYear, subscriptionDateRange));
     }
     return future;
   }
@@ -1303,11 +1334,11 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
   private Future<Void> insertAgreementLine(TenantPgPool pool, SqlConnection con, UUID agreementId,
       UUID agreementLineId, String coverageDateRanges, String type, UUID kbTitleId,
       UUID kbPackageId, UUID poLineId, JsonObject poResult, Number invoicedCost,
-      Number encumberedCost,
       String invoiceNumber, String fiscalYearRange, String subscriptionDateRange) {
 
     UUID id = UUID.randomUUID();
     String orderType = poResult.getString("orderType");
+    Double encumberedCost = poResult.getDouble("encumberedCost");
     String poLineNumber = poResult.getString("poLineNumber");
     return con.preparedQuery(
                     "INSERT INTO " + agreementEntriesTable(pool)

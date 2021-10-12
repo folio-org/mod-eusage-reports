@@ -61,6 +61,9 @@ public class MainVerticleTest {
   static final UUID usageProviderId = UUID.randomUUID();
   static final UUID goodFundId = UUID.randomUUID();
   static final UUID goodInvoiceId = UUID.randomUUID();
+  static final UUID [] goodEncumbranceIds = {
+      UUID.randomUUID(), UUID.randomUUID()
+  };
   static final UUID [] goodFiscalYearIds = {
       UUID.randomUUID(), UUID.randomUUID()
   };
@@ -508,6 +511,7 @@ public class MainVerticleTest {
           orderLine.put("fundDistribution", new JsonArray()
               .add(new JsonObject()
                   .put("fundId", goodFundId.toString())
+                  .put("encumbrance", goodEncumbranceIds[i].toString())
               )
           );
         }
@@ -622,7 +626,6 @@ public class MainVerticleTest {
       for (UUID fiscalYearId : goodFiscalYearIds) {
         JsonObject budget = new JsonObject();
         budget.put("fiscalYearId", fiscalYearId.toString());
-        budget.put("encumbered", 100.0);
         budgets.add(budget);
       }
     }
@@ -651,6 +654,27 @@ public class MainVerticleTest {
     ctx.response().setStatusCode(404);
     ctx.response().end("not found");
   }
+
+  static void getTransaction(RoutingContext ctx) {
+    String path = ctx.request().path();
+    int offset = path.lastIndexOf('/');
+    UUID id = UUID.fromString(path.substring(offset + 1));
+    for (UUID id1 : goodEncumbranceIds) {
+      if (id.equals(id1)) {
+        ctx.response().setChunked(true);
+        ctx.response().putHeader("Content-Type", "application/json");
+        JsonObject transaction = new JsonObject();
+        transaction.put("id", id);
+        transaction.put("amount", 100.0);
+        ctx.response().end(transaction.encode());
+        return;
+      }
+    }
+    ctx.response().putHeader("Content-Type", "text/plain");
+    ctx.response().setStatusCode(404);
+    ctx.response().end("not found");
+  }
+
 
   static void getCompositeOrders(RoutingContext ctx) {
     String path = ctx.request().path();
@@ -685,6 +709,7 @@ public class MainVerticleTest {
     router.getWithRegex("/erm/packages/[-0-9a-z]*/content").handler(MainVerticleTest::getPackageContent);
     router.getWithRegex("/finance-storage/budgets[-0-9a-z]*").handler(MainVerticleTest::getBudgets);
     router.getWithRegex("/finance-storage/fiscal-years/[-0-9a-z]*").handler(MainVerticleTest::getFiscalYear);
+    router.getWithRegex("/finance-storage/transactions/[-0-9a-z]*").handler(MainVerticleTest::getTransaction);
     router.getWithRegex("/orders/composite-orders/[-0-9a-z]*").handler(MainVerticleTest::getCompositeOrders);
     vertx.createHttpServer()
         .requestHandler(router)
