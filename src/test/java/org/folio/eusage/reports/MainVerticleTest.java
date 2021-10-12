@@ -1648,6 +1648,7 @@ public class MainVerticleTest {
     for (int i = 0; i < items.size(); i++) {
       JsonObject item = items.getJsonObject(i);
       String type =  item.getString("type");
+      context.assertEquals(100.0, item.getDouble("encumberedCost"));
       if ("package".equals(type)) {
         context.assertEquals(goodPackageId.toString(), item.getString("kbPackageId"));
         context.assertFalse(item.containsKey("kbTitleId"));
