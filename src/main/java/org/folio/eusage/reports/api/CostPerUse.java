@@ -63,9 +63,6 @@ public class CostPerUse {
       // number of months for subscription
       long allPeriodsMonths = subscriptionPeriod.commonMonths(
           new DateRange(usePeriods.startDate, usePeriods.endDate));
-      if (allPeriodsMonths == 0) {
-        return;
-      }
       String poLineNumber = row.getString("polinenumber");
       UUID kbId = row.getUUID("kbid");
       String itemKey = kbId + "," + poLineNumber + "," + fiscalYearRange + ","
@@ -135,6 +132,7 @@ public class CostPerUse {
         amountEncumberedTotalMap.putIfAbsent(paidId, amount);
       }
       Number invoicedCost = row.getNumeric("invoicedcost");
+
       if (invoicedCost != null) {
         Double amount = subscriptionMonths > 0
             ? allPeriodsMonths * invoicedCost.doubleValue() / subscriptionMonths
@@ -143,7 +141,7 @@ public class CostPerUse {
         item.put("amountPaid", CsvReports.formatCost(amountTitle));
         amountPaidTotalMap.putIfAbsent(paidId, amount);
       }
-      if (subscriptionMonths <= 0) {
+      if (subscriptionMonths <= 0 || allPeriodsMonths == 0) {
         return;
       }
       if (usageDateRange == null) {
