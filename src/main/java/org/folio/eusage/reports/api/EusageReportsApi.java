@@ -1218,11 +1218,6 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
             }
             return future.map(result);
           });
-      // https://github.com/folio-org/acq-models/blob/master/mod-finance/schemas/fiscal_year.json
-      // https://github.com/folio-org/acq-models/blob/master/mod-finance/schemas/ledger.json
-      // https://github.com/folio-org/acq-models/blob/master/mod-finance/schemas/budget.json
-      // https://github.com/folio-org/acq-models/blob/master/mod-finance/schemas/fund.json
-      // poline -> fund -> ledger -> fiscal_year
     });
   }
 
