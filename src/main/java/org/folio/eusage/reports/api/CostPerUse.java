@@ -132,7 +132,6 @@ public class CostPerUse {
         amountEncumberedTotalMap.putIfAbsent(paidId, amount);
       }
       Number invoicedCost = row.getNumeric("invoicedcost");
-
       if (invoicedCost != null) {
         Double amount = subscriptionMonths > 0
             ? allPeriodsMonths * invoicedCost.doubleValue() / subscriptionMonths
