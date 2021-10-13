@@ -280,7 +280,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     if (includeStatusFacet) {
       // add query for each status facet
       statusValues.add(new String[]{"status", "matched"});
-      statusValues.add(new String[]{"status", "unmactched"});
+      statusValues.add(new String[]{"status", "unmatched"});
       statusValues.add(new String[]{"status", "ignored"});
 
       pgCqlQuery.parse(query, "kbTitleId = \"\"");
