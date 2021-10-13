@@ -1009,7 +1009,9 @@ public class MainVerticleTest {
     context.assertEquals(3, facetValues.size());
     context.assertEquals("matched", facetValues.getJsonObject(0).getString("value"));
     context.assertEquals(noManual + noMatched, facetValues.getJsonObject(0).getInteger("count"));
+    context.assertEquals("unmatched", facetValues.getJsonObject(1).getString("value"));
     context.assertEquals(noUndef, facetValues.getJsonObject(1).getInteger("count"));
+    context.assertEquals("ignored", facetValues.getJsonObject(2).getString("value"));
     context.assertEquals(noIgnored, facetValues.getJsonObject(2).getInteger("count"));
   }
 
