@@ -227,6 +227,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
             .onFailure(x -> sqlConnection.close()));
   }
 
+
   Future<Void> getReportTitles(Vertx vertx, RoutingContext ctx) {
     PgCqlQuery pgCqlQuery = PgCqlQuery.query();
     pgCqlQuery.addField(new PgCqlField("cql.allRecords", PgCqlField.Type.ALWAYS_MATCHES));
@@ -278,17 +279,18 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     List<String[]> statusValues = new ArrayList<>();
     if (includeStatusFacet) {
       // add query for each status facet
+      statusValues.add(new String[]{"status", "matched"});
+      statusValues.add(new String[]{"status", "unmactched"});
+      statusValues.add(new String[]{"status", "ignored"});
+
       pgCqlQuery.parse(query, "kbTitleId = \"\"");
       fromList.add(getFromTitleDataForeignKey(pgCqlQuery, counterReportId, providerId, pool));
-      statusValues.add(new String[]{"status", "matched"});
 
       pgCqlQuery.parse(query, "kbTitleId <> \"\" AND kbManualMatch = false");
       fromList.add(getFromTitleDataForeignKey(pgCqlQuery, counterReportId, providerId, pool));
-      statusValues.add(new String[]{"status", "unmactched"});
 
       pgCqlQuery.parse(query, "kbTitleId <> \"\" AND kbManualMatch = true");
       fromList.add(getFromTitleDataForeignKey(pgCqlQuery, counterReportId, providerId, pool));
-      statusValues.add(new String[]{"status", "ignored"});
     }
     return streamResult(ctx, pool, distinctMain, distinctCount, fromList, statusValues,
         orderByClause,"titles",
