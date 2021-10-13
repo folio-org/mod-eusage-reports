@@ -8,9 +8,10 @@ paths:
       - $ref: headers/okapi-tenant.yaml
       - $ref: headers/okapi-token.yaml
       - $ref: headers/okapi-url.yaml
-      - $ref: parameters/offset.yaml
+      - $ref: parameters/facets.yaml
       - $ref: parameters/limit.yaml
       - $ref: parameters/query.yaml
+      - $ref: parameters/offset.yaml
       - in: query
         name: counterReportId
         required: false
@@ -99,7 +100,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: schemas/reportTitles.json
+                $ref: schemas/fromCounterResponse.json
         "400":
           $ref: "#/components/responses/trait_400"
         "404":

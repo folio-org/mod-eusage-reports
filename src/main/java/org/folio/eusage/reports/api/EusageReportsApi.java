@@ -252,7 +252,19 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     final TenantPgPool pool = TenantPgPool.pool(vertx, tenant);
     final String distinctCount = titleEntriesTable(pool) + ".id";
     final String query = stringOrNull(params.queryParameter("query"));
+    RequestParameter facetsParameter = params.queryParameter("facets");
+    String [] facetsList = facetsParameter == null
+        ? new String[0]
+        : facetsParameter.getString().split(",");
 
+    boolean includeStatusFacet = false;
+    for (String name : facetsList) {
+      if ("status".equals(name)) {
+        includeStatusFacet = true;
+      } else {
+        throw new IllegalArgumentException("Unsupported facet: " + name);
+      }
+    }
     List<String> fromList = new ArrayList<>(); // main query and facet queries
     pgCqlQuery.parse(query);
     String orderByFields = pgCqlQuery.getOrderByFields();
@@ -263,22 +275,22 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     final String orderByClause = pgCqlQuery.getOrderByClause();
     fromList.add(getFromTitleDataForeignKey(pgCqlQuery, counterReportId, providerId, pool));
 
-    // add query for each facet
-    pgCqlQuery.parse(query, "kbTitleId = \"\"");
-    fromList.add(getFromTitleDataForeignKey(pgCqlQuery, counterReportId, providerId, pool));
+    List<String[]> statusValues = new ArrayList<>();
+    if (includeStatusFacet) {
+      // add query for each status facet
+      pgCqlQuery.parse(query, "kbTitleId = \"\"");
+      fromList.add(getFromTitleDataForeignKey(pgCqlQuery, counterReportId, providerId, pool));
+      statusValues.add(new String[]{"status", "matched"});
 
-    pgCqlQuery.parse(query, "kbTitleId <> \"\" AND kbManualMatch = false");
-    fromList.add(getFromTitleDataForeignKey(pgCqlQuery, counterReportId, providerId, pool));
+      pgCqlQuery.parse(query, "kbTitleId <> \"\" AND kbManualMatch = false");
+      fromList.add(getFromTitleDataForeignKey(pgCqlQuery, counterReportId, providerId, pool));
+      statusValues.add(new String[]{"status", "unmactched"});
 
-    pgCqlQuery.parse(query, "kbTitleId <> \"\" AND kbManualMatch = true");
-    fromList.add(getFromTitleDataForeignKey(pgCqlQuery, counterReportId, providerId, pool));
-
-    List<String[]> facets = new ArrayList<>(List.of(
-        new String [] {"status", "matched"},
-        new String [] {"status", "unmatched"},
-        new String [] {"status", "ignored"})
-    );
-    return streamResult(ctx, pool, distinctMain, distinctCount, fromList, facets,
+      pgCqlQuery.parse(query, "kbTitleId <> \"\" AND kbManualMatch = true");
+      fromList.add(getFromTitleDataForeignKey(pgCqlQuery, counterReportId, providerId, pool));
+      statusValues.add(new String[]{"status", "ignored"});
+    }
+    return streamResult(ctx, pool, distinctMain, distinctCount, fromList, statusValues,
         orderByClause,"titles",
         row -> new JsonObject()
             .put("id", row.getUUID("id"))
@@ -432,7 +444,10 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
         .onFailure(x -> log.error(x.getMessage(), x))
         .compose(x -> {
           if (Boolean.TRUE.equals(x)) {
-            return getReportTitles(vertx, ctx);
+            ctx.response().setStatusCode(200);
+            ctx.response().putHeader("Content-Type", "application/json");
+            ctx.response().end("{}");
+            return Future.succeededFuture();
           }
           failHandler(404, ctx, "Not Found");
           return Future.succeededFuture();
