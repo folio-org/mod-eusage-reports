@@ -4,6 +4,7 @@ import static org.folio.eusage.reports.api.EusageReportsApi.agreementEntriesTabl
 import static org.folio.eusage.reports.api.EusageReportsApi.packageEntriesTable;
 import static org.folio.eusage.reports.api.EusageReportsApi.titleDataTable;
 import static org.folio.eusage.reports.api.EusageReportsApi.titleEntriesTable;
+import static org.hamcrest.Matchers.not;
 import static org.hamcrest.collection.IsIterableContainingInOrder.contains;
 import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.CoreMatchers.is;
@@ -95,9 +96,17 @@ public class EusageReportsApiTest {
   }
 
   private Future<String> getUseOverTime(String format, String startDate, String endDate, boolean csv) {
+    return getUseOverTime(format, startDate, endDate, csv, true);
+  }
+
+  private Future<String> getUseOverTime(String format, String startDate, String endDate,
+      boolean csv, boolean full) {
     RoutingContext ctx = mock(RoutingContext.class, RETURNS_DEEP_STUBS);
     if (csv) {
       when(ctx.request().params().get("csv")).thenReturn("true");
+    }
+    if (!full) {
+      when(ctx.request().params().get("full")).thenReturn("false");
     }
     when(ctx.request().getHeader("X-Okapi-Tenant")).thenReturn(tenant);
     when(ctx.request().params().get("format")).thenReturn(format);
@@ -140,9 +149,21 @@ public class EusageReportsApiTest {
   }
 
   @Test
-  public void useOverTimeJsonK(TestContext context) {
-    getUseOverTime("BOOK", "2020", "2021", false)
+  public void useOverTimeCsvNoItems(TestContext context) {
+    getUseOverTime("ALL", "2020", "2021", true, false)
         .onComplete(context.asyncAssertSuccess());
+  }
+
+  @Test
+  public void useOverTimeJsonOK(TestContext context) {
+    getUseOverTime("BOOK", "2020", "2021", false, true)
+        .onComplete(context.asyncAssertSuccess(x -> assertThat(x, containsString("\"items\""))));
+  }
+
+  @Test
+  public void useOverTimeJsonNoItems(TestContext context) {
+    getUseOverTime("BOOK", "2020", "2021", false, false)
+        .onComplete(context.asyncAssertSuccess(x -> assertThat(x, not(containsString("\"items\"")))));
   }
 
   @Test
@@ -395,7 +416,7 @@ assertThat(json.getJsonArray("items").size(), is(4));
 
   @Test
   public void useOverTimeCsv(TestContext context) {
-    new EusageReportsApi().getUseOverTime(pool, true, true, a1, null,"2020-04", "2020-05", true)
+    new EusageReportsApi().getUseOverTime(pool, true, true, a1, null,"2020-04", "2020-05", true, true)
         .onComplete(context.asyncAssertSuccess(res -> {
           assertThat(res, containsString("Title,Print ISSN,Online ISSN,ISBN,Access type,Metric Type,Reporting period total,2020-04,2020-05"));
           assertThat(res, containsString("Totals - total item requests,,,,,,56,22,34"));
@@ -406,7 +427,7 @@ assertThat(json.getJsonArray("items").size(), is(4));
 
   @Test
   public void useOverTimeCsvAll(TestContext context) {
-    new EusageReportsApi().getUseOverTime(pool, null, true, a1, null,"2020-04", "2020-05", true)
+    new EusageReportsApi().getUseOverTime(pool, null, true, a1, null,"2020-04", "2020-05", true, true)
         .onComplete(context.asyncAssertSuccess(res -> {
           assertThat(res, containsString("Title,Print ISSN,Online ISSN,ISBN,Access type,Metric Type,Reporting period total,2020-04,2020-05"));
           assertThat(res, containsString("Totals - total item requests,,,,,,56,22,34"));
@@ -417,7 +438,7 @@ assertThat(json.getJsonArray("items").size(), is(4));
 
   @Test
   public void useOverTimeCsvBook(TestContext context) {
-    new EusageReportsApi().getUseOverTime(pool, false, true, a2, null,"2020-05", "2020-06", true)
+    new EusageReportsApi().getUseOverTime(pool, false, true, a2, null,"2020-05", "2020-06", true, true)
         .onComplete(context.asyncAssertSuccess(res -> {
           assertThat(res, containsString("Title,Print ISSN,Online ISSN,ISBN,Access type,Metric Type,Reporting period total,2020-05,2020-06"));
           assertThat(res, containsString("Totals - total item requests,,,,,,42,40,2"));
@@ -846,7 +867,6 @@ assertThat(json.getJsonArray("items").size(), is(4));
           ArgumentCaptor<String> body = ArgumentCaptor.forClass(String.class);
           verify(routingContext.response()).end(body.capture());
           JsonObject json = new JsonObject(body.getValue());
-          System.out.println(json.encodePrettily());
           assertThat(json.getJsonArray("items").size(), is(2));
         }));
   }
@@ -923,6 +943,28 @@ assertThat(json.getJsonArray("items").size(), is(4));
   }
 
   @Test
+  public void reqsByDateOfUseWithRoutingContextNoItems(TestContext context) {
+    RoutingContext routingContext = mock(RoutingContext.class, RETURNS_DEEP_STUBS);
+    when(routingContext.request().getHeader("X-Okapi-Tenant")).thenReturn(tenant);
+    when(routingContext.request().params().get("agreementId")).thenReturn(a2);
+    when(routingContext.request().params().get("full")).thenReturn("false");
+    when(routingContext.request().params().get("startDate")).thenReturn("2020-05");
+    when(routingContext.request().params().get("endDate")).thenReturn("2020-06");
+    when(routingContext.request().params().get("includeOA")).thenReturn("true");
+    new EusageReportsApi().getReqsByDateOfUse(vertx, routingContext)
+        .onComplete(context.asyncAssertSuccess(x -> {
+          ArgumentCaptor<String> body = ArgumentCaptor.forClass(String.class);
+          verify(routingContext.response()).end(body.capture());
+          JsonObject json = new JsonObject(body.getValue());
+          assertThat(json.getLong("totalItemRequestsTotal"), is(42L));
+          assertThat(json.getLong("uniqueItemRequestsTotal"), is(21L));
+          assertThat(json.getJsonArray("totalItemRequestsByPeriod"), contains(40, 2));
+          assertThat(json.getJsonArray("uniqueItemRequestsByPeriod"), contains(20, 1));
+          assertThat(json.containsKey("items"), is(false));
+        }));
+  }
+
+  @Test
   public void reqsByDateOfUseWithRoutingContextCsv(TestContext context) {
     RoutingContext routingContext = mock(RoutingContext.class, RETURNS_DEEP_STUBS);
     when(routingContext.request().getHeader("X-Okapi-Tenant")).thenReturn(tenant);
@@ -980,6 +1022,7 @@ assertThat(json.getJsonArray("items").size(), is(4));
     RoutingContext routingContext = mock(RoutingContext.class, RETURNS_DEEP_STUBS);
     when(routingContext.request().getHeader("X-Okapi-Tenant")).thenReturn(tenant);
     when(routingContext.request().params().get("agreementId")).thenReturn(a1);
+    when(routingContext.request().params().get("full")).thenReturn("false");
     when(routingContext.request().params().get("accessCountPeriod")).thenReturn("auto");
     when(routingContext.request().params().get("startDate")).thenReturn("2020-04");
     when(routingContext.request().params().get("endDate")).thenReturn("2020-08");
@@ -1007,6 +1050,7 @@ assertThat(json.getJsonArray("items").size(), is(4));
                   .add(new JsonObject().put("2020-01 - 2020-06", 16))
                   .add(new JsonObject().put("2020-01 - 2020-06", 40))
                   .encodePrettily()));
+          assertThat(json.containsKey("items"), is(false));
         }));
   }
 
@@ -1106,6 +1150,34 @@ assertThat(json.getJsonArray("items").size(), is(4));
               .put("periodOfUse", "2020-01 - 2020-06")
               .encodePrettily()));
     }));
+  }
+
+  @Test
+  public void costPerUseWithRoutingContextNoItems(TestContext context) {
+    RoutingContext routingContext = mock(RoutingContext.class, RETURNS_DEEP_STUBS);
+    when(routingContext.request().getHeader("X-Okapi-Tenant")).thenReturn(tenant);
+    when(routingContext.request().params().get("full")).thenReturn("false");
+    when(routingContext.request().params().get("agreementId")).thenReturn(a1);
+    when(routingContext.request().params().get("startDate")).thenReturn("2020-04");
+    when(routingContext.request().params().get("endDate")).thenReturn("2020-08");
+    when(routingContext.request().params().get("includeOA")).thenReturn("true");
+    new EusageReportsApi().getCostPerUse(vertx, routingContext)
+        .onComplete(context.asyncAssertSuccess(x -> {
+          ArgumentCaptor<String> body = ArgumentCaptor.forClass(String.class);
+          verify(routingContext.response()).end(body.capture());
+          JsonObject json = new JsonObject(body.getValue());
+          assertThat((List<?>) json.getJsonArray("accessCountPeriods").getList(),
+              contains("2020-04", "2020-05", "2020-06", "2020-07", "2020-08"));
+          assertThat((List<?>) json.getJsonArray("titleCountByPeriod").getList(),
+              contains(2, 2, 1, 0, 0));
+          assertThat((List<?>) json.getJsonArray("totalItemCostsPerRequestsByPeriod").getList(),
+              contains(0.83, 0.54, 0.32, null, null));
+          assertThat((List<?>) json.getJsonArray("uniqueItemCostsPerRequestsByPeriod").getList(),
+              contains(0.92, 1.02, 1.02, null, null));
+          assertThat(json.getDouble("amountPaidTotal"), is(91.67)); // 5/12 * 220
+          assertThat(json.getDouble("amountEncumberedTotal"), is(83.33));
+          assertThat(json.containsKey("items"), is(false));
+        }));
   }
 
   @Test
@@ -1354,6 +1426,40 @@ assertThat(json.getJsonArray("items").size(), is(4));
   }
 
   @Test
+  public void costPerUseNoItems(TestContext context) {
+    RoutingContext routingContext = mock(RoutingContext.class, RETURNS_DEEP_STUBS);
+    when(routingContext.request().getHeader("X-Okapi-Tenant")).thenReturn(tenant);
+    when(routingContext.request().params().get("agreementId")).thenReturn(a2);
+    when(routingContext.request().params().get("csv")).thenReturn("true");
+    when(routingContext.request().params().get("full")).thenReturn("false");
+    when(routingContext.request().params().get("startDate")).thenReturn("2020-05");
+    when(routingContext.request().params().get("endDate")).thenReturn("2020-06");
+    when(routingContext.request().params().get("includeOA")).thenReturn("true");
+    new EusageReportsApi().getCostPerUse(vertx, routingContext)
+        .onComplete(context.asyncAssertSuccess(x -> {
+          ArgumentCaptor<String> body = ArgumentCaptor.forClass(String.class);
+          verify(routingContext.response()).end(body.capture());
+          String res = body.getValue();
+          StringReader reader = new StringReader(res);
+          try {
+            CSVParser parser = new CSVParser(reader, CsvReports.CSV_FORMAT);
+            List<CSVRecord> records = parser.getRecords();
+            CSVRecord header = records.get(0);
+            CSVRecord totals = records.get(1);
+            context.assertEquals("Agreement line", header.get(0));
+            context.assertEquals("Print ISSN", header.get(2));
+            context.assertEquals("Online ISSN", header.get(3));
+            context.assertEquals("ISBN", header.get(4));
+            context.assertEquals("Order type", header.get(5));
+            context.assertEquals("Totals", totals.get(0));
+            context.assertEquals(2, records.size());
+          } catch (IOException e) {
+            context.fail(e);
+          }
+        }));
+  }
+
+  @Test
   public void costPerFormatAllCsv(TestContext context) {
     RoutingContext routingContext = mock(RoutingContext.class, RETURNS_DEEP_STUBS);
     when(routingContext.request().getHeader("X-Okapi-Tenant")).thenReturn(tenant);
@@ -1367,7 +1473,6 @@ assertThat(json.getJsonArray("items").size(), is(4));
           ArgumentCaptor<String> body = ArgumentCaptor.forClass(String.class);
           verify(routingContext.response()).end(body.capture());
           String res = body.getValue();
-          System.out.println(res);
           StringReader reader = new StringReader(res);
           try {
             CSVParser parser = new CSVParser(reader, CsvReports.CSV_FORMAT);
@@ -1531,7 +1636,7 @@ assertThat(json.getJsonArray("items").size(), is(4));
 
   @Test
   public void reqsByPubYearCsv(TestContext context) {
-    new EusageReportsApi().getReqsByPubYear(pool, true, true, a1, null, "2020-04", "2020-08", "6M", true)
+    new EusageReportsApi().getReqsByPubYear(pool, true, true, a1, null, "2020-04", "2020-08", "6M", true, true)
         .onComplete(context.asyncAssertSuccess(res -> {
           assertThat(res, containsString(",2020-01 - 2020-06,Controlled,"));
         }));

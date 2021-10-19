@@ -1455,6 +1455,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     TenantPgPool pool = TenantPgPool.pool(vertx, TenantUtil.tenant(ctx));
     Boolean isJournal = getJournalFromFormat(ctx, "ALL");
     boolean csv = "true".equalsIgnoreCase(ctx.request().params().get("csv"));
+    boolean full = !"false".equalsIgnoreCase(ctx.request().params().get("full"));
     String agreementId = ctx.request().params().get("agreementId");
     String accessCountPeriod = ctx.request().params().get("accessCountPeriod");
     String start = ctx.request().params().get("startDate");
@@ -1462,7 +1463,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     boolean includeOA = "true".equalsIgnoreCase(ctx.request().params().get("includeOA"));
 
     return getUseOverTime(pool, isJournal, includeOA, agreementId, accessCountPeriod,
-        start, end, csv)
+        start, end, csv, full)
         .map(res -> {
           ctx.response().setStatusCode(200);
           ctx.response().putHeader("Content-Type", csv ? "text/csv" : "application/json");
@@ -1472,11 +1473,15 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
   }
 
   Future<String> getUseOverTime(TenantPgPool pool, Boolean isJournal, boolean includeOA,
-      String agreementId, String accessCountPeriod, String start, String end, boolean csv) {
+      String agreementId, String accessCountPeriod, String start, String end, boolean csv,
+      boolean full) {
 
     return getUseOverTime(pool, isJournal, includeOA, agreementId,
         accessCountPeriod, start, end)
         .map(json -> {
+          if (!full) {
+            json.remove("items");
+          }
           if (!csv) {
             return json.encodePrettily();
           }
@@ -1495,11 +1500,14 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
 
   Future<String> getReqsByDateOfUse(TenantPgPool pool, Boolean isJournal, boolean includeOA,
       String agreementId, String accessCountPeriod,
-      String start, String end, String yopInterval, boolean csv) {
+      String start, String end, String yopInterval, boolean csv, boolean full) {
 
     return getReqsByDateOfUse(pool, isJournal, includeOA, agreementId,
         accessCountPeriod, start, end, yopInterval)
         .map(json -> {
+          if (!full) {
+            json.remove("items");
+          }
           if (!csv) {
             return json.encodePrettily();
           }
@@ -1510,6 +1518,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
   Future<Void> getReqsByDateOfUse(Vertx vertx, RoutingContext ctx) {
     TenantPgPool pool = TenantPgPool.pool(vertx, TenantUtil.tenant(ctx));
     boolean csv = "true".equalsIgnoreCase(ctx.request().params().get("csv"));
+    boolean full = !"false".equalsIgnoreCase(ctx.request().params().get("full"));
     Boolean isJournal = getJournalFromFormat(ctx, "JOURNAL");
     String agreementId = ctx.request().params().get("agreementId");
     String accessCountPeriod = ctx.request().params().get("accessCountPeriod");
@@ -1519,7 +1528,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     boolean includeOA = "true".equalsIgnoreCase(ctx.request().params().get("includeOA"));
 
     return getReqsByDateOfUse(pool, isJournal, includeOA, agreementId,
-        accessCountPeriod, start, end, yopInterval, csv)
+        accessCountPeriod, start, end, yopInterval, csv, full)
         .map(res -> {
           ctx.response().setStatusCode(200);
           ctx.response().putHeader("Content-Type", csv ? "text/csv" : "application/json");
@@ -1544,6 +1553,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     TenantPgPool pool = TenantPgPool.pool(vertx, TenantUtil.tenant(ctx));
     Boolean isJournal = getJournalFromFormat(ctx, "JOURNAL");
     boolean csv = "true".equalsIgnoreCase(ctx.request().params().get("csv"));
+    boolean full = !"false".equalsIgnoreCase(ctx.request().params().get("full"));
     boolean includeOA = "true".equalsIgnoreCase(ctx.request().params().get("includeOA"));
     String agreementId = ctx.request().params().get("agreementId");
     String accessCountPeriod = ctx.request().params().get("accessCountPeriod");
@@ -1552,7 +1562,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     String periodOfUse = ctx.request().params().get("periodOfUse");
 
     return getReqsByPubYear(pool, isJournal, includeOA, agreementId,
-        accessCountPeriod, start, end, periodOfUse, csv)
+        accessCountPeriod, start, end, periodOfUse, csv, full)
         .map(res -> {
           ctx.response().setStatusCode(200);
           ctx.response().putHeader("Content-Type", csv ? "text/csv" : "application/json");
@@ -1563,11 +1573,14 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
 
   Future<String> getReqsByPubYear(TenantPgPool pool, Boolean isJournal, boolean includeOA,
       String agreementId, String accessCountPeriod, String start, String end,
-      String periodOfUse, boolean csv) {
+      String periodOfUse, boolean csv, boolean full) {
 
     return getReqsByPubYear(pool, isJournal, includeOA, agreementId,
         accessCountPeriod, start, end, periodOfUse)
         .map(json -> {
+          if (!full) {
+            json.remove("items");
+          }
           if (!csv) {
             return json.encodePrettily();
           }
@@ -1679,10 +1692,14 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
   }
 
   Future<String> getCostPerUse(TenantPgPool pool, Boolean isJournal, boolean includeOA,
-      String agreementId, String accessCountPeriod, String start, String end, boolean csv) {
+      String agreementId, String accessCountPeriod, String start, String end,
+      boolean csv, boolean full) {
 
     return costPerUse(pool, isJournal, includeOA, agreementId, accessCountPeriod, start, end)
         .map(json -> {
+          if (!full) {
+            json.remove("items");
+          }
           if (!csv) {
             return json.encodePrettily();
           }
@@ -1694,6 +1711,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     TenantPgPool pool = TenantPgPool.pool(vertx, TenantUtil.tenant(ctx));
     Boolean isJournal = getJournalFromFormat(ctx, "ALL");
     boolean csv = "true".equalsIgnoreCase(ctx.request().params().get("csv"));
+    boolean full = !"false".equalsIgnoreCase(ctx.request().params().get("full"));
     boolean includeOA = "true".equalsIgnoreCase(ctx.request().params().get("includeOA"));
     String agreementId = ctx.request().params().get("agreementId");
     String accessCountPeriod = ctx.request().params().get("accessCountPeriod");
@@ -1701,7 +1719,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     String end = ctx.request().params().get("endDate");
 
     return getCostPerUse(pool, isJournal, includeOA, agreementId, accessCountPeriod,
-        start, end, csv)
+        start, end, csv, full)
         .map(res -> {
           ctx.response().setStatusCode(200);
           ctx.response().putHeader("Content-Type", csv ? "text/csv" : "application/json");

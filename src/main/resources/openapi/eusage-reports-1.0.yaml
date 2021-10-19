@@ -187,6 +187,7 @@ paths:
       - $ref: parameters/end-date.yaml
       - $ref: parameters/format.yaml
       - $ref: parameters/include-oa.yaml
+      - $ref: parameters/full.yaml
     get:
       description: Return usage data over time, where usageDateRange falls within startDate, endDate
       operationId: getUseOverTime
@@ -218,6 +219,7 @@ paths:
       - $ref: parameters/format.yaml
       - $ref: parameters/include-oa.yaml
       - $ref: parameters/yop-interval.yaml
+      - $ref: parameters/full.yaml
     get:
       description: Return requests by date of use; this is like use over time but additionally groups by publication year.
       operationId: getReqsByDateOfUse
@@ -247,6 +249,7 @@ paths:
       - $ref: parameters/format.yaml
       - $ref: parameters/include-oa.yaml
       - $ref: parameters/period-of-use.yaml
+      - $ref: parameters/full.yaml
     get:
       description: Return requests by publication year where usageDateRange falls within startDate, endDate.
         Grouping controlled by periodOfUse.
@@ -278,6 +281,7 @@ paths:
       - $ref: parameters/end-date.yaml
       - $ref: parameters/format.yaml
       - $ref: parameters/include-oa.yaml
+      - $ref: parameters/full.yaml
     get:
       description: Return cost per where usageDateRange falls within startDate, endDate.
         The report is structured in periods, typically months, and the cost-per-use in a period is

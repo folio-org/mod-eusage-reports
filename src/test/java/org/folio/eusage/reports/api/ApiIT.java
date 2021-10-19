@@ -121,6 +121,7 @@ public class ApiIT {
       param("startDate", "2020-03").
       param("endDate", "2020-04").
       param("format", "JOURNAL").
+      param("full", "true").
     when().
       get("/eusage-reports/stored-reports/use-over-time").
     then().
@@ -152,6 +153,7 @@ public class ApiIT {
         param("agreementId", "10000000-0000-4000-8000-000000000000").
         param("startDate", "2020-03").
         param("endDate", "2020-04").
+        param("full", "true").
         when().
         get("/eusage-reports/stored-reports/reqs-by-date-of-use").
         then().
@@ -183,6 +185,7 @@ public class ApiIT {
       param("startDate", "2020-03").
       param("endDate", "2020-04").
       param("periodOfUse", "1Y").
+      param("full", "true").
     when().
       get("/eusage-reports/stored-reports/reqs-by-pub-year").
     then().
@@ -216,6 +219,7 @@ public class ApiIT {
         param("agreementId", "10000000-0000-4000-8000-000000000000").
         param("startDate", "2020-03").
         param("endDate", "2020-04").
+        param("full", "true").
         when().
         get("/eusage-reports/stored-reports/cost-per-use").
         then().

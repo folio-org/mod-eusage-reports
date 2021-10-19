@@ -62,6 +62,9 @@ public final class CsvReports {
     getUseTotalsCsv(json, groupByPublicationYear, periodOfUse, writer, "unique");
 
     JsonArray items = json.getJsonArray("items");
+    if (items == null) {
+      return;
+    }
     for (int j = 0; j < items.size(); j++) {
       JsonObject item = items.getJsonObject(j);
       writer.print(item.getString("title"));
@@ -156,6 +159,9 @@ public final class CsvReports {
     Double amountPaidTotal = json.getDouble("amountPaidTotal");
     writer.print(amountPaidTotal == null ? null : formatCost(amountPaidTotal));
     JsonArray items = json.getJsonArray("items");
+    if (items == null) {
+      return;
+    }
     long totalItemRequests = getTotalInLongArray(items, "totalItemRequests");
     writer.print(totalItemRequests);
     long uniqueItemRequests = getTotalInLongArray(items, "uniqueItemRequests");
