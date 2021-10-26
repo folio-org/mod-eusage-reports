@@ -30,6 +30,7 @@ import org.folio.tlib.postgres.TenantPgPoolContainer;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Assume;
+import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Rule;
@@ -65,17 +66,17 @@ public class Tenant2ApiTest {
 
     @Override
     public Future<Void> preInit(Vertx vertx, String tenant, JsonObject tenantAttributes) {
-      postInitPromise = Promise.promise();
       if (preInitPromise == null) {
         return Future.succeededFuture();
       }
-      Future<Void> future = preInitPromise.future();
-      preInitPromise = null;
-      return future;
+      return preInitPromise.future();
     }
 
     @Override
     public Future<Void> postInit(Vertx vertx, String tenant, JsonObject tenantAttributes) {
+      if (postInitPromise == null) {
+        return Future.succeededFuture();
+      }
       return postInitPromise.future();
     }
   }
@@ -111,6 +112,12 @@ public class Tenant2ApiTest {
   @After
   public void setDefaultConnectOptions() {
     TenantPgPool.setDefaultConnectOptions(initialPgConnectOptions);
+  }
+
+  @Before
+  public void setup() {
+    hooks.preInitPromise = null;
+    hooks.postInitPromise = null;
   }
 
   @Test
@@ -193,10 +200,6 @@ public class Tenant2ApiTest {
   @Test
   public void testPostTenantOK() {
     String tenant = "testlib";
-    log.info("AD: POST begin");
-
-    hooks.preInitPromise = Promise.promise();
-    hooks.preInitPromise.complete();
 
     // init
     tenantOp(tenant, new JsonObject()
@@ -253,7 +256,8 @@ public class Tenant2ApiTest {
   }
 
   private void tenantOp(String tenant, JsonObject body) {
-    log.info("AD: POST begin");
+    hooks.postInitPromise = Promise.promise(); // not completed yet
+
     ExtractableResponse<Response> response = RestAssured.given()
         .header("X-Okapi-Tenant", tenant)
         .header("Content-Type", "application/json")
@@ -265,7 +269,6 @@ public class Tenant2ApiTest {
         .body("error", is(nullValue()))
         .extract();
 
-    log.info("AD: POST completed");
     String location = response.header("Location");
     String id = response.path("id");
     assertThat(location, is("/_/tenant/" + id));
@@ -312,6 +315,7 @@ public class Tenant2ApiTest {
 
   @Test
   public void testPostTenantPostInitFail() {
+    hooks.postInitPromise = Promise.promise();
     String tenant = "testlib";
     ExtractableResponse<Response> response = RestAssured.given()
         .header("X-Okapi-Tenant", tenant)
@@ -351,6 +355,7 @@ public class Tenant2ApiTest {
   @Test
   public void testPostTenantPostInitFailNull() {
     String tenant = "testlib";
+    hooks.postInitPromise = Promise.promise();
     ExtractableResponse<Response> response = RestAssured.given()
         .header("X-Okapi-Tenant", tenant)
         .header("Content-Type", "application/json")

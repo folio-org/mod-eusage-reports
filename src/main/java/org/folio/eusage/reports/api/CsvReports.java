@@ -128,6 +128,7 @@ public final class CsvReports {
     writer.print("Print ISSN");
     writer.print("Online ISSN");
     writer.print("ISBN");
+    writer.print("Year of publication");
     writer.print("Order type");
     writer.print("Purchase order line");
     writer.print("Invoice number");
@@ -148,6 +149,7 @@ public final class CsvReports {
     writer.print(null); // print issn
     writer.print(null); // online ISSN
     writer.print(null); // ISBN
+    writer.print(null); // year of publication
     writer.print(null); // Order type
     writer.print(null); // Purchase order line
     writer.print(null); // Invoice number
@@ -179,6 +181,7 @@ public final class CsvReports {
       writer.print(item.getString("printISSN"));
       writer.print(item.getString("onlineISSN"));
       writer.print(item.getString("ISBN"));
+      writer.print(item.getString("publicationYear"));
       writer.print(item.getString("orderType"));
       writer.print(orderLinesToString(item.getJsonArray("poLineIDs")));
       writer.print(orderLinesToString(item.getJsonArray("invoiceNumbers")));

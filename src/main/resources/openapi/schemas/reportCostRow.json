@@ -63,6 +63,10 @@
       "type": "string",
       "description" : "Subscription date end, YYYY-MM-DD"
     },
+    "publicationYear": {
+      "type": "string",
+      "description": "Publication year .. or range (eg 2000 for 1Y, or 2000-2001 for 2Y)"
+    },
     "amountEncumbered" : {
       "type": "number",
       "description" : "Encumbered amount for PO lines"

@@ -25,6 +25,7 @@ public class CostPerUse {
     List<Set<UUID>> titlesByPeriod = new ArrayList<>();
     Map<String,JsonObject> totalItems = new HashMap<>();
     List<Map<UUID,Double>> paidByPeriodMap = new ArrayList<>();
+    Map<String,Set<String>> titlesInSubscription = new HashMap<>();
     for (int i = 0; i < usePeriods.size(); i++) {
       totalRequests.add(0L);
       uniqueRequests.add(0L);
@@ -38,11 +39,35 @@ public class CostPerUse {
       UUID kbPackageId = row.getUUID("kbpackageid");
       UUID kbId = row.getUUID("kbid");
       packageContent.computeIfAbsent(kbPackageId, x -> new TreeSet<>()).add(kbId);
+      String fiscalYearRange = row.getString("fiscalyearrange");
+      String subscriptionDateRange = row.getString("subscriptiondaterange");
+      // deal with fiscal year range first, and save the that date range
+      DateRange subscriptionPeriod = null;
+      if (fiscalYearRange != null) {
+        subscriptionPeriod = new DateRange(fiscalYearRange);
+      }
+      // consider subscription date range, Overrides subscription period if present
+      if (subscriptionDateRange != null) {
+        subscriptionPeriod = new DateRange(subscriptionDateRange);
+      }
+      if (subscriptionPeriod == null) {
+        return;
+      }
+      String poLineNumber = row.getString("polinenumber");
+      String payKey = kbId + "," + poLineNumber + "," + fiscalYearRange
+          + "," + subscriptionDateRange;
+      LocalDate publicationDate = row.getLocalDate("publicationdate");
+      String pubPeriodLabel = Periods.periodLabelFloor(publicationDate, 12,"nopub");
+      if (titlesInSubscription.containsKey(payKey) && "nopub".equals(pubPeriodLabel)) {
+        return;
+      }
+      titlesInSubscription.putIfAbsent(payKey, new TreeSet<>());
+      titlesInSubscription.get(payKey).add(pubPeriodLabel);
     });
     Map<String,Double> amountEncumberedTotalMap = new HashMap<>();
     Map<String,Double> amountPaidTotalMap = new HashMap<>();
     rowSet.forEach(row -> {
-      log.info("costPerUse row: {}", () -> row.deepToString());
+      log.info("costPerUse row: {}", row::deepToString);
       UUID kbPackageId = row.getUUID("kbpackageid");
       String orderType = row.getString("ordertype");
       String usageDateRange = row.getString("usagedaterange");
@@ -60,10 +85,16 @@ public class CostPerUse {
       if (subscriptionPeriod == null) {
         return;
       }
+      LocalDate publicationDate = row.getLocalDate("publicationdate");
+      String pubPeriodLabel = Periods.periodLabelFloor(publicationDate, 12,"nopub");
       String poLineNumber = row.getString("polinenumber");
       UUID kbId = row.getUUID("kbid");
-      String itemKey = kbId + "," + poLineNumber + "," + fiscalYearRange + ","
+      String payKey = kbId + "," + poLineNumber + "," + fiscalYearRange + ","
           + subscriptionDateRange;
+      if (!titlesInSubscription.get(payKey).contains(pubPeriodLabel)) {
+        return;
+      }
+      String itemKey = payKey + "," + pubPeriodLabel;
       JsonObject item = totalItems.get(itemKey);
       if (item == null) {
         item = new JsonObject();
@@ -115,9 +146,15 @@ public class CostPerUse {
           item.put("subscriptionDateStart", tmp.getStart());
           item.put("subscriptionDateEnd", tmp.getEnd());
         }
+        if (!"nopub".equals(pubPeriodLabel)) {
+          item.put("publicationYear", pubPeriodLabel);
+        }
       }
       UUID paidId = kbPackageId != null ? kbPackageId : kbId;
-      int titlesDivide = kbPackageId == null ? 1 : packageContent.get(kbPackageId).size();
+      int titlesDivide = titlesInSubscription.get(payKey).size();
+      if (kbPackageId != null) {
+        titlesDivide *= packageContent.get(kbPackageId).size();
+      }
       // number of months for subscription
       long allPeriodsMonths = subscriptionPeriod.commonMonths(
           new DateRange(usePeriods.startDate, usePeriods.endDate));
@@ -125,7 +162,7 @@ public class CostPerUse {
       int subscriptionMonths = subscriptionPeriod.getMonths();
       Number encumberedCost = row.getDouble("encumberedcost");
       if (encumberedCost != null) {
-        Double amount = subscriptionMonths > 0
+        double amount = subscriptionMonths > 0
             ?  allPeriodsMonths * encumberedCost.doubleValue() / subscriptionMonths
             :  encumberedCost.doubleValue();
         Double amountTitle = amount / titlesDivide;
@@ -136,7 +173,7 @@ public class CostPerUse {
       }
       Number invoicedCost = row.getNumeric("invoicedcost");
       if (invoicedCost != null) {
-        Double amount = subscriptionMonths > 0
+        double amount = subscriptionMonths > 0
             ? allPeriodsMonths * invoicedCost.doubleValue() / subscriptionMonths
             : invoicedCost.doubleValue();
         Double amountTitle = amount / titlesDivide;
@@ -174,7 +211,7 @@ public class CostPerUse {
           + uniqueItemRequestsByPeriod);
 
       if (invoicedCost != null) {
-        Double amount = allPeriodsMonths * invoicedCost.doubleValue() / subscriptionMonths;
+        double amount = allPeriodsMonths * invoicedCost.doubleValue() / subscriptionMonths;
         Double amountTitle = amount / titlesDivide;
         paidByPeriodMap.get(idx).putIfAbsent(paidId, thisPeriodMonths * invoicedCost.doubleValue()
             / subscriptionMonths);
@@ -237,7 +274,7 @@ public class CostPerUse {
     json.put("uniqueItemCostsPerRequestsByPeriod", uniqueItemCostsPerRequestsByPeriod);
     json.put("titleCountByPeriod", titleCountByPeriod);
     json.put("items", items);
-    log.info("costPerUse: JSON {}", () -> json.encodePrettily());
+    log.info("costPerUse: JSON {}", json::encodePrettily);
     return json;
   }
 
