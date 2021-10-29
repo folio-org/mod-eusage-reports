@@ -1,3 +1,7 @@
+## 1.0.2 2021-10-29
+
+ * [MODEUR-113](https://issues.folio.org/browse/MODEUR-113) Include years of publication in cost per use download
+ * [MODEUR-115](https://issues.folio.org/browse/MODEUR-115) Typo in modulePermissions
 
 ## 1.0.1 2021-10-19
 
