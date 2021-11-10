@@ -392,6 +392,7 @@ public class MainVerticleTest {
   }
 
   static void getEntitlements(RoutingContext ctx) {
+    String page = ctx.request().getParam("page");
     String filters = ctx.request().getParam("filters");
     if (filters == null) {
       ctx.response().putHeader("Content-Type", "text/plain");
@@ -416,15 +417,15 @@ public class MainVerticleTest {
       return;
     }
     JsonArray ar = new JsonArray();
-    if (agreementId.equals(goodAgreementId)) {
+    if (agreementId.equals(goodAgreementId) && "1".equals(page)) {
       for (int i = 0; i < agreementLineIds.length; i++) {
         JsonArray poLinesAr = new JsonArray();
-        for (int j = 0; j <= i && j < poLineIds.length; j++) {
+        for (int j = 0; j < i && j < poLineIds.length; j++) {
           poLinesAr.add(new JsonObject()
               .put("poLineId", poLineIds[j])
           );
         }
-        if (i == 0) {
+        if (i == 1) {
           // fake package
           ar.add(new JsonObject()
               .put("id", agreementLineIds[i])
@@ -569,6 +570,7 @@ public class MainVerticleTest {
   }
 
   static void getPackageContent(RoutingContext ctx) {
+    String page = ctx.request().getParam("page");
     String path = ctx.request().path();
     UUID id = UUID.fromString(path.substring(14, 50));
     if (!id.equals(goodPackageId)) {
@@ -578,15 +580,17 @@ public class MainVerticleTest {
       return;
     }
     JsonArray ar = new JsonArray();
-    for (UUID packageTitle : packageTitles) {
-      JsonObject item = new JsonObject()
-          .put("id", UUID.randomUUID())
-          .put("pti", new JsonObject()
-              .put("titleInstance", new JsonObject()
-                  .put("id", packageTitle)
-              )
-          );
-      ar.add(item);
+    if ("1".equals(page)) {
+      for (UUID packageTitle : packageTitles) {
+        JsonObject item = new JsonObject()
+            .put("id", UUID.randomUUID())
+            .put("pti", new JsonObject()
+                .put("titleInstance", new JsonObject()
+                    .put("id", packageTitle)
+                )
+            );
+        ar.add(item);
+      }
     }
     ctx.response().putHeader("Content-Type", "application/json");
     ctx.response().setStatusCode(200);
@@ -1644,8 +1648,8 @@ public class MainVerticleTest {
         .extract();
 
     resObject = new JsonObject(response.body().asString());
-    context.assertEquals(4, resObject.getJsonArray("titles").size());
-    context.assertEquals(15, resObject.getJsonObject("resultInfo").getInteger("totalRecords"));
+    context.assertEquals(6, resObject.getJsonArray("titles").size());
+    context.assertEquals(17, resObject.getJsonObject("resultInfo").getInteger("totalRecords"));
     context.assertEquals(0, resObject.getJsonObject("resultInfo").getJsonArray("diagnostics").size());
 
     response = RestAssured.given()
@@ -1657,27 +1661,31 @@ public class MainVerticleTest {
         .extract();
     resObject = new JsonObject(response.body().asString());
     items = resObject.getJsonArray("data");
-    context.assertEquals(7, items.size());
-    int noPackages = 0;
+    context.assertEquals(6, items.size());
     for (int i = 0; i < items.size(); i++) {
       JsonObject item = items.getJsonObject(i);
       String type =  item.getString("type");
-      context.assertEquals(100.0, item.getDouble("encumberedCost"));
-      if ("package".equals(type)) {
+      if (i == 0) {
+        context.assertEquals("serial", type);
+        context.assertFalse(item.containsKey("kbPackageId"));
+        context.assertTrue(item.containsKey("kbTitleId"));
+        context.assertFalse(item.containsKey("encumberedCost"));
+      } else if (i == 1) {
+        context.assertEquals ("package", type);
         context.assertEquals(goodPackageId.toString(), item.getString("kbPackageId"));
         context.assertFalse(item.containsKey("kbTitleId"));
-        noPackages++;
+        context.assertEquals(100.0, item.getDouble("encumberedCost"));
       } else {
         context.assertEquals("serial", type);
         context.assertFalse(item.containsKey("kbPackageId"));
         context.assertTrue(item.containsKey("kbTitleId"));
+        context.assertEquals(100.0, item.getDouble("encumberedCost"));
         String invoiceNumber = item.getString("invoiceNumber");
         context.assertEquals("Ongoing".equals(item.getString("orderType")), "1".equals(invoiceNumber));
         context.assertEquals("One-Time".equals(item.getString("orderType")), "0".equals(invoiceNumber));
         context.assertEquals(POLINE_NUMBER_SAMPLE + invoiceNumber, item.getString("poLineNumber"));
       }
     }
-    context.assertEquals(1, noPackages);
 
     response = RestAssured.given()
         .header(XOkapiHeaders.TENANT, tenant)
