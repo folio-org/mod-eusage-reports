@@ -401,8 +401,8 @@ public class MainVerticleTest {
       return;
     }
     UUID agreementId = badStatusAgreementId;
-    if (filters.startsWith("owner.id=")) {
-      agreementId = UUID.fromString(filters.substring(9));
+    if (filters.startsWith("owner=")) {
+      agreementId = UUID.fromString(filters.substring(6));
     }
     if (agreementId.equals(badJsonAgreementId)) {
       ctx.response().setChunked(true);
