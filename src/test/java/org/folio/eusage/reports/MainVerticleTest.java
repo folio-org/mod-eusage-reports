@@ -392,6 +392,7 @@ public class MainVerticleTest {
   }
 
   static void getEntitlements(RoutingContext ctx) {
+    String page = ctx.request().getParam("page");
     String filters = ctx.request().getParam("filters");
     if (filters == null) {
       ctx.response().putHeader("Content-Type", "text/plain");
@@ -416,7 +417,7 @@ public class MainVerticleTest {
       return;
     }
     JsonArray ar = new JsonArray();
-    if (agreementId.equals(goodAgreementId)) {
+    if (agreementId.equals(goodAgreementId) && "1".equals(page)) {
       for (int i = 0; i < agreementLineIds.length; i++) {
         JsonArray poLinesAr = new JsonArray();
         for (int j = 0; j <= i && j < poLineIds.length; j++) {
@@ -569,6 +570,7 @@ public class MainVerticleTest {
   }
 
   static void getPackageContent(RoutingContext ctx) {
+    String page = ctx.request().getParam("page");
     String path = ctx.request().path();
     UUID id = UUID.fromString(path.substring(14, 50));
     if (!id.equals(goodPackageId)) {
@@ -578,15 +580,17 @@ public class MainVerticleTest {
       return;
     }
     JsonArray ar = new JsonArray();
-    for (UUID packageTitle : packageTitles) {
-      JsonObject item = new JsonObject()
-          .put("id", UUID.randomUUID())
-          .put("pti", new JsonObject()
-              .put("titleInstance", new JsonObject()
-                  .put("id", packageTitle)
-              )
-          );
-      ar.add(item);
+    if ("1".equals(page)) {
+      for (UUID packageTitle : packageTitles) {
+        JsonObject item = new JsonObject()
+            .put("id", UUID.randomUUID())
+            .put("pti", new JsonObject()
+                .put("titleInstance", new JsonObject()
+                    .put("id", packageTitle)
+                )
+            );
+        ar.add(item);
+      }
     }
     ctx.response().putHeader("Content-Type", "application/json");
     ctx.response().setStatusCode(200);

@@ -498,11 +498,11 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
 
   Future<List<UUID>> ermPackageContentLookup(RoutingContext ctx, UUID id) {
     // example: /erm/packages/dfb61870-1252-4ece-8f75-db02faf4ab82/content
-    String uri = "/erm/packages/" + id + "/content?perPage=200000";
-    return getRequestSend(ctx, uri)
-        .map(res -> {
-          JsonArray ar = res.bodyAsJsonArray();
+    String uri = "/erm/packages/" + id + "/content";
+    return ermFetch(ctx, uri)
+        .map(ar -> {
           List<UUID> list = new ArrayList<>();
+          log.info("AD: Package size size {}", ar.size());
           for (int i = 0; i < ar.size(); i++) {
             JsonObject pti = ar.getJsonObject(i).getJsonObject("pti");
             JsonObject titleInstance = pti.getJsonObject("titleInstance");
@@ -510,6 +510,24 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
             list.add(kbTitleId);
           }
           return list;
+        });
+  }
+
+  Future<JsonArray> ermFetch(RoutingContext ctx, String uri) {
+    return ermFetch(ctx, uri, 1, new JsonArray());
+  }
+
+  Future<JsonArray> ermFetch(RoutingContext ctx, String uri, int page, JsonArray result) {
+    char sep = uri.contains("?") ? '&' : '?';
+    final String pageUri = uri + sep + "perPage=100&page=" + page;
+    return getRequestSend(ctx, pageUri)
+        .compose(res -> {
+          JsonArray ar = res.bodyAsJsonArray();
+          if (ar.isEmpty()) {
+            return Future.succeededFuture(result);
+          }
+          result.addAll(ar);
+          return ermFetch(ctx, uri, page + 1, result);
         });
   }
 
@@ -1388,13 +1406,12 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
                   // expand agreement to get agreement lines, now that we know the ID is good.
                   // the call below returns 500 with a stacktrace if agreement ID is no good.
                   // example: /erm/entitlements?filters=owner%3D3b6623de-de39-4b43-abbc-998bed892025
-                  String uri = "/erm/entitlements?perPage=200000&filters=owner%3D" + agreementId;
+                  String uri = "/erm/entitlements?filters=owner%3D" + agreementId;
                   return populateStatus(pool, agreementId, true)
                       .compose(x -> clearAgreement(pool, con, agreementId))
-                      .compose(x -> getRequestSend(ctx, uri))
-                      .compose(res -> {
+                      .compose(x -> ermFetch(ctx, uri))
+                      .compose(items -> {
                         Future<Void> future = Future.succeededFuture();
-                        JsonArray items = res.bodyAsJsonArray();
                         for (int i = 0; i < items.size(); i++) {
                           JsonObject agreementLine = items.getJsonObject(i);
                           future = future.compose(v ->
