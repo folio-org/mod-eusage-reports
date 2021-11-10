@@ -502,7 +502,6 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     return ermFetch(ctx, uri)
         .map(ar -> {
           List<UUID> list = new ArrayList<>();
-          log.info("AD: Package size size {}", ar.size());
           for (int i = 0; i < ar.size(); i++) {
             JsonObject pti = ar.getJsonObject(i).getJsonObject("pti");
             JsonObject titleInstance = pti.getJsonObject("titleInstance");
@@ -1316,6 +1315,10 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
       }
       JsonArray poLines = agreementLine.getJsonArray("poLines");
       JsonObject currencyObj = new JsonObject();
+      if (poLines.isEmpty()) {
+        return future.compose(x -> insertAgreementLine(pool, con, agreementId, agreementLineId,
+          coverageDateRanges, type, kbTitleId, kbPackageId));
+      }
       for (int i = 0; i < poLines.size(); i++) {
         JsonObject poLine = poLines.getJsonObject(i);
         UUID poLineId = UUID.fromString(poLine.getString("poLineId"));
@@ -1359,6 +1362,21 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
           invoicedCost, invoiceNumber, fiscalYear, subscriptionDateRange));
     }
     return future;
+  }
+
+  private Future<Void> insertAgreementLine(TenantPgPool pool, SqlConnection con, UUID agreementId,
+      UUID agreementLineId, String coverageDateRanges, String type, UUID kbTitleId,
+      UUID kbPackageId) {
+
+    UUID id = UUID.randomUUID();
+    return con.preparedQuery(
+            "INSERT INTO " + agreementEntriesTable(pool)
+                + "(id, kbTitleId, kbPackageId, type, agreementId, agreementLineId,"
+                + " coverageDateRanges)"
+                + " VALUES($1, $2, $3, $4, $5, $6, $7)")
+        .execute(Tuple.of(id, kbTitleId, kbPackageId, type, agreementId, agreementLineId,
+            coverageDateRanges))
+        .mapEmpty();
   }
 
   private Future<Void> insertAgreementLine(TenantPgPool pool, SqlConnection con, UUID agreementId,
