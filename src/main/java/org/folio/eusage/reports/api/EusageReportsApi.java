@@ -1406,7 +1406,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
                   // expand agreement to get agreement lines, now that we know the ID is good.
                   // the call below returns 500 with a stacktrace if agreement ID is no good.
                   // example: /erm/entitlements?filters=owner%3D3b6623de-de39-4b43-abbc-998bed892025
-                  String uri = "/erm/entitlements?filters=owner%3D" + agreementId;
+                  String uri = "/erm/entitlements?filters=owner.id%3D" + agreementId;
                   return populateStatus(pool, agreementId, true)
                       .compose(x -> clearAgreement(pool, con, agreementId))
                       .compose(x -> ermFetch(ctx, uri))
