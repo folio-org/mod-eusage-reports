@@ -78,6 +78,10 @@
         "type": "object",
         "$ref": "reportRow.json"
       }
+    },
+    "execution": {
+      "description": "Information about execution, such as various timings",
+      "type": "object"
     }
   },
   "additionalProperties": false

@@ -30,7 +30,7 @@ import org.testcontainers.utility.MountableFile;
 
 @RunWith(VertxUnitRunner.class)
 public class TenantPgPoolTest {
-  private final static Logger log = LogManager.getLogger("MainVerticleTest");
+  private final static Logger log = LogManager.getLogger(TenantPgPoolTest.class);
 
   @ClassRule
   public static PostgreSQLContainer<?> postgresSQLContainer = TenantPgPoolContainer.create();
@@ -129,6 +129,24 @@ public class TenantPgPoolTest {
         .preparedQuery("SELECT * FROM pg_database WHERE datname=$1")
         .execute(Tuple.of("postgres")))
     .onComplete(context.asyncAssertSuccess());
+  }
+
+  @Test
+  public void executeOk(TestContext context) {
+    withPool(pool -> pool
+        .execute("SELECT * FROM pg_database WHERE datname=$1", Tuple.of("postgres")))
+        .onComplete(context.asyncAssertSuccess());
+  }
+
+  @Test
+  public void executeAnalyze(TestContext context) {
+    vertx.getOrCreateContext().config().put("explain_analyze", Boolean.TRUE);
+    withPool(pool -> pool
+        .execute("SELECT * FROM pg_database WHERE datname=$1", Tuple.of("postgres")))
+        .onComplete(x -> {
+          vertx.getOrCreateContext().config().remove("explain_analyze");
+          context.assertTrue(x.succeeded());
+        });
   }
 
   @Test
