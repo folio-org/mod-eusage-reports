@@ -77,7 +77,7 @@ public class UseOverTime {
       uniqueItemRequestsByPeriod.add(0L);
     }
     rowSet.forEach(row -> {
-      log.info("useOverTime row: {}", () -> row.deepToString());
+      log.debug("useOverTime row: {}", () -> row.deepToString());
       UUID kbId = row.getUUID("kbid");
       String usageDateRange = row.getString("usagedaterange");
 
@@ -147,7 +147,7 @@ public class UseOverTime {
         .put("totalItemRequestsByPeriod", new JsonArray(totalItemRequestsByPeriod))
         .put("uniqueItemRequestsByPeriod", new JsonArray(uniqueItemRequestsByPeriod))
         .put("items", items);
-    log.info("useOverTime: JSON {}", () -> json.encodePrettily());
+    log.debug("useOverTime: JSON {}", () -> json.encodePrettily());
     return json;
   }
 

@@ -67,7 +67,7 @@ public class CostPerUse {
     Map<String,Double> amountEncumberedTotalMap = new HashMap<>();
     Map<String,Double> amountPaidTotalMap = new HashMap<>();
     rowSet.forEach(row -> {
-      log.info("costPerUse row: {}", row::deepToString);
+      log.debug("costPerUse row: {}", row::deepToString);
       UUID kbPackageId = row.getUUID("kbpackageid");
       String orderType = row.getString("ordertype");
       String usageDateRange = row.getString("usagedaterange");
@@ -241,7 +241,6 @@ public class CostPerUse {
       Long n = totalRequests.getLong(i);
       totalItemRequestsByPeriod.add(n);
       if (n > 0) {
-        log.info("totalItemCostsPerRequestsByPerid {} {}/{}", i, p, n);
         totalItemCostsPerRequestsByPeriod.add(CsvReports.formatCost(p / n));
       } else {
         totalItemCostsPerRequestsByPeriod.addNull();
@@ -249,7 +248,6 @@ public class CostPerUse {
       n = uniqueRequests.getLong(i);
       uniqueItemRequestsByPeriod.add(n);
       if (n > 0) {
-        log.info("uniqueItemCostsPerRequestsByPerid {} {}/{}", i, p, n);
         uniqueItemCostsPerRequestsByPeriod.add(CsvReports.formatCost(p / n));
       } else {
         uniqueItemCostsPerRequestsByPeriod.addNull();
@@ -274,7 +272,7 @@ public class CostPerUse {
     json.put("uniqueItemCostsPerRequestsByPeriod", uniqueItemCostsPerRequestsByPeriod);
     json.put("titleCountByPeriod", titleCountByPeriod);
     json.put("items", items);
-    log.info("costPerUse: JSON {}", json::encodePrettily);
+    log.debug("costPerUse: JSON {}", json::encodePrettily);
     return json;
   }
 
