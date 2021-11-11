@@ -5,6 +5,7 @@ import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
+import io.vertx.core.json.JsonObject;
 import io.vertx.core.net.OpenSSLEngineOptions;
 import io.vertx.core.net.PemTrustOptions;
 import io.vertx.pgclient.PgConnectOptions;
@@ -16,6 +17,7 @@ import io.vertx.sqlclient.Query;
 import io.vertx.sqlclient.Row;
 import io.vertx.sqlclient.RowSet;
 import io.vertx.sqlclient.SqlConnection;
+import io.vertx.sqlclient.Tuple;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -41,6 +43,7 @@ public class TenantPgPoolImpl implements TenantPgPool {
 
   String tenant;
   PgPool pgPool;
+  JsonObject config;
 
   static String substTenant(String v, String tenant) {
     return v.replace("{tenant}", tenant);
@@ -78,7 +81,9 @@ public class TenantPgPoolImpl implements TenantPgPool {
     return tenant + "_" + module;
   }
 
-  private TenantPgPoolImpl() {
+  private TenantPgPoolImpl(Vertx vertx) {
+    config = vertx.getOrCreateContext().config();
+    log.info("Create TenantPgPoolImpl {}", config.encodePrettily());
   }
 
   /**
@@ -86,8 +91,8 @@ public class TenantPgPoolImpl implements TenantPgPool {
    *
    * <p>The returned pool implements PgPool interface so this cab be used like PgPool as usual.
    * But queries being substituted before usage. The literal "{schema}" is substituted with the
-   * module+schema schema.
-   * PgPool.setMmodule *must* be called before the queries are executed, since schema is based
+   * module+schema.
+   * PgPool.setModule *must* be called before the queries are executed, since schema is based
    * on module name.
    * @param vertx Vert.x handle
    * @param tenant Tenant
@@ -124,7 +129,7 @@ public class TenantPgPoolImpl implements TenantPgPool {
       connectOptions.setEnabledSecureTransportProtocols(Collections.singleton("TLSv1.3"));
       connectOptions.setOpenSslEngineOptions(new OpenSSLEngineOptions());
     }
-    TenantPgPoolImpl tenantPgPool = new TenantPgPoolImpl();
+    TenantPgPoolImpl tenantPgPool = new TenantPgPoolImpl(vertx);
     tenantPgPool.tenant = sanitize(tenant);
     tenantPgPool.pgPool = pgPoolMap.computeIfAbsent(connectOptions, key -> {
       PoolOptions poolOptions = new PoolOptions();
@@ -191,6 +196,33 @@ public class TenantPgPoolImpl implements TenantPgPool {
           .onFailure(x -> log.warn("{} FAIL: {}", cmd, x.getMessage())));
     }
     return future.mapEmpty();
+  }
+
+  /**
+   * Execute prepared query.
+   * @param sql query
+   * @param tuple tuple
+   * @return async result rowset
+   */
+  @Override
+  public Future<RowSet<Row>> execute(String sql, Tuple tuple) {
+    Future<Void> future = Future.succeededFuture();
+    if (Boolean.TRUE.equals(config.getBoolean("explain_analyze"))) {
+      future = explainAnalyze(sql, tuple);
+    }
+    return future.compose(x -> preparedQuery(sql).execute(tuple));
+  }
+
+  Future<Void> explainAnalyze(String sql, Tuple tuple) {
+    return preparedQuery("EXPLAIN ANALYZE " + sql).execute(tuple)
+        .map(rowSet -> {
+          StringBuilder e = new StringBuilder(sql);
+          for (Row row : rowSet) {
+            e.append('\n').append(row.getValue(0));
+          }
+          log.info(e.toString());
+          return null;
+        }).mapEmpty();
   }
 
 }

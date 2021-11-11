@@ -227,7 +227,6 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
             .onFailure(x -> sqlConnection.close()));
   }
 
-
   Future<Void> getReportTitles(Vertx vertx, RoutingContext ctx) {
     PgCqlQuery pgCqlQuery = PgCqlQuery.query();
     pgCqlQuery.addField(new PgCqlField("cql.allRecords", PgCqlField.Type.ALWAYS_MATCHES));
@@ -1450,9 +1449,9 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
         .put("id", agreementId.toString())
         .put("lastUpdated", LocalDateTime.now(ZoneOffset.UTC).toString())
         .put("active", active);
-    return pool.preparedQuery("INSERT INTO " + statusTable(pool)
-            + "(id, status) VALUES($1, $2) ON CONFLICT(id) DO UPDATE SET status = $2")
-        .execute(Tuple.of(agreementId, status)).mapEmpty();
+    return pool.execute("INSERT INTO " + statusTable(pool)
+            + "(id, status) VALUES($1, $2) ON CONFLICT(id) DO UPDATE SET status = $2",
+        Tuple.of(agreementId, status)).mapEmpty();
   }
 
   Future<Void> postFromAgreement(Vertx vertx, RoutingContext ctx) {
@@ -1528,9 +1527,19 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
       String agreementId, String accessCountPeriod, String start, String end) {
 
     Periods periods = new Periods(start, end, accessCountPeriod);
+    long t1 = System.nanoTime();
     return getTitles(pool, isJournal, includeOA, agreementId, periods,
         "title, publicationDate, openAccess")
-        .map(rowSet -> UseOverTime.titlesToJsonObject(rowSet, agreementId, periods));
+        .map(rowSet -> {
+          long t2 = System.nanoTime();
+          JsonObject res = UseOverTime.titlesToJsonObject(rowSet, agreementId, periods);
+          long t3 = System.nanoTime();
+          res.put("execution", new JsonObject()
+              .put("getTitles", t2 - t1)
+              .put("parseTitles", t3 - t2)
+          );
+          return res;
+        });
   }
 
   Future<String> getReqsByDateOfUse(TenantPgPool pool, Boolean isJournal, boolean includeOA,
@@ -1665,8 +1674,8 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
         + "   AND daterange($2, $3) @> lower(usageDateRange)"
         +  (includeOA ? "" : " AND NOT openAccess")
         + " ORDER BY " + orderBy;
-    return pool.preparedQuery(sql)
-        .execute(Tuple.of(agreementId, usePeriods.startDate, usePeriods.endDate));
+
+    return pool.execute(sql, Tuple.of(agreementId, usePeriods.startDate, usePeriods.endDate));
   }
 
   static String limitJournal(Boolean isJournal) {
@@ -1714,16 +1723,26 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
         + "   AND daterange($2, $3) @> lower(usageDateRange)"
         +  (includeOA ? "" : " AND NOT openAccess");
 
-    return pool.preparedQuery(sql + " ORDER BY title, publicationDate, openAccess, usageDateRange")
-        .execute(Tuple.of(agreementId, usePeriods.startDate, usePeriods.endDate));
+    return pool.execute(sql + " ORDER BY title, publicationDate, openAccess, usageDateRange",
+            Tuple.of(agreementId, usePeriods.startDate, usePeriods.endDate));
   }
 
   Future<JsonObject> costPerUse(TenantPgPool pool, Boolean isJournal, boolean includeOA,
       String agreementId, String accessCountPeriod, String start, String end) {
 
     Periods periods = new Periods(start, end, accessCountPeriod);
+    long t1 = System.nanoTime();
     return getTitlesCost(pool, isJournal, includeOA, agreementId, periods)
-        .map(rowSet -> CostPerUse.titlesToJsonObject(rowSet, periods));
+        .map(rowSet -> {
+          long t2 = System.nanoTime();
+          JsonObject res = CostPerUse.titlesToJsonObject(rowSet, periods);
+          long t3 = System.nanoTime();
+          res.put("execution", new JsonObject()
+              .put("getTitles", t2 - t1)
+              .put("parseTitles", t3 - t2)
+          );
+          return res;
+        });
   }
 
   Future<String> getCostPerUse(TenantPgPool pool, Boolean isJournal, boolean includeOA,
@@ -1766,8 +1785,8 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
   Future<Void> getReportStatus(Vertx vertx, RoutingContext ctx) {
     TenantPgPool pool = TenantPgPool.pool(vertx, TenantUtil.tenant(ctx));
     UUID id = UUID.fromString(ctx.request().getParam("id"));
-    return pool.preparedQuery("SELECT status from " + statusTable(pool) + " WHERE id = $1")
-        .execute(Tuple.of(id))
+    return pool.execute("SELECT status from " + statusTable(pool) + " WHERE id = $1",
+            Tuple.of(id))
         .map(rowSet -> {
           RowIterator<Row> iterator = rowSet.iterator();
           if (!iterator.hasNext()) {
@@ -1842,6 +1861,8 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
             + titleEntriesTable(pool) + " USING btree(kbTitleId)",
         "CREATE INDEX IF NOT EXISTS title_entries_counterReportTitle ON "
             + titleEntriesTable(pool) + " USING btree(counterReportTitle)",
+        "CREATE INDEX IF NOT EXISTS title_entries_kbTitleName ON "
+            + titleEntriesTable(pool) + " USING btree(kbTitleName)",
         "CREATE TABLE IF NOT EXISTS " + packageEntriesTable(pool) + " ( "
             + "kbPackageId UUID, "
             + "kbPackageName text, "
@@ -1888,6 +1909,10 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
             + ")",
         "CREATE INDEX IF NOT EXISTS agreement_entries_agreementId ON "
             + agreementEntriesTable(pool) + " USING btree(agreementId)",
+        "CREATE INDEX IF NOT EXISTS agreement_entries_kbTitleId ON "
+            + agreementEntriesTable(pool) + " USING btree(kbTitleId)",
+        "CREATE INDEX IF NOT EXISTS agreement_entries_kbPackageId ON "
+            + agreementEntriesTable(pool) + " USING btree(kbPackageId)",
         "CREATE TABLE IF NOT EXISTS " + statusTable(pool) + " ( "
             + "id UUID PRIMARY KEY, "
             + "status json"

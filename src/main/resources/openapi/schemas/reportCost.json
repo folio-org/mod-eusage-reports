@@ -72,6 +72,10 @@
         "type": "number",
         "nullable": true
       }
+    },
+    "execution": {
+      "description": "Information about execution, such as various timings",
+      "type": "object"
     }
   },
   "additionalProperties": false
