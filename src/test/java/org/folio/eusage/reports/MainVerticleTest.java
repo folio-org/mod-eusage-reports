@@ -38,7 +38,8 @@ public class MainVerticleTest {
   static Vertx vertx;
   static final int MODULE_PORT = 9230;
   static final int MOCK_PORT = 9231;
-  static final String POLINE_NUMBER_SAMPLE = "121x-219-";
+  static final String FOLIO_INVOICE = "10004";
+  static final String POLINE_NUMBER_SAMPLE = "121x-219";
   static final String pubDateSample = "1998-05-01";
   static final String pubYearSample = "1999";
   static final UUID goodKbTitleId = UUID.randomUUID();
@@ -60,7 +61,9 @@ public class MainVerticleTest {
   static final UUID badStatusAgreementId2 = UUID.randomUUID();
   static final UUID usageProviderId = UUID.randomUUID();
   static final UUID goodFundId = UUID.randomUUID();
-  static final UUID goodInvoiceId = UUID.randomUUID();
+  static final UUID [] goodInvoiceIds = {
+      UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID()
+  };
   static final UUID [] goodEncumbranceIds = {
       UUID.randomUUID(), UUID.randomUUID()
   };
@@ -503,7 +506,7 @@ public class MainVerticleTest {
         ctx.response().putHeader("Content-Type", "application/json");
         JsonObject orderLine = new JsonObject();
         orderLine.put("id", id);
-        orderLine.put("poLineNumber", POLINE_NUMBER_SAMPLE + i);
+        orderLine.put("poLineNumber", POLINE_NUMBER_SAMPLE);
         String currency = i < orderLinesCurrencies.size() ? orderLinesCurrencies.get(i) : "USD";
         orderLine.put("cost", new JsonObject()
             .put("currency", currency)
@@ -551,7 +554,7 @@ public class MainVerticleTest {
         {
           JsonObject invoiceLine = new JsonObject()
               .put("poLineId", poLineId)
-              .put("invoiceId", goodInvoiceId)
+              .put("invoiceId", goodInvoiceIds[i])
               .put("quantity", 1 + i)
               .put("subTotal", 10.0 + i * 5)
               .put("total", 12.0 + i * 6)
@@ -601,19 +604,24 @@ public class MainVerticleTest {
     String path = ctx.request().path();
     int offset = path.lastIndexOf('/');
     UUID id = UUID.fromString(path.substring(offset + 1));
-    if (id.equals(goodInvoiceId)) {
-      ctx.response().setChunked(true);
-      ctx.response().putHeader("Content-Type", "application/json");
-      JsonObject invoice = new JsonObject();
-      invoice.put("id", id.toString());
-      invoice.put("invoiceDate", "2017-06-18T00:00:00.000+00:00");
-      invoice.put("paymentDate", "2017-06-18T13:55:04.957+00:00");
-      ctx.response().end(invoice.encode());
-    } else {
-      ctx.response().putHeader("Content-Type", "text/plain");
-      ctx.response().setStatusCode(404);
-      ctx.response().end("not found");
+    for (int i = 0; i < goodInvoiceIds.length; i++) {
+      if (id.equals(goodInvoiceIds[i])) {
+        ctx.response().setChunked(true);
+        ctx.response().putHeader("Content-Type", "application/json");
+        JsonObject invoice = new JsonObject();
+        invoice.put("id", id.toString());
+        invoice.put("invoiceDate", "2017-06-18T00:00:00.000+00:00");
+        invoice.put("paymentDate", "2017-06-18T13:55:04.957+00:00");
+        if (i > 0) {
+          invoice.put("folioInvoiceNo", FOLIO_INVOICE);
+        }
+        ctx.response().end(invoice.encode());
+        return;
+      }
     }
+    ctx.response().putHeader("Content-Type", "text/plain");
+    ctx.response().setStatusCode(404);
+    ctx.response().end("not found");
   }
 
   static void getBudgets(RoutingContext ctx) {
@@ -1681,9 +1689,9 @@ public class MainVerticleTest {
         context.assertTrue(item.containsKey("kbTitleId"));
         context.assertEquals(100.0, item.getDouble("encumberedCost"));
         String invoiceNumber = item.getString("invoiceNumber");
-        context.assertEquals("Ongoing".equals(item.getString("orderType")), "1".equals(invoiceNumber));
+        context.assertEquals("Ongoing".equals(item.getString("orderType")), (FOLIO_INVOICE + "-1").equals(invoiceNumber));
         context.assertEquals("One-Time".equals(item.getString("orderType")), "0".equals(invoiceNumber));
-        context.assertEquals(POLINE_NUMBER_SAMPLE + invoiceNumber, item.getString("poLineNumber"));
+        context.assertEquals(POLINE_NUMBER_SAMPLE, item.getString("poLineNumber"));
       }
     }
 
