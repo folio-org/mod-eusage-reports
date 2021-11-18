@@ -1190,6 +1190,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
       if (date == null) {
         date = invoice.getString("invoiceDate");
       }
+      result.put("folioInvoiceNo", invoice.getString("folioInvoiceNo"));
       JsonArray fiscalYears = result.getJsonArray("allFiscalYears");
       LocalDate localDate = LocalDate.parse(date.substring(0, 10));
       for (int i = 0; i < fiscalYears.size(); i++) {
@@ -1244,7 +1245,14 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
                       subscriptionPeriods.add(range);
                       invoicedPeriods.add(thisTotal != null ? thisTotal : 0.0);
                       result.getJsonArray("fiscalYear").add(fiscalYear);
-                      invoiceNumbers.add(invoiceLine.getString("invoiceLineNumber"));
+                      StringBuilder invoice = new StringBuilder();
+                      String invoicePrefix = result.getString("folioInvoiceNo");
+                      if (invoicePrefix != null) {
+                        invoice.append(invoicePrefix);
+                        invoice.append("-");
+                      }
+                      invoice.append(invoiceLine.getString("invoiceLineNumber"));
+                      invoiceNumbers.add(invoice.toString());
                     }
                     return Future.succeededFuture();
                   });
