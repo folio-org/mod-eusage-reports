@@ -68,11 +68,10 @@ public class CostPerUse {
     Map<String,Double> amountPaidTotalMap = new HashMap<>();
     rowSet.forEach(row -> {
       log.debug("costPerUse row: {}", row::deepToString);
-      UUID kbPackageId = row.getUUID("kbpackageid");
-      String orderType = row.getString("ordertype");
-      String usageDateRange = row.getString("usagedaterange");
-      String fiscalYearRange = row.getString("fiscalyearrange");
-      String subscriptionDateRange = row.getString("subscriptiondaterange");
+      final UUID kbPackageId = row.getUUID("kbpackageid");
+      final String orderType = row.getString("ordertype");
+      final String fiscalYearRange = row.getString("fiscalyearrange");
+      final String subscriptionDateRange = row.getString("subscriptiondaterange");
       // deal with fiscal year range first, and save the that date range
       DateRange subscriptionPeriod = null;
       if (fiscalYearRange != null) {
@@ -95,6 +94,34 @@ public class CostPerUse {
         return;
       }
       String itemKey = payKey + "," + pubPeriodLabel;
+      UUID paidId = kbPackageId != null ? kbPackageId : kbId;
+      int titlesDivide = titlesInSubscription.get(payKey).size();
+      if (kbPackageId != null) {
+        titlesDivide *= packageContent.get(kbPackageId).size();
+      }
+      // number of months period in start - end also in subscribed period
+      long allPeriodsMonths = subscriptionPeriod.commonMonths(
+          new DateRange(usePeriods.startDate, usePeriods.endDate));
+      if (allPeriodsMonths <= 0) {
+        return;
+      }
+      // at this point, since allPeriodsMonths > 0, then subscriptionMonths > 0
+      int subscriptionMonths = subscriptionPeriod.getMonths();
+      Number encumberedCost = row.getDouble("encumberedcost");
+      Double amountEncumbered = null;
+      if (encumberedCost != null) {
+        double amount = allPeriodsMonths * encumberedCost.doubleValue() / subscriptionMonths;
+        amountEncumbered = amount / titlesDivide;
+        amountEncumberedTotalMap.putIfAbsent(itemKey, amountEncumbered);
+      }
+      Number invoicedCost = row.getNumeric("invoicedcost");
+      Double amountPaid = null;
+      if (invoicedCost != null) {
+        double amount = allPeriodsMonths * invoicedCost.doubleValue() / subscriptionMonths;
+        amountPaid = amount / titlesDivide;
+        amountPaidTotalMap.putIfAbsent(itemKey, amountPaid);
+      }
+      final String usageDateRange = row.getString("usagedaterange");
       JsonObject item = totalItems.get(itemKey);
       if (item == null) {
         item = new JsonObject();
@@ -149,41 +176,12 @@ public class CostPerUse {
         if (!"nopub".equals(pubPeriodLabel)) {
           item.put("publicationYear", pubPeriodLabel);
         }
-      }
-      UUID paidId = kbPackageId != null ? kbPackageId : kbId;
-      int titlesDivide = titlesInSubscription.get(payKey).size();
-      if (kbPackageId != null) {
-        titlesDivide *= packageContent.get(kbPackageId).size();
-      }
-      // number of months for subscription
-      long allPeriodsMonths = subscriptionPeriod.commonMonths(
-          new DateRange(usePeriods.startDate, usePeriods.endDate));
-      // number of months period in start - end also in subscribed period
-      int subscriptionMonths = subscriptionPeriod.getMonths();
-      Number encumberedCost = row.getDouble("encumberedcost");
-      if (encumberedCost != null) {
-        double amount = subscriptionMonths > 0
-            ?  allPeriodsMonths * encumberedCost.doubleValue() / subscriptionMonths
-            :  encumberedCost.doubleValue();
-        Double amountTitle = amount / titlesDivide;
-        item.put("amountEncumbered", CsvReports.formatCost(amountTitle));
-        if (subscriptionMonths > 0) {
-          amountEncumberedTotalMap.putIfAbsent(itemKey, amountTitle);
+        if (amountPaid != null) {
+          item.put("amountPaid", CsvReports.formatCost(amountPaid));
         }
-      }
-      Number invoicedCost = row.getNumeric("invoicedcost");
-      if (invoicedCost != null) {
-        double amount = subscriptionMonths > 0
-            ? allPeriodsMonths * invoicedCost.doubleValue() / subscriptionMonths
-            : invoicedCost.doubleValue();
-        Double amountTitle = amount / titlesDivide;
-        item.put("amountPaid", CsvReports.formatCost(amountTitle));
-        if (subscriptionMonths > 0) {
-          amountPaidTotalMap.putIfAbsent(itemKey, amountTitle);
+        if (amountEncumbered != null) {
+          item.put("amountEncumbered", CsvReports.formatCost(amountEncumbered));
         }
-      }
-      if (subscriptionMonths <= 0) {
-        return;
       }
       if (usageDateRange == null) {
         // or no counter report data
