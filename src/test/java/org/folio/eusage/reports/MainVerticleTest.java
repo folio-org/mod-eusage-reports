@@ -1669,7 +1669,7 @@ public class MainVerticleTest {
         .extract();
     resObject = new JsonObject(response.body().asString());
     items = resObject.getJsonArray("data");
-    context.assertEquals(6, items.size());
+    context.assertEquals(7, items.size());
     for (int i = 0; i < items.size(); i++) {
       JsonObject item = items.getJsonObject(i);
       String type =  item.getString("type");
@@ -1683,6 +1683,13 @@ public class MainVerticleTest {
         context.assertEquals(goodPackageId.toString(), item.getString("kbPackageId"));
         context.assertFalse(item.containsKey("kbTitleId"));
         context.assertEquals(100.0, item.getDouble("encumberedCost"));
+      } else if (i == 6) {
+        context.assertEquals("serial", type);
+        context.assertFalse(item.containsKey("kbPackageId"));
+        context.assertTrue(item.containsKey("kbTitleId"));
+        context.assertEquals(0.0, item.getDouble("encumberedCost"));
+        context.assertFalse(item.containsKey("invoiceNumber"));
+        context.assertEquals(POLINE_NUMBER_SAMPLE, item.getString("poLineNumber"));
       } else {
         context.assertEquals("serial", type);
         context.assertFalse(item.containsKey("kbPackageId"));
