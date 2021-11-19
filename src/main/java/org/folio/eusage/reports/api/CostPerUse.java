@@ -112,18 +112,14 @@ public class CostPerUse {
       if (encumberedCost != null) {
         double amount = allPeriodsMonths * encumberedCost.doubleValue() / subscriptionMonths;
         amountEncumbered = amount / titlesDivide;
-        if (subscriptionMonths > 0) {
-          amountEncumberedTotalMap.putIfAbsent(itemKey, amountEncumbered);
-        }
+        amountEncumberedTotalMap.putIfAbsent(itemKey, amountEncumbered);
       }
       Number invoicedCost = row.getNumeric("invoicedcost");
       Double amountPaid = null;
       if (invoicedCost != null) {
         double amount = allPeriodsMonths * invoicedCost.doubleValue() / subscriptionMonths;
         amountPaid = amount / titlesDivide;
-        if (subscriptionMonths > 0) {
-          amountPaidTotalMap.putIfAbsent(itemKey, amountPaid);
-        }
+        amountPaidTotalMap.putIfAbsent(itemKey, amountPaid);
       }
       final String usageDateRange = row.getString("usagedaterange");
       JsonObject item = totalItems.get(itemKey);
