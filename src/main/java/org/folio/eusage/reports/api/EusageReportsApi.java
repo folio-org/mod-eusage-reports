@@ -1212,7 +1212,8 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     JsonArray subscriptionPeriods = new JsonArray();
     result.put("subscriptionPeriods", subscriptionPeriods);
     JsonArray invoicedPeriods = new JsonArray();
-    result.put("fiscalYear", new JsonArray());
+    JsonArray fiscalYears = new JsonArray();
+    result.put("fiscalYear", fiscalYears);
     result.put("invoicedPeriods", invoicedPeriods);
     JsonArray invoiceNumbers = new JsonArray();
     result.put("invoiceNumber", invoiceNumbers);
@@ -1244,7 +1245,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
                     if (range != null || fiscalYear != null) {
                       subscriptionPeriods.add(range);
                       invoicedPeriods.add(thisTotal != null ? thisTotal : 0.0);
-                      result.getJsonArray("fiscalYear").add(fiscalYear);
+                      fiscalYears.add(fiscalYear);
                       StringBuilder invoice = new StringBuilder();
                       String invoicePrefix = result.getString("folioInvoiceNo");
                       if (invoicePrefix != null) {
@@ -1354,11 +1355,16 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
       UUID agreementLineId, String coverageDateRanges, String type, UUID kbTitleId,
       UUID kbPackageId, UUID poLineId, JsonObject poResult) {
 
-    Future<Void> future = Future.succeededFuture();
     JsonArray fiscalYears = poResult.getJsonArray("fiscalYear");
     JsonArray subscriptionPeriods = poResult.getJsonArray("subscriptionPeriods");
     JsonArray invoicedPeriods = poResult.getJsonArray("invoicedPeriods");
     JsonArray invoiceNumbers = poResult.getJsonArray("invoiceNumber");
+    if (subscriptionPeriods.isEmpty()) {
+      return insertAgreementLine(pool, con, agreementId, agreementLineId,
+          coverageDateRanges, type, kbTitleId, kbPackageId, poLineId, poResult,
+          null, null, null, null);
+    }
+    Future<Void> future = Future.succeededFuture();
     for (int i = 0; i < subscriptionPeriods.size(); i++) {
       String subscriptionDateRange = subscriptionPeriods.getString(i);
       String fiscalYear = fiscalYears.getString(i);
