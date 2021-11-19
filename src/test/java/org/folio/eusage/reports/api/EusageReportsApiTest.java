@@ -1459,6 +1459,29 @@ assertThat(json.getJsonArray("items").size(), is(4));
   }
 
   @Test
+  public void costPerUseNoOverlap(TestContext context) {
+    RoutingContext routingContext = mock(RoutingContext.class, RETURNS_DEEP_STUBS);
+    when(routingContext.request().getHeader("X-Okapi-Tenant")).thenReturn(tenant);
+    when(routingContext.request().params().get("agreementId")).thenReturn(a1);
+    when(routingContext.request().params().get("startDate")).thenReturn("2022-01");
+    when(routingContext.request().params().get("endDate")).thenReturn("2022-02");
+    when(routingContext.request().params().get("includeOA")).thenReturn("true");
+    new EusageReportsApi().getCostPerUse(vertx, routingContext)
+        .onComplete(context.asyncAssertSuccess(x -> {
+          ArgumentCaptor<String> body = ArgumentCaptor.forClass(String.class);
+          verify(routingContext.response()).end(body.capture());
+          JsonObject json = new JsonObject(body.getValue());
+          assertThat((List<?>) json.getJsonArray("accessCountPeriods").getList(),
+              contains("2022-01", "2022-02"));
+          assertThat((List<?>) json.getJsonArray("titleCountByPeriod").getList(),
+              contains(0, 0));
+          assertThat(json.getDouble("amountPaidTotal"), is(0.0));
+          assertThat(json.getDouble("amountEncumberedTotal"), is(0.0));
+          assertThat(json.getJsonArray("items").size(), is(0));
+        }));
+  }
+
+  @Test
   public void costPerUseNoItems(TestContext context) {
     RoutingContext routingContext = mock(RoutingContext.class, RETURNS_DEEP_STUBS);
     when(routingContext.request().getHeader("X-Okapi-Tenant")).thenReturn(tenant);
