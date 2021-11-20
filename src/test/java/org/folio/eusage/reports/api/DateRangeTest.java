@@ -76,7 +76,14 @@ public class DateRangeTest {
   @Test
   public void testFullDate() {
     DateRange d = new DateRange("[2021-06-18T00:00:00.000+00:00,2022-06-18T13:55:04.957+00:00]");
-    Assert.assertEquals(12, d.getMonths());
+    Assert.assertEquals(13, d.getMonths());
+    Assert.assertEquals(0, new DateRange("[2020-01-01,2020-01-01)").getMonths());
+    Assert.assertEquals(1, new DateRange("[2020-01-01,2020-01-01]").getMonths());
+    Assert.assertEquals(1, new DateRange("[2020-01-01,2020-01-02]").getMonths());
+    Assert.assertEquals(1, new DateRange("[2020-01-01,2020-01-30]").getMonths());
+    Assert.assertEquals(1, new DateRange("[2020-01-01,2020-01-31]").getMonths());
+    Assert.assertEquals(2, new DateRange("[2020-01-15,2020-02-13]").getMonths());
+    Assert.assertEquals(2, new DateRange("[2020-01-15,2020-02-15]").getMonths());
   }
 
   @Test
@@ -84,6 +91,9 @@ public class DateRangeTest {
     DateRange d = new DateRange(LocalDate.of(2020,1,1), LocalDate.of(2021,7,1));
     Assert.assertEquals(18, d.getMonths());
     Assert.assertEquals(1L, DateRange.commonMonths(d, new DateRange("[2020-02-01,2020-03-01)")));
+    Assert.assertEquals(2L, d.commonMonths(new DateRange("[2020-02-01,2020-03-01]")));
+    Assert.assertEquals(2L, d.commonMonths(new DateRange("[2020-02-01,2020-03-30]")));
+    Assert.assertEquals(2L, d.commonMonths(new DateRange("[2020-02-01,2020-03-31]")));
     Assert.assertEquals(6L, d.commonMonths(new DateRange("[2021-01-01,2022-01-01)")));
     Assert.assertEquals(12L, d.commonMonths(new DateRange("[2020-01-01,2021-01-01)")));
     Assert.assertEquals(0L, d.commonMonths(new DateRange("[2019-01-01,2020-01-01)")));
