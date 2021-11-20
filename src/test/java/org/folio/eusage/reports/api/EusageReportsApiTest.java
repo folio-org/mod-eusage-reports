@@ -1308,9 +1308,9 @@ assertThat(json.getJsonArray("items").size(), is(4));
           assertThat((List<?>) json.getJsonArray("titleCountByPeriod").getList(),
               contains(2, 2, 1));
           assertThat((List<?>) json.getJsonArray("totalItemCostsPerRequestsByPeriod").getList(),
-              contains(1.41, 0.91, 1.07));
+              contains(1.28, 0.83, 0.97));
           assertThat((List<?>) json.getJsonArray("uniqueItemCostsPerRequestsByPeriod").getList(),
-              contains(1.55, 1.72, 3.44));
+              contains(1.41, 1.57, 3.13));
         }));
   }
 
@@ -1334,24 +1334,24 @@ assertThat(json.getJsonArray("items").size(), is(4));
           assertThat((List<?>) json.getJsonArray("totalItemRequestsByPeriod").getList(),
               contains(0, 34, 29, 0));
           assertThat((List<?>) json.getJsonArray("totalItemCostsPerRequestsByPeriod").getList(),
-              contains(null, 1.14, 1.34, null));
+              contains(null, 1.01, 1.19, null));
           assertThat((List<?>) json.getJsonArray("uniqueItemCostsPerRequestsByPeriod").getList(),
-              contains(null, 2.15, 4.31, null));
+              contains(null, 1.91, 3.83, null));
           assertThat((List<?>) json.getJsonArray("uniqueItemRequestsByPeriod").getList(),
               contains(0, 18, 9, 0));
           assertThat((List<?>) json.getJsonArray("costByPeriod").getList(),
-              contains(0.0, 38.75, 38.75, 0.0));
+              contains(0.0, 34.44, 34.44, 0.0));
           JsonArray items = json.getJsonArray("items");
           assertThat(items.size(), is(3));
           assertThat(items.getJsonObject(0).getBoolean("derivedTitle"), is(true));
           assertThat(items.getJsonObject(1).getBoolean("derivedTitle"), is(true));
           assertThat(items.getJsonObject(2).getBoolean("derivedTitle"), is(true));
           assertThat(items.getJsonObject(0).getDouble("costPerTotalRequest"), is(nullValue()));
-          assertThat(items.getJsonObject(1).getDouble("costPerTotalRequest"), is(0.71));
-          assertThat(items.getJsonObject(2).getDouble("costPerTotalRequest"), is(2.64));
+          assertThat(items.getJsonObject(1).getDouble("costPerTotalRequest"), is(0.63));
+          assertThat(items.getJsonObject(2).getDouble("costPerTotalRequest"), is(2.35));
           assertThat(items.getJsonObject(0).getDouble("costPerUniqueRequest"), is(nullValue()));
-          assertThat(items.getJsonObject(1).getDouble("costPerUniqueRequest"), is(2.24));
-          assertThat(items.getJsonObject(2).getDouble("costPerUniqueRequest"), is(4.15));
+          assertThat(items.getJsonObject(1).getDouble("costPerUniqueRequest"), is(1.99));
+          assertThat(items.getJsonObject(2).getDouble("costPerUniqueRequest"), is(3.69));
         }));
   }
 
