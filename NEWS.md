@@ -1,3 +1,14 @@
+## 1.0.3 2021-11-22
+
+ * [MODEUR-122](https://issues.folio.org/browse/MODEUR-122) Round up for periods in calculation
+ * [MODEUR-121](https://issues.folio.org/browse/MODEUR-121) Agreement line not analyzed if there's no
+   subscription/fiscal year
+ * [MODEUR-120](https://issues.folio.org/browse/MODEUR-120) Invoice numbers are incorrect on cost per use report
+ * [MODEUR-119](https://issues.folio.org/browse/MODEUR-119) Missing invoice amount from cost per use report
+ * [MODEUR-118](https://issues.folio.org/browse/MODEUR-118) Log performance, create indices
+ * [MODEUR-117](https://issues.folio.org/browse/MODEUR-117) Reduce logging, to speed up running reporting
+ * [MODEUR-116](https://issues.folio.org/browse/MODEUR-116) ERM paging
+
 ## 1.0.2 2021-10-29
 
  * [MODEUR-113](https://issues.folio.org/browse/MODEUR-113) Include years of publication in cost per use download
