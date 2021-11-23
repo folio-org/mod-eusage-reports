@@ -29,8 +29,8 @@ import io.vertx.sqlclient.RowSet;
 import io.vertx.sqlclient.Tuple;
 import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVRecord;
+import org.folio.eusage.reports.CreateContainer;
 import org.folio.tlib.postgres.TenantPgPool;
-import org.folio.tlib.postgres.TenantPgPoolContainer;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
@@ -58,7 +58,7 @@ public class EusageReportsApiTest {
   public static RunTestOnContext runTestOnContext = new RunTestOnContext();
 
   @ClassRule
-  public static PostgreSQLContainer<?> postgresSQLContainer = TenantPgPoolContainer.create();
+  public static PostgreSQLContainer<?> postgresSQLContainer = CreateContainer.create();
 
   private static Vertx vertx;
   private static TenantPgPool pool;

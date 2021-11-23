@@ -1,10 +1,8 @@
 package org.folio.eusage.reports;
 
 import io.vertx.core.AbstractVerticle;
-import io.vertx.core.Future;
 import io.vertx.core.Promise;
 import io.vertx.core.http.HttpServerOptions;
-import io.vertx.ext.web.Router;
 import io.vertx.ext.web.client.WebClient;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -28,8 +26,6 @@ public class MainVerticle extends AbstractVerticle {
     final int port = Integer.parseInt(
         Config.getSysConf("http.port", "port", "8081", config()));
 
-    WebClient webClient = WebClient.create(vertx);
-
     EusageReportsApi eusageReportsApi = new EusageReportsApi();
     RouterCreator [] routerCreators = {
         eusageReportsApi,
@@ -37,22 +33,13 @@ public class MainVerticle extends AbstractVerticle {
         new HealthApi(),
     };
 
-    Router router = Router.router(vertx);
-    Future<Void> future = Future.succeededFuture();
-    for (RouterCreator routerCreator : routerCreators) {
-      future = future.compose(x -> routerCreator.createRouter(vertx, webClient))
-          .map(subRouter -> {
-            router.mountSubRouter("/", subRouter);
-            return null;
-          });
-    }
-
-    future = future.compose(x -> {
-      HttpServerOptions so = new HttpServerOptions().setHandle100ContinueAutomatically(true);
-      return vertx.createHttpServer(so)
-          .requestHandler(router)
-          .listen(port).mapEmpty();
-    });
-    future.onComplete(promise);
+    RouterCreator.mountAll(vertx, WebClient.create(vertx), routerCreators)
+        .compose(router -> {
+          HttpServerOptions so = new HttpServerOptions().setHandle100ContinueAutomatically(true);
+          return vertx.createHttpServer(so)
+              .requestHandler(router)
+              .listen(port).mapEmpty();
+        })
+        .onComplete(x -> promise.handle(x.mapEmpty()));
   }
 }

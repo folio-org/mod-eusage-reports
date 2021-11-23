@@ -18,7 +18,6 @@ import java.util.UUID;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.folio.okapi.common.XOkapiHeaders;
-import org.folio.tlib.postgres.TenantPgPoolContainer;
 import org.hamcrest.Matchers;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -82,7 +81,7 @@ public class MainVerticleTest {
   };
 
   @ClassRule
-  public static PostgreSQLContainer<?> postgresSQLContainer = TenantPgPoolContainer.create();
+  public static PostgreSQLContainer<?> postgresSQLContainer = CreateContainer.create();
 
   static JsonObject getCounterReportMock(UUID id, int cnt) {
     JsonObject counterReport = new JsonObject();

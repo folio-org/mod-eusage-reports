@@ -1,9 +1,10 @@
-package org.folio.tlib.postgres;
+package org.folio.eusage.reports;
 
 import io.vertx.pgclient.PgConnectOptions;
+import org.folio.tlib.postgres.TenantPgPool;
 import org.testcontainers.containers.PostgreSQLContainer;
 
-public final class TenantPgPoolContainer {
+public final class CreateContainer {
 
   public static PostgreSQLContainer<?> create() {
     return create("postgres:12-alpine");
