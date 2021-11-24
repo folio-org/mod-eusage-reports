@@ -15,8 +15,12 @@ import java.util.UUID;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-public class UseOverTime {
+public final class UseOverTime {
   private static final Logger log = LogManager.getLogger(UseOverTime.class);
+
+  private UseOverTime() {
+    throw new UnsupportedOperationException("Cannot instantiate utility class");
+  }
 
   static JsonObject createTotalItem(Row row, String accessType, Long totalAccessCount,
       JsonArray accessCountsByPeriods, int periodSize) {

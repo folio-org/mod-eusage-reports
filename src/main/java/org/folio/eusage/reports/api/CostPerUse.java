@@ -15,8 +15,12 @@ import java.util.UUID;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-public class CostPerUse {
+public final class CostPerUse {
   private static final Logger log = LogManager.getLogger(CostPerUse.class);
+
+  private CostPerUse() {
+    throw new UnsupportedOperationException("Cannot instantiate utility class");
+  }
 
   static JsonObject titlesToJsonObject(RowSet<Row> rowSet, Periods usePeriods) {
 

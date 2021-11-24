@@ -16,8 +16,12 @@ import java.util.UUID;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-public class ReqsByPubYear {
+public final class ReqsByPubYear {
   private static final Logger log = LogManager.getLogger(ReqsByPubYear.class);
+
+  private ReqsByPubYear() {
+    throw new UnsupportedOperationException("Cannot instantiate utility class");
+  }
 
   static JsonObject titlesToJsonObject(RowSet<Row> rowSet, String agreementId,
       Periods usePeriods, int pubPeriodInMonths) {
