@@ -1,3 +1,7 @@
+## 1.0.4 2021-12-15
+
+ * [MODEUR-127](https://issues.folio.org/browse/MODEUR-127) Upgrade to Log4j 2.16.0
+
 ## 1.0.3 2021-11-22
 
  * [MODEUR-122](https://issues.folio.org/browse/MODEUR-122) Round up for periods in calculation
