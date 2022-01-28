@@ -26,14 +26,14 @@ public class MainVerticle extends AbstractVerticle {
     final int port = Integer.parseInt(
         Config.getSysConf("http.port", "port", "8081", config()));
 
-    EusageReportsApi eusageReportsApi = new EusageReportsApi();
+    EusageReportsApi eusageReportsApi = new EusageReportsApi(WebClient.create(vertx));
     RouterCreator [] routerCreators = {
         eusageReportsApi,
         new Tenant2Api(eusageReportsApi),
         new HealthApi(),
     };
 
-    RouterCreator.mountAll(vertx, WebClient.create(vertx), routerCreators)
+    RouterCreator.mountAll(vertx, routerCreators)
         .compose(router -> {
           HttpServerOptions so = new HttpServerOptions().setHandle100ContinueAutomatically(true);
           return vertx.createHttpServer(so)

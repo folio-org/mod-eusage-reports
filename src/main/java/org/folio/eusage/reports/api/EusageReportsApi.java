@@ -55,6 +55,10 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
 
   static final String LIMIT_ALL = "?limit=2147483647";
 
+  public EusageReportsApi(WebClient webClient) {
+    this.webClient = webClient;
+  }
+
   static String titleEntriesTable(TenantPgPool pool) {
     return pool.getSchema() + ".title_entries";
   }
@@ -1831,8 +1835,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
   }
 
   @Override
-  public Future<Router> createRouter(Vertx vertx, WebClient webClient) {
-    this.webClient = webClient;
+  public Future<Router> createRouter(Vertx vertx) {
     return RouterBuilder.create(vertx, "openapi/eusage-reports-1.0.yaml")
         .map(routerBuilder -> {
           add(routerBuilder, "getReportTitles", ctx -> getReportTitles(vertx, ctx));

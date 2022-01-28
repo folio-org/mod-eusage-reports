@@ -24,6 +24,7 @@ import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.RunTestOnContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
 import io.vertx.ext.web.RoutingContext;
+import io.vertx.ext.web.client.WebClient;
 import io.vertx.sqlclient.Row;
 import io.vertx.sqlclient.RowSet;
 import io.vertx.sqlclient.Tuple;
@@ -61,12 +62,14 @@ public class EusageReportsApiTest {
   public static PostgreSQLContainer<?> postgresSQLContainer = TenantPgPoolContainer.create();
 
   private static Vertx vertx;
+  private static WebClient webClient;
   private static TenantPgPool pool;
   private static String tenant = "tenant";
 
   @BeforeClass
   public static void beforeClass(TestContext context) {
     vertx = runTestOnContext.vertx();
+    webClient = WebClient.create(vertx);
     TenantPgPool.setModule("mod-eusage-reports-api-test");
     pool = TenantPgPool.pool(vertx, tenant);
     pool.execute(List.of(
@@ -76,7 +79,7 @@ public class EusageReportsApiTest {
         "GRANT {schema} TO CURRENT_USER",
         "CREATE SCHEMA {schema} AUTHORIZATION {schema}"
     ))
-    .compose(x -> new EusageReportsApi().postInit(vertx, tenant, new JsonObject().put("module_to", "1.1.1")))
+    .compose(x -> new EusageReportsApi(webClient).postInit(vertx, tenant, new JsonObject().put("module_to", "1.1.1")))
     .compose(x -> loadSampleData())
     .onComplete(context.asyncAssertSuccess());
   }
@@ -88,7 +91,7 @@ public class EusageReportsApiTest {
 
   @Test
   public void testPopulateAgreementLine(TestContext context) {
-    EusageReportsApi api = new EusageReportsApi();
+    EusageReportsApi api = new EusageReportsApi(webClient);
     UUID agreementId = UUID.randomUUID();
 
     api.populateAgreementLine( null, null, new JsonObject(), agreementId, null)
@@ -114,7 +117,7 @@ public class EusageReportsApiTest {
     when(ctx.request().params().get("agreementId")).thenReturn(UUID.randomUUID().toString());
     when(ctx.request().params().get("startDate")).thenReturn(startDate);
     when(ctx.request().params().get("endDate")).thenReturn(endDate);
-    return new EusageReportsApi().getUseOverTime(vertx, ctx)
+    return new EusageReportsApi(webClient).getUseOverTime(vertx, ctx)
     .map(x -> {
       ArgumentCaptor<String> argument = ArgumentCaptor.forClass(String.class);
       verify(ctx.response()).end(argument.capture());
@@ -306,7 +309,7 @@ public class EusageReportsApiTest {
   }
 
   private Future<JsonObject> getUseOverTime(Boolean isJournal, Boolean includeOA, String agreementId, String accessCountPeriod, String start, String end) {
-    return new EusageReportsApi().getUseOverTime(pool, isJournal, includeOA, agreementId, accessCountPeriod, start, end);
+    return new EusageReportsApi(webClient).getUseOverTime(pool, isJournal, includeOA, agreementId, accessCountPeriod, start, end);
   }
 
   @Test
@@ -417,7 +420,7 @@ assertThat(json.getJsonArray("items").size(), is(4));
 
   @Test
   public void useOverTimeCsv(TestContext context) {
-    new EusageReportsApi().getUseOverTime(pool, true, true, a1, null,"2020-04", "2020-05", true, true)
+    new EusageReportsApi(webClient).getUseOverTime(pool, true, true, a1, null,"2020-04", "2020-05", true, true)
         .onComplete(context.asyncAssertSuccess(res -> {
           assertThat(res, containsString("Title,Print ISSN,Online ISSN,ISBN,Access type,Metric Type,Reporting period total,2020-04,2020-05"));
           assertThat(res, containsString("Totals - total item requests,,,,,,56,22,34"));
@@ -428,7 +431,7 @@ assertThat(json.getJsonArray("items").size(), is(4));
 
   @Test
   public void useOverTimeCsvAll(TestContext context) {
-    new EusageReportsApi().getUseOverTime(pool, null, true, a1, null,"2020-04", "2020-05", true, true)
+    new EusageReportsApi(webClient).getUseOverTime(pool, null, true, a1, null,"2020-04", "2020-05", true, true)
         .onComplete(context.asyncAssertSuccess(res -> {
           assertThat(res, containsString("Title,Print ISSN,Online ISSN,ISBN,Access type,Metric Type,Reporting period total,2020-04,2020-05"));
           assertThat(res, containsString("Totals - total item requests,,,,,,56,22,34"));
@@ -439,7 +442,7 @@ assertThat(json.getJsonArray("items").size(), is(4));
 
   @Test
   public void useOverTimeCsvBook(TestContext context) {
-    new EusageReportsApi().getUseOverTime(pool, false, true, a2, null,"2020-05", "2020-06", true, true)
+    new EusageReportsApi(webClient).getUseOverTime(pool, false, true, a2, null,"2020-05", "2020-06", true, true)
         .onComplete(context.asyncAssertSuccess(res -> {
           assertThat(res, containsString("Title,Print ISSN,Online ISSN,ISBN,Access type,Metric Type,Reporting period total,2020-05,2020-06"));
           assertThat(res, containsString("Totals - total item requests,,,,,,42,40,2"));
@@ -588,7 +591,7 @@ assertThat(json.getJsonArray("items").size(), is(4));
 
   @Test
   public void reqsByDateOfUseJournal(TestContext context) {
-    new EusageReportsApi().getReqsByDateOfUse(pool, true, true, a2, null, "2020-05", "2020-06", null)
+    new EusageReportsApi(webClient).getReqsByDateOfUse(pool, true, true, a2, null, "2020-05", "2020-06", null)
         .onComplete(context.asyncAssertSuccess(json -> {
           assertThat(json.getLong("totalItemRequestsTotal"), is(42L));
           assertThat(json.getLong("uniqueItemRequestsTotal"), is(21L));
@@ -620,7 +623,7 @@ assertThat(json.getJsonArray("items").size(), is(4));
 
   @Test
   public void reqsByDateOfUseBook(TestContext context) {
-    new EusageReportsApi().getReqsByDateOfUse(pool, false, true, a2, null, "2020-05", "2020-06", null)
+    new EusageReportsApi(webClient).getReqsByDateOfUse(pool, false, true, a2, null, "2020-05", "2020-06", null)
         .onComplete(context.asyncAssertSuccess(json -> {
           assertThat(json.getLong("totalItemRequestsTotal"), is(42L));
           assertThat(json.getLong("uniqueItemRequestsTotal"), is(21L));
@@ -643,7 +646,7 @@ assertThat(json.getJsonArray("items").size(), is(4));
 
   @Test
   public void reqsByDateOfUseBookNoOA(TestContext context) {
-    new EusageReportsApi().getReqsByDateOfUse(pool, false, false, a2, null, "2020-05", "2020-06", "5Y")
+    new EusageReportsApi(webClient).getReqsByDateOfUse(pool, false, false, a2, null, "2020-05", "2020-06", "5Y")
         .onComplete(context.asyncAssertSuccess(json -> {
           assertThat(json.getLong("totalItemRequestsTotal"), is(40L));
           assertThat(json.getLong("uniqueItemRequestsTotal"), is(20L));
@@ -687,7 +690,7 @@ assertThat(json.getJsonArray("items").size(), is(4));
 
   @Test
   public void reqsByDateOfUseAll(TestContext context) {
-    new EusageReportsApi().getReqsByDateOfUse(pool, null, true, a2, null, "2020-05", "2020-06", null)
+    new EusageReportsApi(webClient).getReqsByDateOfUse(pool, null, true, a2, null, "2020-05", "2020-06", null)
         .onComplete(context.asyncAssertSuccess(json -> {
           assertThat(json.getLong("totalItemRequestsTotal"), is(84L));
           assertThat(json.getLong("uniqueItemRequestsTotal"), is(42L));
@@ -699,7 +702,7 @@ assertThat(json.getJsonArray("items").size(), is(4));
 
   @Test
   public void reqsByDateOfUseNoPubYears(TestContext context) {
-    new EusageReportsApi().getReqsByDateOfUse(pool, true, true, a1, null, "2005-02", "2005-06", "auto")
+    new EusageReportsApi(webClient).getReqsByDateOfUse(pool, true, true, a1, null, "2005-02", "2005-06", "auto")
         .onComplete(context.asyncAssertSuccess(json -> {
           assertThat(json.getLong("totalItemRequestsTotal"), is(0L));
           assertThat(json.getLong("uniqueItemRequestsTotal"), is(0L));
@@ -708,7 +711,8 @@ assertThat(json.getJsonArray("items").size(), is(4));
 
   @Test
   public void reqsByDateOfUse63(TestContext context) {
-    new EusageReportsApi().getReqsByDateOfUse(pool, true, true, a1, null, "2020-02", "2020-06", null)
+    new EusageReportsApi(webClient)
+        .getReqsByDateOfUse(pool, true, true, a1, null, "2020-02", "2020-06", null)
         .onComplete(context.asyncAssertSuccess(json -> {
           assertThat(json.getLong("totalItemRequestsTotal"), is(99L));
           assertThat(json.getLong("uniqueItemRequestsTotal"), is(59L));
@@ -807,7 +811,7 @@ assertThat(json.getJsonArray("items").size(), is(4));
 
   @Test
   public void reqsByPubYear63(TestContext context) {
-    new EusageReportsApi().getReqsByPubYear(pool, true, true, a1, null, "2020-02", "2020-06", "1M")
+    new EusageReportsApi(webClient).getReqsByPubYear(pool, true, true, a1, null, "2020-02", "2020-06", "1M")
         .onComplete(context.asyncAssertSuccess(json -> {
           assertThat(json.getLong("totalItemRequestsTotal"), is(99L));
           assertThat(json.getLong("uniqueItemRequestsTotal"), is(59L));
@@ -863,7 +867,7 @@ assertThat(json.getJsonArray("items").size(), is(4));
     when(routingContext.request().params().get("endDate")).thenReturn("2020-06");
     when(routingContext.request().params().get("includeOA")).thenReturn("true");
     when(routingContext.request().params().get("format")).thenReturn("JOURNAL");
-    new EusageReportsApi().getCostPerUse(vertx, routingContext)
+    new EusageReportsApi(webClient).getCostPerUse(vertx, routingContext)
         .onComplete(context.asyncAssertSuccess(x -> {
           ArgumentCaptor<String> body = ArgumentCaptor.forClass(String.class);
           verify(routingContext.response()).end(body.capture());
@@ -874,7 +878,8 @@ assertThat(json.getJsonArray("items").size(), is(4));
 
   @Test
   public void reqsByDateOfUseYopInterval2Y(TestContext context) {
-    new EusageReportsApi().getReqsByDateOfUse(pool, null, true, a1, null, "2020-02", "2020-06", "2Y")
+    new EusageReportsApi(webClient)
+        .getReqsByDateOfUse(pool, null, true, a1, null, "2020-02", "2020-06", "2Y")
         .onComplete(context.asyncAssertSuccess(json -> {
           assertThat(json.getLong("totalItemRequestsTotal"), is(99L));
           assertThat(json.getLong("uniqueItemRequestsTotal"), is(59L));
@@ -920,7 +925,7 @@ assertThat(json.getJsonArray("items").size(), is(4));
     when(routingContext.request().params().get("startDate")).thenReturn("2020-05");
     when(routingContext.request().params().get("endDate")).thenReturn("2020-06");
     when(routingContext.request().params().get("includeOA")).thenReturn("true");
-    new EusageReportsApi().getReqsByDateOfUse(vertx, routingContext)
+    new EusageReportsApi(webClient).getReqsByDateOfUse(vertx, routingContext)
     .onComplete(context.asyncAssertSuccess(x -> {
       ArgumentCaptor<String> body = ArgumentCaptor.forClass(String.class);
       verify(routingContext.response()).end(body.capture());
@@ -952,7 +957,7 @@ assertThat(json.getJsonArray("items").size(), is(4));
     when(routingContext.request().params().get("startDate")).thenReturn("2020-05");
     when(routingContext.request().params().get("endDate")).thenReturn("2020-06");
     when(routingContext.request().params().get("includeOA")).thenReturn("true");
-    new EusageReportsApi().getReqsByDateOfUse(vertx, routingContext)
+    new EusageReportsApi(webClient).getReqsByDateOfUse(vertx, routingContext)
         .onComplete(context.asyncAssertSuccess(x -> {
           ArgumentCaptor<String> body = ArgumentCaptor.forClass(String.class);
           verify(routingContext.response()).end(body.capture());
@@ -974,7 +979,7 @@ assertThat(json.getJsonArray("items").size(), is(4));
     when(routingContext.request().params().get("startDate")).thenReturn("2020-05");
     when(routingContext.request().params().get("endDate")).thenReturn("2020-06");
     when(routingContext.request().params().get("includeOA")).thenReturn("true");
-    new EusageReportsApi().getReqsByDateOfUse(vertx, routingContext)
+    new EusageReportsApi(webClient).getReqsByDateOfUse(vertx, routingContext)
         .onComplete(context.asyncAssertSuccess(x -> {
           ArgumentCaptor<String> body = ArgumentCaptor.forClass(String.class);
           verify(routingContext.response()).end(body.capture());
@@ -1015,7 +1020,7 @@ assertThat(json.getJsonArray("items").size(), is(4));
   private Future<JsonObject> getReqsByPubPeriod(boolean includeOA, String agreementId,
       String accessCountPeriod, String start, String end, String periodOfUse) {
 
-    return new EusageReportsApi().getReqsByPubYear(pool, true, includeOA, agreementId, accessCountPeriod, start, end, periodOfUse);
+    return new EusageReportsApi(webClient).getReqsByPubYear(pool, true, includeOA, agreementId, accessCountPeriod, start, end, periodOfUse);
   }
 
   @Test
@@ -1029,7 +1034,7 @@ assertThat(json.getJsonArray("items").size(), is(4));
     when(routingContext.request().params().get("endDate")).thenReturn("2020-08");
     when(routingContext.request().params().get("periodOfUse")).thenReturn("6M");
     when(routingContext.request().params().get("includeOA")).thenReturn("true");
-    new EusageReportsApi().getReqsByPubYear(vertx, routingContext)
+    new EusageReportsApi(webClient).getReqsByPubYear(vertx, routingContext)
         .onComplete(context.asyncAssertSuccess(x -> {
           ArgumentCaptor<String> body = ArgumentCaptor.forClass(String.class);
           verify(routingContext.response()).end(body.capture());
@@ -1065,7 +1070,7 @@ assertThat(json.getJsonArray("items").size(), is(4));
     when(routingContext.request().params().get("endDate")).thenReturn("2020-08");
     when(routingContext.request().params().get("periodOfUse")).thenReturn("6M");
     when(routingContext.request().params().get("includeOA")).thenReturn("true");
-    new EusageReportsApi().getReqsByPubYear(vertx, routingContext)
+    new EusageReportsApi(webClient).getReqsByPubYear(vertx, routingContext)
         .onComplete(context.asyncAssertSuccess(x -> {
           ArgumentCaptor<String> body = ArgumentCaptor.forClass(String.class);
           verify(routingContext.response()).end(body.capture());
@@ -1090,7 +1095,7 @@ assertThat(json.getJsonArray("items").size(), is(4));
     when(routingContext.request().params().get("endDate")).thenReturn("2020-08");
     when(routingContext.request().params().get("periodOfUse")).thenReturn("6M");
     when(routingContext.request().params().get("includeOA")).thenReturn("true");
-    new EusageReportsApi().getReqsByPubYear(vertx, routingContext)
+    new EusageReportsApi(webClient).getReqsByPubYear(vertx, routingContext)
         .onComplete(context.asyncAssertSuccess(x -> {
           ArgumentCaptor<String> body = ArgumentCaptor.forClass(String.class);
           verify(routingContext.response()).end(body.capture());
@@ -1162,7 +1167,7 @@ assertThat(json.getJsonArray("items").size(), is(4));
     when(routingContext.request().params().get("startDate")).thenReturn("2020-04");
     when(routingContext.request().params().get("endDate")).thenReturn("2020-08");
     when(routingContext.request().params().get("includeOA")).thenReturn("true");
-    new EusageReportsApi().getCostPerUse(vertx, routingContext)
+    new EusageReportsApi(webClient).getCostPerUse(vertx, routingContext)
         .onComplete(context.asyncAssertSuccess(x -> {
           ArgumentCaptor<String> body = ArgumentCaptor.forClass(String.class);
           verify(routingContext.response()).end(body.capture());
@@ -1189,7 +1194,7 @@ assertThat(json.getJsonArray("items").size(), is(4));
     when(routingContext.request().params().get("startDate")).thenReturn("2020-04");
     when(routingContext.request().params().get("endDate")).thenReturn("2020-08");
     when(routingContext.request().params().get("includeOA")).thenReturn("true");
-    new EusageReportsApi().getCostPerUse(vertx, routingContext)
+    new EusageReportsApi(webClient).getCostPerUse(vertx, routingContext)
         .onComplete(context.asyncAssertSuccess(x -> {
           ArgumentCaptor<String> body = ArgumentCaptor.forClass(String.class);
           verify(routingContext.response()).end(body.capture());
@@ -1242,7 +1247,7 @@ assertThat(json.getJsonArray("items").size(), is(4));
     when(routingContext.request().params().get("startDate")).thenReturn("2020-04");
     when(routingContext.request().params().get("endDate")).thenReturn("2020-08");
     when(routingContext.request().params().get("includeOA")).thenReturn("true");
-    new EusageReportsApi().getCostPerUse(vertx, routingContext)
+    new EusageReportsApi(webClient).getCostPerUse(vertx, routingContext)
         .onComplete(context.asyncAssertSuccess(x -> {
           ArgumentCaptor<String> body = ArgumentCaptor.forClass(String.class);
           verify(routingContext.response()).end(body.capture());
@@ -1270,7 +1275,7 @@ assertThat(json.getJsonArray("items").size(), is(4));
     when(routingContext.request().params().get("startDate")).thenReturn("2020-04");
     when(routingContext.request().params().get("endDate")).thenReturn("2020-08");
     when(routingContext.request().params().get("includeOA")).thenReturn("false");
-    new EusageReportsApi().getCostPerUse(vertx, routingContext)
+    new EusageReportsApi(webClient).getCostPerUse(vertx, routingContext)
         .onComplete(context.asyncAssertSuccess(x -> {
           ArgumentCaptor<String> body = ArgumentCaptor.forClass(String.class);
           verify(routingContext.response()).end(body.capture());
@@ -1298,7 +1303,7 @@ assertThat(json.getJsonArray("items").size(), is(4));
     when(routingContext.request().params().get("startDate")).thenReturn("2020-04");
     when(routingContext.request().params().get("endDate")).thenReturn("2020-06");
     when(routingContext.request().params().get("includeOA")).thenReturn("true");
-    new EusageReportsApi().getCostPerUse(vertx, routingContext)
+    new EusageReportsApi(webClient).getCostPerUse(vertx, routingContext)
         .onComplete(context.asyncAssertSuccess(x -> {
           ArgumentCaptor<String> body = ArgumentCaptor.forClass(String.class);
           verify(routingContext.response()).end(body.capture());
@@ -1322,7 +1327,7 @@ assertThat(json.getJsonArray("items").size(), is(4));
     when(routingContext.request().params().get("startDate")).thenReturn("2020-04");
     when(routingContext.request().params().get("endDate")).thenReturn("2020-07");
     when(routingContext.request().params().get("includeOA")).thenReturn("true");
-    new EusageReportsApi().getCostPerUse(vertx, routingContext)
+    new EusageReportsApi(webClient).getCostPerUse(vertx, routingContext)
         .onComplete(context.asyncAssertSuccess(x -> {
           ArgumentCaptor<String> body = ArgumentCaptor.forClass(String.class);
           verify(routingContext.response()).end(body.capture());
@@ -1364,7 +1369,7 @@ assertThat(json.getJsonArray("items").size(), is(4));
     when(routingContext.request().params().get("endDate")).thenReturn("2020-08");
     when(routingContext.request().params().get("includeOA")).thenReturn("true");
     when(routingContext.request().params().get("accessCountPeriod")).thenReturn("1Y");
-    new EusageReportsApi().getCostPerUse(vertx, routingContext)
+    new EusageReportsApi(webClient).getCostPerUse(vertx, routingContext)
         .onComplete(context.asyncAssertSuccess(x -> {
           ArgumentCaptor<String> body = ArgumentCaptor.forClass(String.class);
           verify(routingContext.response()).end(body.capture());
@@ -1423,7 +1428,7 @@ assertThat(json.getJsonArray("items").size(), is(4));
     when(routingContext.request().params().get("endDate")).thenReturn("2020-08");
     when(routingContext.request().params().get("includeOA")).thenReturn("true");
     when(routingContext.request().params().get("accessCountPeriod")).thenReturn("5Y");
-    new EusageReportsApi().getCostPerUse(vertx, routingContext)
+    new EusageReportsApi(webClient).getCostPerUse(vertx, routingContext)
         .onComplete(context.asyncAssertSuccess(x -> {
           ArgumentCaptor<String> body = ArgumentCaptor.forClass(String.class);
           verify(routingContext.response()).end(body.capture());
@@ -1466,7 +1471,7 @@ assertThat(json.getJsonArray("items").size(), is(4));
     when(routingContext.request().params().get("startDate")).thenReturn("2022-01");
     when(routingContext.request().params().get("endDate")).thenReturn("2022-02");
     when(routingContext.request().params().get("includeOA")).thenReturn("true");
-    new EusageReportsApi().getCostPerUse(vertx, routingContext)
+    new EusageReportsApi(webClient).getCostPerUse(vertx, routingContext)
         .onComplete(context.asyncAssertSuccess(x -> {
           ArgumentCaptor<String> body = ArgumentCaptor.forClass(String.class);
           verify(routingContext.response()).end(body.capture());
@@ -1491,7 +1496,7 @@ assertThat(json.getJsonArray("items").size(), is(4));
     when(routingContext.request().params().get("startDate")).thenReturn("2020-05");
     when(routingContext.request().params().get("endDate")).thenReturn("2020-06");
     when(routingContext.request().params().get("includeOA")).thenReturn("true");
-    new EusageReportsApi().getCostPerUse(vertx, routingContext)
+    new EusageReportsApi(webClient).getCostPerUse(vertx, routingContext)
         .onComplete(context.asyncAssertSuccess(x -> {
           ArgumentCaptor<String> body = ArgumentCaptor.forClass(String.class);
           verify(routingContext.response()).end(body.capture());
@@ -1525,7 +1530,7 @@ assertThat(json.getJsonArray("items").size(), is(4));
     when(routingContext.request().params().get("startDate")).thenReturn("2020-05");
     when(routingContext.request().params().get("endDate")).thenReturn("2020-06");
     when(routingContext.request().params().get("includeOA")).thenReturn("true");
-    new EusageReportsApi().getCostPerUse(vertx, routingContext)
+    new EusageReportsApi(webClient).getCostPerUse(vertx, routingContext)
         .onComplete(context.asyncAssertSuccess(x -> {
           ArgumentCaptor<String> body = ArgumentCaptor.forClass(String.class);
           verify(routingContext.response()).end(body.capture());
@@ -1584,7 +1589,7 @@ assertThat(json.getJsonArray("items").size(), is(4));
     when(routingContext.request().params().get("startDate")).thenReturn("2020-05");
     when(routingContext.request().params().get("endDate")).thenReturn("2020-06");
     when(routingContext.request().params().get("includeOA")).thenReturn("true");
-    new EusageReportsApi().getCostPerUse(vertx, routingContext)
+    new EusageReportsApi(webClient).getCostPerUse(vertx, routingContext)
         .onComplete(context.asyncAssertSuccess(x -> {
           ArgumentCaptor<String> body = ArgumentCaptor.forClass(String.class);
           verify(routingContext.response()).end(body.capture());
@@ -1620,7 +1625,7 @@ assertThat(json.getJsonArray("items").size(), is(4));
     when(routingContext.request().params().get("startDate")).thenReturn("2020-05");
     when(routingContext.request().params().get("endDate")).thenReturn("2020-06");
     when(routingContext.request().params().get("includeOA")).thenReturn("true");
-    new EusageReportsApi().getCostPerUse(vertx, routingContext)
+    new EusageReportsApi(webClient).getCostPerUse(vertx, routingContext)
         .onComplete(context.asyncAssertSuccess(x -> {
           ArgumentCaptor<String> body = ArgumentCaptor.forClass(String.class);
           verify(routingContext.response()).end(body.capture());
@@ -1661,7 +1666,7 @@ assertThat(json.getJsonArray("items").size(), is(4));
     when(routingContext.request().params().get("startDate")).thenReturn("2020-05");
     when(routingContext.request().params().get("endDate")).thenReturn("2020-06");
     when(routingContext.request().params().get("includeOA")).thenReturn("true");
-    new EusageReportsApi().getCostPerUse(vertx, routingContext)
+    new EusageReportsApi(webClient).getCostPerUse(vertx, routingContext)
         .onComplete(context.asyncAssertSuccess(x -> {
           ArgumentCaptor<String> body = ArgumentCaptor.forClass(String.class);
           verify(routingContext.response()).end(body.capture());
@@ -1700,7 +1705,7 @@ assertThat(json.getJsonArray("items").size(), is(4));
 
   @Test
   public void reqsByPubYearCsv(TestContext context) {
-    new EusageReportsApi().getReqsByPubYear(pool, true, true, a1, null, "2020-04", "2020-08", "6M", true, true)
+    new EusageReportsApi(webClient).getReqsByPubYear(pool, true, true, a1, null, "2020-04", "2020-08", "6M", true, true)
         .onComplete(context.asyncAssertSuccess(res -> {
           assertThat(res, containsString(",2020-01 - 2020-06,Controlled,"));
         }));
