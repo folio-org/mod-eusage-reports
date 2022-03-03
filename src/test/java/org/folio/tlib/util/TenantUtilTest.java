@@ -40,9 +40,13 @@ public class TenantUtilTest {
 
   @Test
   public void invalid() {
-    List.of("", "1", "1abc", "abcdefghijklmnopqrstuvwxyz789012").forEach(tenant -> {
+    List.of("", "1", "1abc", "a_b").forEach(tenant -> {
       Throwable t = assertThrows(IllegalArgumentException.class, () -> tenant(tenant));
       assertThat(t.getMessage(), containsString(" must match "));
+    });
+    List.of("abcdefghijklmnopqrstuvwxyz789012").forEach(tenant -> {
+      Throwable t = assertThrows(IllegalArgumentException.class, () -> tenant(tenant));
+      assertThat(t.getMessage(), containsString(" size must not be "));
     });
   }
 }
