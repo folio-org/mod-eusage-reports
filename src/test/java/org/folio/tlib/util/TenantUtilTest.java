@@ -44,9 +44,5 @@ public class TenantUtilTest {
       Throwable t = assertThrows(IllegalArgumentException.class, () -> tenant(tenant));
       assertThat(t.getMessage(), containsString(" must match "));
     });
-    List.of("abcdefghijklmnopqrstuvwxyz789012").forEach(tenant -> {
-      Throwable t = assertThrows(IllegalArgumentException.class, () -> tenant(tenant));
-      assertThat(t.getMessage(), containsString(" size must not be "));
-    });
   }
 }

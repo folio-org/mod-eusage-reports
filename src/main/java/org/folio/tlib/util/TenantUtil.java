@@ -24,10 +24,6 @@ public final class TenantUtil {
       throw new IllegalArgumentException(
           "X-Okapi-Tenant header must match " + TENANT_PATTERN_STRING);
     }
-    if (tenant.length() > 31) {
-      throw new IllegalArgumentException(
-          "X-Okapi-Tenant header size must not be greater than 31");
-    }
     return tenant;
   }
 }
