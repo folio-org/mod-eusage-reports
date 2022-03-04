@@ -28,7 +28,7 @@ public class TenantUtilTest {
 
   @Test
   public void valid() {
-    List.of("a", "z1234567890", "abcdefghijklmnopqrstuvwxyz78901")
+    List.of("a", "z1234567890", "abcdefghijklmnopqrstuvwxyz78901", "a_b")
     .forEach(tenant -> assertThat(tenant(tenant), is(tenant)));
   }
 
@@ -40,7 +40,7 @@ public class TenantUtilTest {
 
   @Test
   public void invalid() {
-    List.of("", "1", "1abc", "a_b").forEach(tenant -> {
+    List.of("", "1", "1abc").forEach(tenant -> {
       Throwable t = assertThrows(IllegalArgumentException.class, () -> tenant(tenant));
       assertThat(t.getMessage(), containsString(" must match "));
     });
