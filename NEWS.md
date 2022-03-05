@@ -1,3 +1,7 @@
+## 1.0.5 2022-02-04
+
+ * [MODEUR-130](https://issues.folio.org/browse/MODEUR-130) Fix tenant id include _ is rejected
+
 ## 1.0.4 2021-12-15
 
  * [MODEUR-127](https://issues.folio.org/browse/MODEUR-127) Upgrade to Log4j 2.16.0
