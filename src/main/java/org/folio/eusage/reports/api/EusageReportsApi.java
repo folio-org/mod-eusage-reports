@@ -1415,7 +1415,6 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
   }
 
   Future<Integer> populateAgreement(Vertx vertx, RoutingContext ctx) {
-    RequestParameters params = ctx.get(ValidationHandler.REQUEST_CONTEXT_KEY);
     final String agreementIdStr = ctx.getBodyAsJson().getString("agreementId");
     if (agreementIdStr == null) {
       return Future.failedFuture("Missing agreementId property");
