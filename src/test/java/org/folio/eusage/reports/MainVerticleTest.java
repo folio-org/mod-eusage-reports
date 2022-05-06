@@ -782,7 +782,7 @@ public class MainVerticleTest {
         .get("/eusage-reports/report-titles")
         .then().statusCode(400)
         .header("Content-Type", is("text/plain"))
-        .body(containsString("Tenant must not be null"));
+        .body(containsString("X-Okapi-Tenant header is missing"));
   }
 
   @Test
@@ -895,7 +895,7 @@ public class MainVerticleTest {
         .get("/eusage-reports/title-data")
         .then().statusCode(400)
         .header("Content-Type", is("text/plain"))
-        .body(containsString("Tenant must not be null"));
+        .body(containsString("X-Okapi-Tenant header is missing"));
   }
 
   @Test
@@ -929,7 +929,7 @@ public class MainVerticleTest {
         .get("/eusage-reports/report-data")
         .then().statusCode(400)
         .header("Content-Type", is("text/plain"))
-        .body(containsString("Tenant must not be null"));
+        .body(containsString("X-Okapi-Tenant header is missing"));
   }
 
   void tenantOp(TestContext context, String tenant, JsonObject tenantAttributes, String expectedError) {

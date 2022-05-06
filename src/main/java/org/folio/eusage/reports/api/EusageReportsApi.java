@@ -250,10 +250,9 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
         "kbManualMatch", PgCqlField.Type.BOOLEAN));
 
     RequestParameters params = ctx.get(ValidationHandler.REQUEST_CONTEXT_KEY);
-    final String tenant = stringOrNull(params.headerParameter(XOkapiHeaders.TENANT));
     final String counterReportId = stringOrNull(params.queryParameter("counterReportId"));
     final String providerId = stringOrNull(params.queryParameter("providerId"));
-    final TenantPgPool pool = TenantPgPool.pool(vertx, tenant);
+    final TenantPgPool pool = TenantPgPool.pool(vertx, TenantUtil.tenant(ctx));
     final String distinctCount = titleEntriesTable(pool) + ".id";
     final String query = stringOrNull(params.queryParameter("query"));
     RequestParameter facetsParameter = params.queryParameter("facets");
@@ -339,10 +338,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
   }
 
   Future<Void> postReportTitles(Vertx vertx, RoutingContext ctx) {
-    RequestParameters params = ctx.get(ValidationHandler.REQUEST_CONTEXT_KEY);
-    String tenant = stringOrNull(params.headerParameter(XOkapiHeaders.TENANT));
-
-    TenantPgPool pool = TenantPgPool.pool(vertx, tenant);
+    TenantPgPool pool = TenantPgPool.pool(vertx, TenantUtil.tenant(ctx));
     return pool.getConnection()
         .compose(sqlConnection -> {
           Future<Void> future = Future.succeededFuture();
@@ -387,8 +383,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     pgCqlQuery.addField(new PgCqlField("kbTitleId", PgCqlField.Type.UUID));
 
     RequestParameters params = ctx.get(ValidationHandler.REQUEST_CONTEXT_KEY);
-    final String tenant = stringOrNull(params.headerParameter(XOkapiHeaders.TENANT));
-    final TenantPgPool pool = TenantPgPool.pool(vertx, tenant);
+    final TenantPgPool pool = TenantPgPool.pool(vertx, TenantUtil.tenant(ctx));
 
     pgCqlQuery.parse(stringOrNull(params.queryParameter("query")));
     String cqlWhere = pgCqlQuery.getWhereClause();
@@ -407,14 +402,13 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
 
   Future<Void> getTitleData(Vertx vertx, RoutingContext ctx) {
     RequestParameters params = ctx.get(ValidationHandler.REQUEST_CONTEXT_KEY);
-    String tenant = stringOrNull(params.headerParameter(XOkapiHeaders.TENANT));
 
     PgCqlQuery pgCqlQuery = PgCqlQuery.query();
     pgCqlQuery.addField(new PgCqlField("cql.allRecords", PgCqlField.Type.ALWAYS_MATCHES));
     pgCqlQuery.addField(new PgCqlField("id", PgCqlField.Type.UUID));
     pgCqlQuery.addField(new PgCqlField("counterReportId", PgCqlField.Type.UUID));
 
-    TenantPgPool pool = TenantPgPool.pool(vertx, tenant);
+    TenantPgPool pool = TenantPgPool.pool(vertx, TenantUtil.tenant(ctx));
     String from = titleDataTable(pool);
     pgCqlQuery.parse(stringOrNull(params.queryParameter("query")));
     String cqlWhere = pgCqlQuery.getWhereClause();
@@ -867,7 +861,6 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
    */
   Future<Boolean> populateCounterReportTitles(Vertx vertx, RoutingContext ctx) {
     RequestParameters params = ctx.get(ValidationHandler.REQUEST_CONTEXT_KEY);
-    final String tenant = stringOrNull(params.headerParameter(XOkapiHeaders.TENANT));
     final String okapiUrl = stringOrNull(params.headerParameter(XOkapiHeaders.URL));
     final String id = ctx.getBodyAsJson().getString("counterReportId");
     final String providerId = ctx.getBodyAsJson().getString("providerId");
@@ -875,7 +868,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     if (okapiUrl == null) {
       return Future.failedFuture("Missing " + XOkapiHeaders.URL);
     }
-    TenantPgPool pool = TenantPgPool.pool(vertx, tenant);
+    TenantPgPool pool = TenantPgPool.pool(vertx, TenantUtil.tenant(ctx));
     return populateCounterReportTitles(ctx, pool, id, providerId,0);
   }
 
@@ -965,7 +958,6 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
 
   Future<Void> getReportData(Vertx vertx, RoutingContext ctx) {
     RequestParameters params = ctx.get(ValidationHandler.REQUEST_CONTEXT_KEY);
-    String tenant = stringOrNull(params.headerParameter(XOkapiHeaders.TENANT));
 
     PgCqlQuery pgCqlQuery = PgCqlQuery.query();
     pgCqlQuery.addField(new PgCqlField("cql.allRecords", PgCqlField.Type.ALWAYS_MATCHES));
@@ -975,7 +967,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     pgCqlQuery.addField(new PgCqlField("agreementLineId", PgCqlField.Type.UUID));
     pgCqlQuery.addField(new PgCqlField("agreementId", PgCqlField.Type.UUID));
 
-    TenantPgPool pool = TenantPgPool.pool(vertx, tenant);
+    TenantPgPool pool = TenantPgPool.pool(vertx, TenantUtil.tenant(ctx));
     String from = agreementEntriesTable(pool);
     pgCqlQuery.parse(stringOrNull(params.queryParameter("query")));
     String cqlWhere = pgCqlQuery.getWhereClause();
@@ -1424,13 +1416,12 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
 
   Future<Integer> populateAgreement(Vertx vertx, RoutingContext ctx) {
     RequestParameters params = ctx.get(ValidationHandler.REQUEST_CONTEXT_KEY);
-    final String tenant = stringOrNull(params.headerParameter(XOkapiHeaders.TENANT));
     final String agreementIdStr = ctx.getBodyAsJson().getString("agreementId");
     if (agreementIdStr == null) {
       return Future.failedFuture("Missing agreementId property");
     }
     final UUID agreementId = UUID.fromString(agreementIdStr);
-    TenantPgPool pool = TenantPgPool.pool(vertx, tenant);
+    TenantPgPool pool = TenantPgPool.pool(vertx, TenantUtil.tenant(ctx));
     return pool.getConnection().compose(con -> con.begin()
         .compose(tx ->
             agreementExists(ctx, agreementId)
