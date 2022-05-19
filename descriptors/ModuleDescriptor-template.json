@@ -154,15 +154,15 @@
     },
     {
       "id" : "finance-storage.budgets",
-      "version" : "2.3"
+      "version" : "3.0"
     },
     {
       "id" : "finance-storage.fiscal-years",
-      "version" : "2.1"
+      "version" : "3.0"
     },
     {
       "id" : "finance-storage.transactions",
-      "version" : "3.2"
+      "version" : "4.0"
     }
   ],
   "permissionSets" : [
