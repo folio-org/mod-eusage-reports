@@ -73,11 +73,11 @@ public class EusageReportsApiTest {
     TenantPgPool.setModule("mod-eusage-reports-api-test");
     pool = TenantPgPool.pool(vertx, tenant);
     pool.execute(List.of(
-        "DROP SCHEMA IF EXISTS {schema} CASCADE",
-        "DROP ROLE IF EXISTS {schema}",
-        "CREATE ROLE {schema} PASSWORD 'tenant' NOSUPERUSER NOCREATEDB INHERIT LOGIN",
-        "GRANT {schema} TO CURRENT_USER",
-        "CREATE SCHEMA {schema} AUTHORIZATION {schema}"
+        "DROP SCHEMA IF EXISTS " + pool.getSchema() + " CASCADE",
+        "DROP ROLE IF EXISTS " + pool.getSchema(),
+        "CREATE ROLE " + pool.getSchema() + " PASSWORD 'tenant' NOSUPERUSER NOCREATEDB INHERIT LOGIN",
+        "GRANT " + pool.getSchema() + " TO CURRENT_USER",
+        "CREATE SCHEMA " + pool.getSchema() + " AUTHORIZATION " + pool.getSchema()
     ))
     .compose(x -> new EusageReportsApi(webClient).postInit(vertx, tenant, new JsonObject().put("module_to", "1.1.1")))
     .compose(x -> loadSampleData())
