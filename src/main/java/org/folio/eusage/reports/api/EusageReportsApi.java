@@ -905,7 +905,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
         }
         if (objectMode.get() && event.isObject()) {
           reportObj.put("reportItem", event.objectValue());
-          log.debug("Object value {}", () -> reportObj.encodePrettily());
+          log.debug("Object value {}", reportObj::encodePrettily);
           futures.add(handleReport(pool, con, ctx, reportObj));
         } else {
           String f = event.fieldName();
