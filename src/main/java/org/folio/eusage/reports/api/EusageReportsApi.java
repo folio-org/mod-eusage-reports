@@ -740,8 +740,10 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     for (int i = 0; i < itemPerformances.size(); i++) {
       JsonObject itemPerformance = itemPerformances.getJsonObject(i);
       if (itemPerformance != null) {
-        JsonObject period = itemPerformance.getJsonObject("Period");
-        return "[" + period.getString("Begin_Date") + "," + period.getString("End_Date") + "]";
+        JsonObject period = itemPerformance.getJsonObject(
+            altKey(itemPerformance, "period", "Period"));
+        return "[" + period.getString(altKey(period, "begin", "Begin_Date"))
+            + "," + period.getString(altKey(period, "end", "End_Date")) + "]";
       }
     }
     return null;
@@ -891,7 +893,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     JsonObject reportObj = new JsonObject();
     return pool.getConnection().compose(con -> {
       parser.handler(event -> {
-        log.debug("event type={}", event.type().name());
+        log.debug("event type={}", () -> event.type().name());
         JsonEventType type = event.type();
         if (JsonEventType.END_OBJECT.equals(type)) {
           pathSize.decrementAndGet();
@@ -903,7 +905,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
         }
         if (objectMode.get() && event.isObject()) {
           reportObj.put("reportItem", event.objectValue());
-          log.debug("Object value {}", reportObj.encodePrettily());
+          log.debug("Object value {}", () -> reportObj.encodePrettily());
           futures.add(handleReport(pool, con, ctx, reportObj));
         } else {
           String f = event.fieldName();
@@ -946,7 +948,8 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
                   + res.statusCode());
             }
             return promise.future().map(true);
-          }).eventually(x -> con.close())
+          })
+          .eventually(x -> con.close())
           .compose(res -> {
             if (offset + limit >= totalRecords.get()) {
               return Future.succeededFuture(res);
