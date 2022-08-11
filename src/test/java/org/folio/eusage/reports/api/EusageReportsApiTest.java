@@ -224,15 +224,15 @@ public class EusageReportsApiTest {
     .execute(Tuple.of(packageId, packageName, titleId));
   }
 
-  private static Future<RowSet<Row>> insertTitleEntry(String titleEntryId, String titleId,
-      String titleName, String printISSN, String onlineISSN) {
+  private static Future<RowSet<Row>> insertTitleSerial(String titleEntryId, String titleId,
+      String titleName, String printISSN, String onlineISSN, String publicationType) {
     return pool.preparedQuery("INSERT INTO " + titleEntriesTable(pool)
             + "(id, kbTitleId, kbTitleName, printISSN, onlineISSN, publicationType)"
             +" VALUES ($1, $2, $3, $4, $5, $6)")
-        .execute(Tuple.of(titleEntryId, titleId, titleName, printISSN, onlineISSN, "serial"));
+        .execute(Tuple.of(titleEntryId, titleId, titleName, printISSN, onlineISSN, publicationType));
   }
 
-  private static Future<RowSet<Row>> insertTitleEntry(String titleEntryId,
+  private static Future<RowSet<Row>> insertTitleMonograph(String titleEntryId,
       String titleId, String titleName, String isbn) {
     return pool.preparedQuery("INSERT INTO " + titleEntriesTable(pool)
         + "(id, kbTitleId, kbTitleName, ISBN, publicationType) VALUES ($1, $2, $3, $4, $5)")
@@ -285,12 +285,12 @@ public class EusageReportsApiTest {
         ))
         .compose(x -> insertPackageEntry(p11, "Package 11", t11))
         .compose(x -> insertPackageEntry(p11, "Package 11", t12))
-        .compose(x -> insertTitleEntry(te11, t11, "Title 11", "1111-1111", "1111-2222"))
-        .compose(x -> insertTitleEntry(te12, t12, "Title 12", "1212-1111", "1212-2222"))
-        .compose(x -> insertTitleEntry(te21, t21, "Title 21", "2121-1111", null       ))
-        .compose(x -> insertTitleEntry(te22, t22, "Title 22", null,        "2222-2222"))
-        .compose(x -> insertTitleEntry(te31, t31, "Title 31", "3131313131"))
-        .compose(x -> insertTitleEntry(te32, t32, "Title 32", "3232323232"))
+        .compose(x -> insertTitleSerial(te11, t11, "Title 11", "1111-1111", "1111-2222", "journal"))
+        .compose(x -> insertTitleSerial(te12, t12, "Title 12", "1212-1111", "1212-2222", "journal"))
+        .compose(x -> insertTitleSerial(te21, t21, "Title 21", "2121-1111", null, "serial"))
+        .compose(x -> insertTitleSerial(te22, t22, "Title 22", null,        "2222-2222", "serial"))
+        .compose(x -> insertTitleMonograph(te31, t31, "Title 31", "3131313131"))
+        .compose(x -> insertTitleMonograph(te32, t32, "Title 32", "3232323232"))
         .compose(x -> insertTitleData(te11, "2020-03-01", "2020-04-01", "1999", false, 1, 2))
         .compose(x -> insertTitleData(te11, "2020-04-01", "2020-04-15", "1999", false, 2, 3))
         .compose(x -> insertTitleData(te11, "2020-04-15", "2020-05-01", "2000", false, 3, 3))
