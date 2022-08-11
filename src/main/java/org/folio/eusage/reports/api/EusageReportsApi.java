@@ -895,48 +895,11 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     final String uri = "/counter-reports" + (id != null ? "/" + id
         : "?limit=" + limit + "&offset=" + offset + parms);
     JsonParser parser = JsonParser.newParser();
-    AtomicBoolean objectMode = new AtomicBoolean(false);
     List<Future<Void>> futures = new ArrayList<>();
     AtomicInteger pathSize = new AtomicInteger(id != null ? 1 : 0);
     AtomicInteger totalRecords = new AtomicInteger(0);
-    JsonObject reportObj = new JsonObject();
     return pool.getConnection().compose(con -> {
-      parser.handler(event -> {
-        log.debug("event type={}", () -> event.type().name());
-        JsonEventType type = event.type();
-        if (JsonEventType.END_OBJECT.equals(type)) {
-          pathSize.decrementAndGet();
-          objectMode.set(false);
-          parser.objectEventMode();
-        }
-        if (JsonEventType.START_OBJECT.equals(type)) {
-          pathSize.incrementAndGet();
-        }
-        if (objectMode.get() && event.isObject()) {
-          reportObj.put("reportItem", event.objectValue());
-          log.debug("Object value {}", reportObj::encodePrettily);
-          futures.add(handleReport(pool, con, ctx, reportObj, cache));
-        } else {
-          String f = event.fieldName();
-          log.debug("Field = {} pathSize={}", f, pathSize.get());
-          if (pathSize.get() == 1 && "totalRecords".equals(f)) {
-            totalRecords.set(event.integerValue());
-          }
-          if (pathSize.get() == 2) { // if inside each top-level of each report
-            if ("id".equals(f)) {
-              reportObj.put("id", event.stringValue());
-              futures.add(clearTdEntry(pool, con, UUID.fromString(reportObj.getString("id"))));
-            }
-            if ("providerId".equals(f)) {
-              reportObj.put(f, event.stringValue());
-            }
-          }
-          if ("reportItems".equals(f) || "Report_Items".equals(f)) {
-            objectMode.set(true);
-            parser.objectValueMode();
-          }
-        }
-      });
+      populateCounterReportHandle(ctx, cache, pool, parser, futures, pathSize, totalRecords, con);
       parser.exceptionHandler(x -> {
         log.error("GET {} returned bad JSON: {}", uri, x.getMessage(), x);
         promise.tryFail("GET " + uri + " returned bad JSON: " + x.getMessage());
@@ -965,6 +928,49 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
             }
             return populateCounterReportTitles(ctx, cache, pool, id, providerId,offset + limit);
           });
+    });
+  }
+
+  private void populateCounterReportHandle(RoutingContext ctx, ErmTitleCache cache,
+      TenantPgPool pool, JsonParser parser, List<Future<Void>> futures, AtomicInteger pathSize,
+      AtomicInteger totalRecords, SqlConnection con) {
+    AtomicBoolean objectMode = new AtomicBoolean(false);
+    JsonObject reportObj = new JsonObject();
+    parser.handler(event -> {
+      log.debug("event type={}", () -> event.type().name());
+      JsonEventType type = event.type();
+      if (JsonEventType.END_OBJECT.equals(type)) {
+        pathSize.decrementAndGet();
+        objectMode.set(false);
+        parser.objectEventMode();
+      }
+      if (JsonEventType.START_OBJECT.equals(type)) {
+        pathSize.incrementAndGet();
+      }
+      if (objectMode.get() && event.isObject()) {
+        reportObj.put("reportItem", event.objectValue());
+        log.debug("Object value {}", reportObj::encodePrettily);
+        futures.add(handleReport(pool, con, ctx, reportObj, cache));
+      } else {
+        String f = event.fieldName();
+        log.debug("Field = {} pathSize={}", f, pathSize.get());
+        if (pathSize.get() == 1 && "totalRecords".equals(f)) {
+          totalRecords.set(event.integerValue());
+        }
+        if (pathSize.get() == 2) { // if inside each top-level of each report
+          if ("id".equals(f)) {
+            reportObj.put("id", event.stringValue());
+            futures.add(clearTdEntry(pool, con, UUID.fromString(reportObj.getString("id"))));
+          }
+          if ("providerId".equals(f)) {
+            reportObj.put(f, event.stringValue());
+          }
+        }
+        if ("reportItems".equals(f) || "Report_Items".equals(f)) {
+          objectMode.set(true);
+          parser.objectValueMode();
+        }
+      }
     });
   }
 
