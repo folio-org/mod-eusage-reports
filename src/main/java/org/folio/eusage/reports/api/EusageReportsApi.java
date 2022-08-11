@@ -461,12 +461,12 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
   }
 
   Future<Tuple> ermTitleLookup2(RoutingContext ctx, String identifier, String type,
-      ErmTitleCache cache) {
+      CounterReportContext context) {
     if (identifier == null) {
       return Future.succeededFuture();
     }
-    if (cache.contains(type, identifier)) {
-      return Future.succeededFuture(cache.get(type, identifier));
+    if (context.containsErmTitle(type, identifier)) {
+      return Future.succeededFuture(context.getErmTitle(type, identifier));
     }
     // some titles do not have hyphen in identifier, so try that as well
     String identifierNoHyphen = identifier.replace("-", "");
@@ -476,8 +476,8 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
             : ermTitleLookup(ctx, identifierNoHyphen, type)
         )
         .map(t -> {
-          // cache the result including null : not found.
-          cache.add(type, identifier, t);
+          // context the result including null : not found.
+          context.addErmTitle(type, identifier, t);
           return t;
         });
   }
@@ -567,7 +567,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
   }
 
   Future<UUID> upsertTitleEntryCounterReport(TenantPgPool pool, SqlConnection con,
-      RoutingContext ctx, ErmTitleCache cache, String counterReportTitle,
+      RoutingContext ctx, CounterReportContext context, String counterReportTitle,
       String printIssn, String onlineIssn, String isbn, String doi) {
 
     return con.preparedQuery("SELECT * FROM " + titleEntriesTable(pool)
@@ -593,7 +593,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
             if (row.getUUID("kbtitleid") != null || Boolean.TRUE.equals(kbManualMatch)) {
               return Future.succeededFuture(id);
             }
-            return ermTitleLookup2(ctx, identifier, type, cache).compose(erm -> {
+            return ermTitleLookup2(ctx, identifier, type, context).compose(erm -> {
               if (erm == null) {
                 return Future.succeededFuture(id);
               }
@@ -609,7 +609,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
                   .execute(Tuple.of(id, kbTitleName, kbTitleId, publicationType)).map(id);
             });
           }
-          return ermTitleLookup2(ctx, identifier, type, cache).compose(erm -> {
+          return ermTitleLookup2(ctx, identifier, type, context).compose(erm -> {
             UUID kbTitleId = erm != null ? erm.getUUID(0) : null;
             String kbTitleName = erm != null ? erm.getString(1) : null;
             String publicationType = erm != null ? erm.getString(2) : null;
@@ -797,7 +797,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
   }
 
   Future<Void> handleReport(TenantPgPool pool, SqlConnection con, RoutingContext ctx,
-      JsonObject jsonObject, ErmTitleCache cache) {
+      JsonObject jsonObject, CounterReportContext context) {
 
     final UUID counterReportId = UUID.fromString(jsonObject.getString("id"));
     final UUID providerId = UUID.fromString(jsonObject.getString("providerId"));
@@ -828,7 +828,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     final int totalAccessCount = getTotalCount(reportItem, "Total_Item_Requests");
     final int uniqueAccessCount = getTotalCount(reportItem, "Unique_Item_Requests");
     final boolean openAccess = "OA_Gold".equals(accessType);
-    return upsertTitleEntryCounterReport(pool, con, ctx, cache,
+    return upsertTitleEntryCounterReport(pool, con, ctx, context,
         counterReportTitle, printIssn, onlineIssn, isbn, doi)
         .compose(titleEntryId -> insertTdEntry(pool, con, titleEntryId, counterReportId,
             counterReportTitle, providerId, pubdate, usageDateRange,
@@ -880,11 +880,11 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
       return Future.failedFuture("Missing " + XOkapiHeaders.URL);
     }
     TenantPgPool pool = TenantPgPool.pool(vertx, TenantUtil.tenant(ctx));
-    return populateCounterReportTitles(ctx, new ErmTitleCache(), pool, id, providerId,0);
+    return populateCounterReportTitles(new CounterReportContext(ctx, pool), id, providerId,0);
   }
 
-  private Future<Boolean> populateCounterReportTitles(RoutingContext ctx, ErmTitleCache cache,
-      TenantPgPool pool, String id, String providerId, int offset) {
+  private Future<Boolean> populateCounterReportTitles(CounterReportContext context, String id,
+      String providerId, int offset) {
 
     Promise<Void> promise = Promise.promise();
     String parms = "";
@@ -898,8 +898,8 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     List<Future<Void>> futures = new ArrayList<>();
     AtomicInteger pathSize = new AtomicInteger(id != null ? 1 : 0);
     AtomicInteger totalRecords = new AtomicInteger(0);
-    return pool.getConnection().compose(con -> {
-      populateCounterReportHandle(ctx, cache, pool, parser, futures, pathSize, totalRecords, con);
+    return context.pool.getConnection().compose(con -> {
+      populateCounterReportHandle(context, parser, futures, pathSize, totalRecords, con);
       parser.exceptionHandler(x -> {
         log.error("GET {} returned bad JSON: {}", uri, x.getMessage(), x);
         promise.tryFail("GET " + uri + " returned bad JSON: " + x.getMessage());
@@ -908,7 +908,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
           GenericCompositeFuture.all(futures)
               .onComplete(x -> promise.handle(x.mapEmpty()))
       );
-      return getRequest(ctx, uri)
+      return getRequest(context.ctx, uri)
           .as(BodyCodec.jsonStream(parser))
           .send()
           .compose(res -> {
@@ -926,13 +926,14 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
             if (offset + limit >= totalRecords.get()) {
               return Future.succeededFuture(res);
             }
-            return populateCounterReportTitles(ctx, cache, pool, id, providerId,offset + limit);
+            return populateCounterReportTitles(context, id, providerId, offset + limit);
           });
     });
   }
 
-  private void populateCounterReportHandle(RoutingContext ctx, ErmTitleCache cache,
-      TenantPgPool pool, JsonParser parser, List<Future<Void>> futures, AtomicInteger pathSize,
+  private void populateCounterReportHandle(
+      CounterReportContext context, JsonParser parser,
+      List<Future<Void>> futures, AtomicInteger pathSize,
       AtomicInteger totalRecords, SqlConnection con) {
     AtomicBoolean objectMode = new AtomicBoolean(false);
     JsonObject reportObj = new JsonObject();
@@ -950,7 +951,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
       if (objectMode.get() && event.isObject()) {
         reportObj.put("reportItem", event.objectValue());
         log.debug("Object value {}", reportObj::encodePrettily);
-        futures.add(handleReport(pool, con, ctx, reportObj, cache));
+        futures.add(handleReport(context.pool, con, context.ctx, reportObj, context));
       } else {
         String f = event.fieldName();
         log.debug("Field = {} pathSize={}", f, pathSize.get());
@@ -960,7 +961,9 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
         if (pathSize.get() == 2) { // if inside each top-level of each report
           if ("id".equals(f)) {
             reportObj.put("id", event.stringValue());
-            futures.add(clearTdEntry(pool, con, UUID.fromString(reportObj.getString("id"))));
+            futures.add(
+                clearTdEntry(context.pool, con, UUID.fromString(reportObj.getString("id")))
+            );
           }
           if ("providerId".equals(f)) {
             reportObj.put(f, event.stringValue());
