@@ -1693,7 +1693,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     if (isJournal == null) {
       return "";
     }
-    return isJournal ? " AND publicationType = 'serial'"
+    return isJournal ? " AND (publicationType = 'serial' OR publicationType = 'journal')"
         : " AND publicationType = 'monograph'";
   }
 
