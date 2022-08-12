@@ -1,3 +1,8 @@
+## 1.1.2 2022-08-11
+
+ * [MODEUR-139](https://issues.folio.org/browse/MODEUR-139) Fix no graphs with GOKb titles
+ * [MODEUR-138](https://issues.folio.org/browse/MODEUR-138) Counter report parse fix
+
 ## 1.1.1 2022-04-03
 
  * [MODEUR-130](https://issues.folio.org/browse/MODEUR-130) Fix tenant id including _ is rejected by upgrading to folio-vertx-lib 1.0.1.
