@@ -275,7 +275,7 @@ public class MainVerticleTest {
       ctx.response().putHeader("Content-Type", "text/plain");
       ctx.response().setStatusCode(403);
       ctx.response().end("forbidden");
-    } else  if (id.equals(badJsonCounterReportId)) {
+    } else if (id.equals(badJsonCounterReportId)) {
       ctx.response().setChunked(true);
       ctx.response().putHeader("Content-Type", "application/json");
       ctx.response().end("{");
@@ -1483,7 +1483,8 @@ public class MainVerticleTest {
     response = RestAssured.given()
         .header(XOkapiHeaders.TENANT, tenant)
         .header(XOkapiHeaders.URL, "http://localhost:" + MOCK_PORT)
-        .get("/eusage-reports/report-titles?query=kbTitleId<>\"\"")
+        .queryParam("query", "cql.allRecords = 1 NOT kbTitleId = \"\"")
+        .get("/eusage-reports/report-titles")
         .then().statusCode(200)
         .header("Content-Type", is("application/json"))
         .extract();

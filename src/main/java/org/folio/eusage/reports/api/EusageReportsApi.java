@@ -43,9 +43,13 @@ import org.folio.okapi.common.GenericCompositeFuture;
 import org.folio.okapi.common.XOkapiHeaders;
 import org.folio.tlib.RouterCreator;
 import org.folio.tlib.TenantInitHooks;
-import org.folio.tlib.postgres.PgCqlField;
+import org.folio.tlib.postgres.PgCqlDefinition;
 import org.folio.tlib.postgres.PgCqlQuery;
 import org.folio.tlib.postgres.TenantPgPool;
+import org.folio.tlib.postgres.cqlfield.PgCqlFieldAlwaysMatches;
+import org.folio.tlib.postgres.cqlfield.PgCqlFieldBoolean;
+import org.folio.tlib.postgres.cqlfield.PgCqlFieldText;
+import org.folio.tlib.postgres.cqlfield.PgCqlFieldUuid;
 import org.folio.tlib.util.TenantUtil;
 
 public class EusageReportsApi implements RouterCreator, TenantInitHooks {
@@ -232,22 +236,22 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
   }
 
   Future<Void> getReportTitles(Vertx vertx, RoutingContext ctx) {
-    PgCqlQuery pgCqlQuery = PgCqlQuery.query();
-    pgCqlQuery.addField(new PgCqlField("cql.allRecords", PgCqlField.Type.ALWAYS_MATCHES));
-    pgCqlQuery.addField(new PgCqlField("title_entries.id", "id", PgCqlField.Type.UUID));
-    // must pass table name as there are joins involved
-    pgCqlQuery.addField(new PgCqlField("title_entries.counterreporttitle",
-        "counterReportTitle", PgCqlField.Type.FULLTEXT));
-    pgCqlQuery.addField(new PgCqlField("title_entries.isbn",
-        "ISBN", PgCqlField.Type.TEXT));
-    pgCqlQuery.addField(new PgCqlField("title_entries.printissn",
-        "printISSN", PgCqlField.Type.TEXT));
-    pgCqlQuery.addField(new PgCqlField("title_entries.onlineissn",
-        "onlineISSN", PgCqlField.Type.TEXT));
-    pgCqlQuery.addField(new PgCqlField("title_entries.kbtitleid",
-        "kbTitleId", PgCqlField.Type.UUID));
-    pgCqlQuery.addField(new PgCqlField("title_entries.kbmanualmatch",
-        "kbManualMatch", PgCqlField.Type.BOOLEAN));
+    PgCqlDefinition definition = PgCqlDefinition.create();
+    definition.addField("cql.allRecords", new PgCqlFieldAlwaysMatches());
+    definition.addField("id", new PgCqlFieldUuid()
+        .withColumn("title_entries.id"));
+    definition.addField("counterReportTitle", new PgCqlFieldText().withFullText()
+        .withColumn("title_entries.counterreporttitle"));
+    definition.addField("ISBN", new PgCqlFieldText().withExact()
+        .withColumn("title_entries.isbn"));
+    definition.addField("printISSN", new PgCqlFieldText().withExact()
+        .withColumn("title_entries.printissn"));
+    definition.addField("onlineISSN", new PgCqlFieldText().withExact()
+        .withColumn("title_entries.onlineissn"));
+    definition.addField("kbTitleId", new PgCqlFieldUuid()
+        .withColumn("title_entries.kbtitleid"));
+    definition.addField("kbManualMatch", new PgCqlFieldBoolean()
+        .withColumn("title_entries.kbmanualmatch"));
 
     RequestParameters params = ctx.get(ValidationHandler.REQUEST_CONTEXT_KEY);
     final String counterReportId = stringOrNull(params.queryParameter("counterReportId"));
@@ -269,7 +273,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
       }
     }
     List<String> fromList = new ArrayList<>(); // main query and facet queries
-    pgCqlQuery.parse(query);
+    PgCqlQuery pgCqlQuery = definition.parse(query);
     String orderByFields = pgCqlQuery.getOrderByFields();
     String distinctMain = distinctCount;
     if (orderByFields != null) {
@@ -285,13 +289,15 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
       statusValues.add(new String[]{"status", "unmatched"});
       statusValues.add(new String[]{"status", "ignored"});
 
-      pgCqlQuery.parse(query, "kbTitleId = \"\"");
+      pgCqlQuery = definition.parse(query, "kbTitleId = \"\"");
       fromList.add(getFromTitleDataForeignKey(pgCqlQuery, counterReportId, providerId, pool));
 
-      pgCqlQuery.parse(query, "kbTitleId <> \"\" AND kbManualMatch = false");
+      pgCqlQuery = definition.parse(query,
+          "cql.allRecords = 1 NOT kbTitleId = \"\" AND kbManualMatch = false");
       fromList.add(getFromTitleDataForeignKey(pgCqlQuery, counterReportId, providerId, pool));
 
-      pgCqlQuery.parse(query, "kbTitleId <> \"\" AND kbManualMatch = true");
+      pgCqlQuery = definition.parse(query,
+          "cql.allRecords = 1 NOT kbTitleId = \"\" AND kbManualMatch = true");
       fromList.add(getFromTitleDataForeignKey(pgCqlQuery, counterReportId, providerId, pool));
     }
     return streamResult(ctx, pool, distinctMain, distinctCount, fromList, statusValues,
@@ -377,15 +383,15 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
   }
 
   Future<Void> getReportPackages(Vertx vertx, RoutingContext ctx) {
-    PgCqlQuery pgCqlQuery = PgCqlQuery.query();
-    pgCqlQuery.addField(new PgCqlField("kbPackageId", PgCqlField.Type.UUID));
-    pgCqlQuery.addField(new PgCqlField("kbPackageName", PgCqlField.Type.FULLTEXT));
-    pgCqlQuery.addField(new PgCqlField("kbTitleId", PgCqlField.Type.UUID));
+    PgCqlDefinition definition = PgCqlDefinition.create();
+    definition.addField("kbPackageId", new PgCqlFieldUuid());
+    definition.addField("kbPackageName", new PgCqlFieldText().withFullText());
+    definition.addField("kbTitleId", new PgCqlFieldUuid());
 
     RequestParameters params = ctx.get(ValidationHandler.REQUEST_CONTEXT_KEY);
     final TenantPgPool pool = TenantPgPool.pool(vertx, TenantUtil.tenant(ctx));
 
-    pgCqlQuery.parse(stringOrNull(params.queryParameter("query")));
+    PgCqlQuery pgCqlQuery = definition.parse(stringOrNull(params.queryParameter("query")));
     String cqlWhere = pgCqlQuery.getWhereClause();
 
     String from = packageEntriesTable(pool);
@@ -403,14 +409,14 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
   Future<Void> getTitleData(Vertx vertx, RoutingContext ctx) {
     RequestParameters params = ctx.get(ValidationHandler.REQUEST_CONTEXT_KEY);
 
-    PgCqlQuery pgCqlQuery = PgCqlQuery.query();
-    pgCqlQuery.addField(new PgCqlField("cql.allRecords", PgCqlField.Type.ALWAYS_MATCHES));
-    pgCqlQuery.addField(new PgCqlField("id", PgCqlField.Type.UUID));
-    pgCqlQuery.addField(new PgCqlField("counterReportId", PgCqlField.Type.UUID));
+    PgCqlDefinition definition = PgCqlDefinition.create();
+    definition.addField("cql.allRecords", new PgCqlFieldAlwaysMatches());
+    definition.addField("id", new PgCqlFieldUuid());
+    definition.addField("counterReportId", new PgCqlFieldUuid());
 
     TenantPgPool pool = TenantPgPool.pool(vertx, TenantUtil.tenant(ctx));
     String from = titleDataTable(pool);
-    pgCqlQuery.parse(stringOrNull(params.queryParameter("query")));
+    PgCqlQuery pgCqlQuery = definition.parse(stringOrNull(params.queryParameter("query")));
     String cqlWhere = pgCqlQuery.getWhereClause();
     if (cqlWhere != null) {
       from = from + " WHERE " + cqlWhere;
@@ -980,17 +986,17 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
   Future<Void> getReportData(Vertx vertx, RoutingContext ctx) {
     RequestParameters params = ctx.get(ValidationHandler.REQUEST_CONTEXT_KEY);
 
-    PgCqlQuery pgCqlQuery = PgCqlQuery.query();
-    pgCqlQuery.addField(new PgCqlField("cql.allRecords", PgCqlField.Type.ALWAYS_MATCHES));
-    pgCqlQuery.addField(new PgCqlField("id", PgCqlField.Type.UUID));
-    pgCqlQuery.addField(new PgCqlField("kbTitleId", PgCqlField.Type.UUID));
-    pgCqlQuery.addField(new PgCqlField("kbPackageId", PgCqlField.Type.UUID));
-    pgCqlQuery.addField(new PgCqlField("agreementLineId", PgCqlField.Type.UUID));
-    pgCqlQuery.addField(new PgCqlField("agreementId", PgCqlField.Type.UUID));
+    PgCqlDefinition definition = PgCqlDefinition.create();
+    definition.addField("cql.allRecords", new PgCqlFieldAlwaysMatches());
+    definition.addField("id", new PgCqlFieldUuid());
+    definition.addField("kbTitleId", new PgCqlFieldUuid());
+    definition.addField("kbPackageId", new PgCqlFieldUuid());
+    definition.addField("agreementLineId", new PgCqlFieldUuid());
+    definition.addField("agreementId", new PgCqlFieldUuid());
 
     TenantPgPool pool = TenantPgPool.pool(vertx, TenantUtil.tenant(ctx));
     String from = agreementEntriesTable(pool);
-    pgCqlQuery.parse(stringOrNull(params.queryParameter("query")));
+    PgCqlQuery pgCqlQuery = definition.parse(stringOrNull(params.queryParameter("query")));
     String cqlWhere = pgCqlQuery.getWhereClause();
     if (cqlWhere != null) {
       from = from + " WHERE " + cqlWhere;
