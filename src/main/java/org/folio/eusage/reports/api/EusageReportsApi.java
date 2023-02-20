@@ -52,6 +52,8 @@ import org.folio.tlib.postgres.cqlfield.PgCqlFieldText;
 import org.folio.tlib.postgres.cqlfield.PgCqlFieldUuid;
 import org.folio.tlib.util.TenantUtil;
 
+// Define a constant instead of duplicating this literal
+@java.lang.SuppressWarnings({"squid:S1192"})
 public class EusageReportsApi implements RouterCreator, TenantInitHooks {
   private static final Logger log = LogManager.getLogger(EusageReportsApi.class);
 
