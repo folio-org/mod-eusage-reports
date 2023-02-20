@@ -240,7 +240,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     definition.addField("cql.allRecords", new PgCqlFieldAlwaysMatches());
     definition.addField("id", new PgCqlFieldUuid()
         .withColumn("title_entries.id"));
-    definition.addField("counterReportTitle", new PgCqlFieldText().withFullText()
+    definition.addField("counterReportTitle", new PgCqlFieldText().withFullText().withExact()
         .withColumn("title_entries.counterreporttitle"));
     definition.addField("ISBN", new PgCqlFieldText().withExact()
         .withColumn("title_entries.isbn"));
@@ -1895,6 +1895,8 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
             + titleEntriesTable(pool) + " USING btree(kbTitleId)",
         "CREATE INDEX IF NOT EXISTS title_entries_counterReportTitle ON "
             + titleEntriesTable(pool) + " USING btree(counterReportTitle)",
+        "CREATE INDEX IF NOT EXISTS title_entries_counterReportTitle_ft ON "
+            + titleEntriesTable(pool) + " USING GIN(to_tsvector('simple', counterReportTitle))",
         "CREATE INDEX IF NOT EXISTS title_entries_kbTitleName ON "
             + titleEntriesTable(pool) + " USING btree(kbTitleName)",
         "CREATE TABLE IF NOT EXISTS " + packageEntriesTable(pool) + " ( "
@@ -1906,6 +1908,8 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
             + packageEntriesTable(pool) + " USING btree(kbTitleId)",
         "CREATE INDEX IF NOT EXISTS package_entries_kbPackageId ON "
             + packageEntriesTable(pool) + " USING btree(kbPackageId)",
+        "CREATE INDEX IF NOT EXISTS package_entries_kbPackageName_ft ON "
+            + packageEntriesTable(pool) + " USING GIN(to_tsvector('simple', kbPackageName))",
         "CREATE TABLE IF NOT EXISTS " + titleDataTable(pool) + " ( "
             + "id UUID PRIMARY KEY, "
             + "titleEntryId UUID, "
