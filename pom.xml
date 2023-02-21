@@ -33,7 +33,7 @@
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <okapi.version>5.0.0</okapi.version>
-    <vertxlib.version>3.0.0</vertxlib.version>
+    <vertx-lib.version>3.0.0</vertx-lib.version>
   </properties>
 
   <dependencyManagement>
@@ -67,12 +67,12 @@
       <dependency>
         <groupId>org.folio</groupId>
         <artifactId>vertx-lib</artifactId>
-        <version>${vertxlib.version}</version>
+        <version>${vertx-lib.version}</version>
       </dependency>
       <dependency>
         <groupId>org.folio</groupId>
         <artifactId>vertx-lib-pg-testing</artifactId>
-        <version>${vertxlib.version}</version>
+        <version>${vertx-lib.version}</version>
       </dependency>
       <dependency>
         <groupId>org.apache.commons</groupId>
