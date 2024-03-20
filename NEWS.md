@@ -1,3 +1,7 @@
+## 2.1.0 2024-03-20
+* [MODEUR-153](https://folio-org.atlassian.net/browse/MODEUR-153) Update folio-vertx-lib to v3.2.0
+* [FOLIO-3944](https://folio-org.atlassian.net/browse/FOLIO-3944) Upgrade the Actions used by API-related GitHub Workflows
+
 ## 2.0.0 2023-10-13
 
 * [MODEUR-152](https://issues.folio.org/browse/MODEUR-152) Update dependencies for Poppy
