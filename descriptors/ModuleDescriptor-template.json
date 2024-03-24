@@ -118,7 +118,7 @@
   "requires" : [
     {
       "id" : "erm",
-      "version" : "6.0"
+      "version" : "6.0 7.0"
     },
     {
       "id" : "usage-data-providers",
