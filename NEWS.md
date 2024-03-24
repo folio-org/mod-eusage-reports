@@ -1,3 +1,6 @@
+## 2.1.1 2024-03-24
+* Add `erm 7.0` interface support
+
 ## 2.1.0 2024-03-20
 * [MODEUR-153](https://folio-org.atlassian.net/browse/MODEUR-153) Update folio-vertx-lib to v3.2.0
 * [FOLIO-3944](https://folio-org.atlassian.net/browse/FOLIO-3944) Upgrade the Actions used by API-related GitHub Workflows
