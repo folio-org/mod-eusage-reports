@@ -32,10 +32,10 @@
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <okapi.version>5.3.0</okapi.version>
-    <vertx-lib.version>3.2.0</vertx-lib.version>
-    <vertx.version>4.5.4</vertx.version>
-    <log4j.version>2.23.0</log4j.version>
+    <okapi.version>6.0.3</okapi.version>
+    <vertx-lib.version>3.3.0</vertx-lib.version>
+    <vertx.version>4.5.10</vertx.version>
+    <log4j.version>2.24.1</log4j.version>
   </properties>
 
   <dependencyManagement>
@@ -230,6 +230,7 @@
       </plugin>
 
       <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-resources-plugin</artifactId>
         <version>3.0.1</version>
         <executions>
@@ -281,6 +282,7 @@
       </plugin>
 
       <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-compiler-plugin</artifactId>
         <version>3.8.1</version>
         <configuration>
@@ -312,6 +314,7 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-release-plugin</artifactId>
+        <version>3.1.1</version>
         <configuration>
           <preparationGoals>clean verify</preparationGoals>
           <tagNameFormat>v@{project.version}</tagNameFormat>
