@@ -1,3 +1,10 @@
+## 3.0.0 2024-10-31
+* [APPDESCRIP-28](https://folio-org.atlassian.net/browse/APPDESCRIP-28) Update erm-usage/files interface id to be valid for Eureka platform
+* [MODEUR-157](https://folio-org.atlassian.net/browse/MODEUR-157) Support finance-storage.transactions 5.0
+* [MODEUR-158](https://folio-org.atlassian.net/browse/MODEUR-158) Remove unused required interfaces from module descriptor
+* [MODEUR-159](https://folio-org.atlassian.net/browse/MODEUR-159) Add support for counter-reports interface 4.0
+* [MODEUR-160](https://folio-org.atlassian.net/browse/MODEUR-160) Update folio-vertx-lib to v3.3.0
+
 ## 2.1.1 2024-03-24
 * Add `erm 7.0` interface support
 
