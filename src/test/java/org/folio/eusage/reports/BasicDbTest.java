@@ -10,6 +10,8 @@ import io.vertx.pgclient.PgPool;
 import io.vertx.sqlclient.PoolOptions;
 import io.vertx.sqlclient.Tuple;
 import java.util.UUID;
+
+import org.folio.tlib.postgres.testing.TenantPgPoolContainer;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -26,8 +28,7 @@ public class BasicDbTest {
   @BeforeClass
   public static void setUpBeforeClass(TestContext context) {
     vertx = Vertx.vertx();
-    postgresSQLContainer = new PostgreSQLContainer<>("postgres:12-alpine");
-    postgresSQLContainer.start();
+    postgresSQLContainer = TenantPgPoolContainer.create();
     PgConnectOptions pgConnectOptions = new PgConnectOptions();
     pgConnectOptions.setHost(postgresSQLContainer.getHost());
     pgConnectOptions.setPort(postgresSQLContainer.getFirstMappedPort());
