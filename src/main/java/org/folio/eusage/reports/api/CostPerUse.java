@@ -60,7 +60,9 @@ public final class CostPerUse {
       String poLineNumber = row.getString("polinenumber");
       String payKey = kbId + "," + poLineNumber + "," + fiscalYearRange
           + "," + subscriptionDateRange;
-      LocalDate publicationDate = row.getLocalDate("publicationdate");
+
+      LocalDate publicationDate = row.getLocalDate("publicationdate") == null
+          ? LocalDate.of(1,1,1) : row.getLocalDate("publicationdate");
       String pubPeriodLabel = Periods.periodLabelFloor(publicationDate, 12,"nopub");
       if (titlesInSubscription.containsKey(payKey) && "nopub".equals(pubPeriodLabel)) {
         return;
@@ -88,7 +90,8 @@ public final class CostPerUse {
       if (subscriptionPeriod == null) {
         return;
       }
-      LocalDate publicationDate = row.getLocalDate("publicationdate");
+      LocalDate publicationDate = row.getLocalDate("publicationdate") == null
+          ? LocalDate.of(1,1,1) : row.getLocalDate("publicationdate");
       String pubPeriodLabel = Periods.periodLabelFloor(publicationDate, 12,"nopub");
       String poLineNumber = row.getString("polinenumber");
       UUID kbId = row.getUUID("kbid");
