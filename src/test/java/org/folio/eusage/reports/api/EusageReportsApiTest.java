@@ -206,16 +206,21 @@ public class EusageReportsApiTest {
   static String te31 = "3100000e-0000-4000-8000-000000000000";
   static String te32 = "3200000e-0000-4000-8000-000000000000";
 
-  private static Future<RowSet<Row>> insertAgreement(String agreementId, String titleId, String packageId) {
+  private static Future<RowSet<Row>> insertAgreement(String agreementId, String titleId, String packageId, JsonObject values) {
     return pool.preparedQuery("INSERT INTO " + agreementEntriesTable(pool)
-            + "(id, agreementId, kbTitleId, kbPackageId)"
-            + " VALUES ($1, $2, $3, $4)")
-        .execute(Tuple.of(UUID.randomUUID(), agreementId, titleId, packageId));
-  }
-
-  private static Future<RowSet<Row>> updateAgreement(String agreementId, String set) {
-    return pool.preparedQuery("UPDATE " + agreementEntriesTable(pool) + " SET " + set
-        + " WHERE agreementId = $1").execute(Tuple.of(UUID.fromString(agreementId)));
+            + "(id, agreementId, kbTitleId, kbPackageId, "
+            + "orderType, poLineNumber, invoiceNumber, subscriptionDateRange, fiscalYearRange, coverageDateRanges, "
+            + "encumberedCost, invoicedCost)"
+            + " VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)")
+        .execute(Tuple.of(UUID.randomUUID(), agreementId, titleId, packageId,
+            values.getString("orderType"),
+            values.getString("poLineNumber"),
+            values.getString("invoiceNumber"),
+            values.getString("subscriptionDateRange"),
+            values.getString("fiscalYearRange"),
+            values.getString("coverageDateRanges"),
+            values.getInteger("encumberedCost"),
+            values.getInteger("invoicedCost")));
   }
 
   private static Future<RowSet<Row>> insertPackageEntry(String packageId, String packageName, String titleId) {
@@ -251,38 +256,88 @@ public class EusageReportsApiTest {
   }
 
    private static Future<Void> loadSampleData() {
-    return insertAgreement(a1, t11, null)
-        .compose(x -> insertAgreement(a1, t12, null))
-        .compose(x -> updateAgreement(a1, "orderType = 'Ongoing', poLineNumber = '[\"p1\"]', invoiceNumber = '[\"i1\"]',"
-            + " fiscalYearRange='[2020-01-01,2021-01-01)',"
-            + " coverageDateRanges='[1998-01-01,2020-01-01]',"
-            + " encumberedCost = 100, invoicedCost = 110"
-        ))
-        .compose(x -> insertAgreement(a2, t21, null))
-        .compose(x -> insertAgreement(a2, t22, null))
-        .compose(x -> insertAgreement(a2, t31, null))
-        .compose(x -> insertAgreement(a2, t32, null))
-        .compose(x -> insertAgreement(a2, t21, null)) // dup
-        .compose(x -> insertAgreement(a2, t22, null)) // dup
-        .compose(x -> insertAgreement(a2, t31, null)) // dup
-        .compose(x -> insertAgreement(a2, t32, null)) // dup
-       .compose(x -> updateAgreement(a2, "orderType = 'One-Time', poLineNumber = 'p2', invoiceNumber = 'i2',"
-            + " fiscalYearRange='[2020-01-01,2021-01-01)',"
-            + " coverageDateRanges='[1998-01-01,2021-01-01]',"
-            + " encumberedCost = 200, invoicedCost = 210"
-        ))
-        .compose(x -> insertAgreement(a3, null, p11))
-        .compose(x -> updateAgreement(a3, "orderType = 'Ongoing', poLineNumber = 'p3', invoiceNumber = 'i3',"
-            + " subscriptionDateRange = '[2020-03-03, 2021-01-15]', fiscalYearRange='[2020-01-01,2021-01-01)',"
-            + " coverageDateRanges='[1998-01-01,2021-01-01]',"
-            + " encumberedCost = 300, invoicedCost = 310"
-        ))
-        .compose(x -> insertAgreement(a4, null, p11))
-        .compose(x -> updateAgreement(a4, "orderType = 'Ongoing', poLineNumber = 'p3', invoiceNumber = 'i3',"
-            + " subscriptionDateRange = '[2020-05-01, 2021-01-01]',"
-            + " coverageDateRanges='[1998-01-01,2021-01-01]',"
-            + " encumberedCost = 300, invoicedCost = 310"
-        ))
+    return insertAgreement(a1, t11, null,
+        new JsonObject()
+            .put("orderType", "Ongoing")
+            .put("poLineNumber", "[\"t11-p1\")")
+            .put("invoiceNumber", "[\"i1\"]")
+            .put("fiscalYearRange", "[2020-01-01,2021-01-01)")
+            .put("coverageDateRanges", "[1998-01-01,2020-01-01]")
+            .put("encumberedCost", 100)
+            .put("invoicedCost", 110))
+        .compose(x -> insertAgreement(a1, t12, null,
+            new JsonObject()
+                .put("orderType", "Ongoing")
+                .put("poLineNumber", "[\"t12-p1\")")
+                .put("invoiceNumber", "[\"t12-i1\"]")
+                .put("fiscalYearRange", "[2020-01-01,2021-01-01)")
+                .put("coverageDateRanges", "[1998-01-01,2020-01-01]")
+                .put("encumberedCost", 100)
+                .put("invoicedCost", 110)))
+        .compose(x -> insertAgreement(a2, t21, null,
+            new JsonObject()
+                .put("orderType", "One-Time")
+                .put("poLineNumber", "p2")
+                .put("invoiceNumber", "t21-i2")
+                .put("fiscalYearRange", "[2020-01-01,2021-01-01)")
+                .put("coverageDateRanges", "[1998-01-01,2020-01-01]")
+                .put("encumberedCost", 200)
+                .put("invoicedCost", 210)))
+        .compose(x -> insertAgreement(a2, t22, null,
+            new JsonObject()
+                .put("orderType", "One-Time")
+                .put("poLineNumber", "p2")
+                .put("invoiceNumber", "t22-i2")
+                .put("fiscalYearRange", "[2020-01-01,2021-01-01)")
+                .put("coverageDateRanges", "[1998-01-01,2020-01-01]")
+                .put("encumberedCost", 200)
+                .put("invoicedCost", 210)))
+        .compose(x -> insertAgreement(a2, t31, null,
+            new JsonObject()
+                .put("orderType", "One-Time")
+                .put("poLineNumber", "p2")
+                .put("invoiceNumber", "t31-i2")
+                .put("fiscalYearRange", "[2020-01-01,2021-01-01)")
+                .put("coverageDateRanges", "[1998-01-01,2020-01-01]")
+                .put("encumberedCost", 200)
+                .put("invoicedCost", 210)))
+        .compose(x -> insertAgreement(a2, t32, null,
+            new JsonObject()
+                .put("orderType", "One-Time")
+                .put("poLineNumber", "p2")
+                .put("invoiceNumber", "t32-i2")
+                .put("fiscalYearRange", "[2020-01-01,2021-01-01)")
+                .put("coverageDateRanges", "[1998-01-01,2020-01-01]")
+                .put("encumberedCost", 200)
+                .put("invoicedCost", 210)))
+        .compose(x -> insertAgreement(a2, t21, null,
+            new JsonObject()
+                .put("orderType", "One-Time")
+                .put("poLineNumber", "p2")
+                .put("invoiceNumber", "t21-i2")
+                .put("fiscalYearRange", "[2020-01-01,2021-01-01)")
+                .put("coverageDateRanges", "[1998-01-01,2020-01-01]")
+                .put("encumberedCost", 200)
+                .put("invoicedCost", -100))) // credit note
+        .compose(x -> insertAgreement(a3, null, p11,
+            new JsonObject()
+                .put("orderType", "Ongoing")
+                .put("poLineNumber", "p3")
+                .put("invoiceNumber", "i3")
+                .put("subscriptionDateRange", "[2020-03-03, 2021-01-15]")
+                .put("fiscalYearRange", "[2020-01-01,2021-01-01)")
+                .put("coverageDateRanges", "[1998-01-01,2021-01-01]")
+                .put("encumberedCost", 0)
+                .put("invoicedCost", 310)))
+        .compose(x -> insertAgreement(a4, null, p11,
+            new JsonObject()
+                .put("orderType", "Ongoing")
+                .put("poLineNumber", "p3")
+                .put("invoiceNumber", "i3")
+                .put("subscriptionDateRange", "[2020-05-01, 2021-01-01]")
+                .put("coverageDateRanges", "[1998-01-01,2021-01-01]")
+                .put("encumberedCost", 300)
+                .put("invoicedCost", 310)))
         .compose(x -> insertPackageEntry(p11, "Package 11", t11))
         .compose(x -> insertPackageEntry(p11, "Package 11", t12))
         .compose(x -> insertTitleSerial(te11, t11, "Title 11", "1111-1111", "1111-2222", "journal"))
@@ -322,7 +377,7 @@ public class EusageReportsApiTest {
       assertThat(json.getLong("uniqueItemRequestsTotal"), is(38L));
       assertThat((List<?>) json.getJsonArray("totalItemRequestsByPeriod").getList(), contains(22L, 34L));
       assertThat((List<?>) json.getJsonArray("uniqueItemRequestsByPeriod").getList(), contains(20L, 18L));
-assertThat(json.getJsonArray("items").size(), is(4));
+      assertThat(json.getJsonArray("items").size(), is(4));
       assertThat(json.getJsonArray("items").getJsonObject(0).encodePrettily(),
           is(new JsonObject()
               .put("kbId", "11000000-0000-4000-8000-000000000000")
@@ -1261,9 +1316,9 @@ assertThat(json.getJsonArray("items").size(), is(4));
           assertThat((List<?>) json.getJsonArray("uniqueItemRequestsByPeriod").getList(),
               contains(0, 40, 2, 0, 0));
           assertThat((List<?>) json.getJsonArray("totalItemCostsPerRequestsByPeriod").getList(),
-              contains(null, 0.44, 8.75, null, null));
+              contains(null, 0.33, 6.67, null, null));
           assertThat((List<?>) json.getJsonArray("uniqueItemCostsPerRequestsByPeriod").getList(),
-              contains(null, 0.88, 17.5, null, null));
+              contains(null, 0.67, 13.33, null, null));
         }));
   }
 
@@ -1275,6 +1330,16 @@ assertThat(json.getJsonArray("items").size(), is(4));
     when(routingContext.request().params().get("startDate")).thenReturn("2020-04");
     when(routingContext.request().params().get("endDate")).thenReturn("2020-08");
     when(routingContext.request().params().get("includeOA")).thenReturn("false");
+    /*
+       Agreement id: "a2"
+       Period:       2020-04 - 2020-08 inclusive
+       Titles/costs  t21:   cost (year): 210, -100 (credit note) = 110.
+                            Usage: 03: 0, 05: 40, 06: 1
+                     t22:   cost (year) 210 but no usage.
+                     t31:   cost (year) 210
+                            Usage: 05: 40
+                     t32:   cost (year) 210 but is OA
+     */
     new EusageReportsApi(webClient).getCostPerUse(vertx, routingContext)
         .onComplete(context.asyncAssertSuccess(x -> {
           ArgumentCaptor<String> body = ArgumentCaptor.forClass(String.class);
@@ -1288,10 +1353,12 @@ assertThat(json.getJsonArray("items").size(), is(4));
               contains(0, 80, 0, 0, 0));
           assertThat((List<?>) json.getJsonArray("uniqueItemRequestsByPeriod").getList(),
               contains(0, 40, 0, 0, 0));
+          // No-OA items with usage: 2. Cost (+210-100+210)/12=26.66. Per request: 26.66/80=0.33
           assertThat((List<?>) json.getJsonArray("totalItemCostsPerRequestsByPeriod").getList(),
-              contains(null, 0.44, null, null, null));
+              contains(null, 0.33, null, null, null));
+          // No-OA items with usage: 2. Cost (+210-100+210)/12=26.66. Per uniq request: 26.66/40=0.67
           assertThat((List<?>) json.getJsonArray("uniqueItemCostsPerRequestsByPeriod").getList(),
-              contains(null, 0.88, null, null, null));
+              contains(null, 0.67, null, null, null));
         }));
   }
 
@@ -1561,16 +1628,24 @@ assertThat(json.getJsonArray("items").size(), is(4));
             context.assertEquals("p2", records.get(2).get(7));
             context.assertEquals("p2", records.get(3).get(7));
             context.assertEquals("Invoice number", header.get(8));
-            context.assertEquals("i2", records.get(2).get(8));
-            context.assertEquals("i2", records.get(3).get(8));
+            context.assertEquals("t21-i2", records.get(2).get(8));
+            context.assertEquals("t22-i2", records.get(3).get(8));
             context.assertEquals("Cost per request - total", header.get(17));
-            context.assertEquals("1.67", totals.get(17));
-            context.assertEquals("0.83", records.get(2).get(17));
+            context.assertEquals("1.47", totals.get(17));
+            /* Title 21
+               Cost:  210 - 100 = 110 = 9.16/month. Two months: 18.33
+               Usage: 05:  40  06: 2  = 42
+               Cost per request:  18.33/42 = 0.44
+             */
+            context.assertEquals("0.44", records.get(2).get(17));
             context.assertEquals("0.88", records.get(4).get(17));
             context.assertEquals("17.5", records.get(5).get(17));
             context.assertEquals("Cost per request - unique", header.get(18));
-            context.assertEquals("3.33", totals.get(18));
-            context.assertEquals("1.67", records.get(2).get(18));
+            context.assertEquals("2.94", totals.get(18));
+            /*
+               Title 21, unique requests 21, cost/req 18.33/21
+             */
+            context.assertEquals("0.87", records.get(2).get(18));
             context.assertEquals("1.75", records.get(4).get(18));
             context.assertEquals("35.0", records.get(5).get(18));
           } catch (IOException e) {
@@ -1676,26 +1751,26 @@ assertThat(json.getJsonArray("items").size(), is(4));
           assertThat((List<?>) json.getJsonArray("titleCountByPeriod").getList(),
               contains(1, 1));
           assertThat((List<?>) json.getJsonArray("totalItemCostsPerRequestsByPeriod").getList(),
-              contains(0.44, 8.75));
+              contains(0.23, 4.58));
           assertThat((List<?>) json.getJsonArray("uniqueItemCostsPerRequestsByPeriod").getList(),
-              contains(0.88, 17.5));
-          assertThat(json.getDouble("amountPaidTotal"), is(70.0));
-          assertThat(json.getDouble("amountEncumberedTotal"), is(66.67));
+              contains(0.46, 9.17));
+          assertThat(json.getDouble("amountPaidTotal"), is(53.33));
+          assertThat(json.getDouble("amountEncumberedTotal"), is(100.00));
           assertThat(json.getJsonArray("items").size(), is(2));
           assertThat(json.getJsonArray("items").getJsonObject(0).getString("kbId"), is(t21));
           assertThat(json.getJsonArray("items").getJsonObject(0).getJsonArray("poLineIDs"), is(new JsonArray().add("p2")));
-          assertThat(json.getJsonArray("items").getJsonObject(0).getJsonArray("invoiceNumbers"), is(new JsonArray().add("i2")));
+          assertThat(json.getJsonArray("items").getJsonObject(0).getJsonArray("invoiceNumbers"), is(new JsonArray().add("t21-i2")));
           assertThat(json.getJsonArray("items").getJsonObject(0).getString("fiscalDateStart"), is("2020-01-01"));
           assertThat(json.getJsonArray("items").getJsonObject(0).getString("fiscalDateEnd"), is("2020-12-31"));
           assertThat(json.getJsonArray("items").getJsonObject(0).getLong("totalItemRequests"), is(42L));
           assertThat(json.getJsonArray("items").getJsonObject(0).getLong("uniqueItemRequests"), is(21L));
-          assertThat(json.getJsonArray("items").getJsonObject(0).getDouble("amountEncumbered"), is(33.33));
-          assertThat(json.getJsonArray("items").getJsonObject(0).getDouble("amountPaid"), is(35.0));
-          assertThat(json.getJsonArray("items").getJsonObject(0).getDouble("costPerTotalRequest"), is(0.83));
-          assertThat(json.getJsonArray("items").getJsonObject(0).getDouble("costPerUniqueRequest"), is(1.67));
+          assertThat(json.getJsonArray("items").getJsonObject(0).getDouble("amountEncumbered"), is(66.67));
+          assertThat(json.getJsonArray("items").getJsonObject(0).getDouble("amountPaid"), is(18.33));
+          assertThat(json.getJsonArray("items").getJsonObject(0).getDouble("costPerTotalRequest"), is(0.44));
+          assertThat(json.getJsonArray("items").getJsonObject(0).getDouble("costPerUniqueRequest"), is(0.87));
           assertThat(json.getJsonArray("items").getJsonObject(1).getString("kbId"), is(t22));
           assertThat(json.getJsonArray("items").getJsonObject(1).getJsonArray("poLineIDs"), is(new JsonArray().add("p2")));
-          assertThat(json.getJsonArray("items").getJsonObject(1).getJsonArray("invoiceNumbers"), is(new JsonArray().add("i2")));
+          assertThat(json.getJsonArray("items").getJsonObject(1).getJsonArray("invoiceNumbers"), is(new JsonArray().add("t22-i2")));
           assertThat(json.getJsonArray("items").getJsonObject(1).getString("fiscalDateStart"), is("2020-01-01"));
           assertThat(json.getJsonArray("items").getJsonObject(1).getString("fiscalDateEnd"), is("2020-12-31"));
           assertThat(json.getJsonArray("items").getJsonObject(1).getDouble("amountEncumbered"), is(33.33));

@@ -535,7 +535,7 @@ public class MainVerticleTest {
       ctx.response().end("limit missing");
       return;
     }
-    UUID poLineId = UUID.fromString(query.substring(10));
+    UUID poLineId = UUID.fromString(query.substring(10,46));
 
     JsonArray ar = new JsonArray();
     for (int i = 0; i < poLineIds.length; i++) {
