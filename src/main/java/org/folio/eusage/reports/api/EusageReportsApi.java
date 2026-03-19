@@ -1098,7 +1098,8 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
    * @return Invoice lines response.
    */
   Future<JsonObject> lookupInvoiceLines(UUID poLineId, RoutingContext ctx) {
-    String uri = "/invoice-storage/invoice-lines" + LIMIT_ALL + "&query=poLineId%3D%3D" + poLineId;
+    String uri = "/invoice-storage/invoice-lines" + LIMIT_ALL + "&query=poLineId%3D%3D" + poLineId
+        + "%20AND%20invoiceLineStatus%3C%3ECancelled";
     return getRequestSend(ctx, uri)
         .map(HttpResponse::bodyAsJsonObject);
   }
