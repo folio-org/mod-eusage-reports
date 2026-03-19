@@ -158,9 +158,9 @@ public final class CostPerUse {
         item.put("poLineIDs", poLineIDs);
 
         JsonArray invoiceNumbers = new JsonArray();
-        String invoiceNumber = row.getString("invoicenumber");
-        if (invoiceNumber != null) {
-          invoiceNumbers.add(invoiceNumber);
+        String invoicenumbers = row.getString("invoicenumbers");
+        if (invoicenumbers != null) {
+          invoiceNumbers.add(invoicenumbers);
         }
         item.put("invoiceNumbers", invoiceNumbers);
         if (usageDateRange != null) {
