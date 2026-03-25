@@ -32,12 +32,12 @@
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <okapi.version>6.2.1</okapi.version>
-    <vertx-lib.version>3.4.0</vertx-lib.version>
-    <vertx.version>4.5.13</vertx.version>
-    <log4j.version>2.24.3</log4j.version>
+    <okapi.version>7.0.1</okapi.version>
+    <vertx-lib.version>4.1.1</vertx-lib.version>
+    <vertx.version>5.0.8</vertx.version>
+    <log4j.version>2.25.3</log4j.version>
+    <exec.mainClass>org.folio.eusage.reports.MainVerticle</exec.mainClass>
   </properties>
-
   <dependencyManagement>
     <dependencies>
       <dependency>
@@ -101,19 +101,19 @@
     </dependency>
     <dependency>
       <groupId>io.vertx</groupId>
+      <artifactId>vertx-launcher-application</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.vertx</groupId>
       <artifactId>vertx-web</artifactId>
     </dependency>
     <dependency>
       <groupId>io.vertx</groupId>
-      <artifactId>vertx-web-openapi</artifactId>
+      <artifactId>vertx-web-openapi-router</artifactId>
     </dependency>
     <dependency>
       <groupId>io.vertx</groupId>
       <artifactId>vertx-rx-java2</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>io.vertx</groupId>
-      <artifactId>vertx-web-api-contract</artifactId>
     </dependency>
     <dependency>
       <groupId>io.vertx</groupId>
@@ -216,8 +216,8 @@
               <transformers>
                 <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
                   <manifestEntries>
-                    <Main-Class>io.vertx.core.Launcher</Main-Class>
-                    <Main-Verticle>org.folio.eusage.reports.MainVerticle</Main-Verticle>
+                    <Main-Class>io.vertx.launcher.application.VertxApplication</Main-Class>
+                    <Main-Verticle>${exec.mainClass}</Main-Verticle>
                     <Multi-Release>true</Multi-Release>
                   </manifestEntries>
                 </transformer>

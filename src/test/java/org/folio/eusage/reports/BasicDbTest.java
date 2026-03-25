@@ -1,13 +1,13 @@
 package org.folio.eusage.reports;
 
 import io.vertx.core.Future;
-import io.vertx.core.Vertx;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
+import io.vertx.pgclient.PgBuilder;
 import io.vertx.pgclient.PgConnectOptions;
-import io.vertx.pgclient.PgPool;
 import io.vertx.sqlclient.PoolOptions;
+import io.vertx.sqlclient.SqlClient;
 import io.vertx.sqlclient.Tuple;
 import java.util.UUID;
 
@@ -22,12 +22,10 @@ import org.testcontainers.containers.PostgreSQLContainer;
 public class BasicDbTest {
 
   private static PostgreSQLContainer<?> postgresSQLContainer;
-  private static PgPool pgPool;
-  private static Vertx vertx;
+  private static SqlClient pgClient;
 
   @BeforeClass
   public static void setUpBeforeClass(TestContext context) {
-    vertx = Vertx.vertx();
     postgresSQLContainer = TenantPgPoolContainer.create();
     PgConnectOptions pgConnectOptions = new PgConnectOptions();
     pgConnectOptions.setHost(postgresSQLContainer.getHost());
@@ -36,7 +34,11 @@ public class BasicDbTest {
     pgConnectOptions.setPassword(postgresSQLContainer.getPassword());
     pgConnectOptions.setDatabase(postgresSQLContainer.getDatabaseName());
     PoolOptions poolOptions = new PoolOptions().setMaxSize(5);
-    pgPool = PgPool.pool(vertx, pgConnectOptions, poolOptions);
+    pgClient = PgBuilder
+        .client()
+        .with(poolOptions)
+        .connectingTo(pgConnectOptions)
+        .build();
   }
 
   @AfterClass
@@ -50,27 +52,27 @@ public class BasicDbTest {
     Future<Void> future = Future.succeededFuture();
 
     future = future.compose(res ->
-        pgPool.query("CREATE TABLE IF NOT EXISTS foo ( id UUID PRIMARY KEY, jsonb JSONB NOT NULL)")
+        pgClient.query("CREATE TABLE IF NOT EXISTS foo ( id UUID PRIMARY KEY, jsonb JSONB NOT NULL)")
             .execute().mapEmpty());
     future = future.compose(res ->
-        pgPool.preparedQuery("SELECT * FROM foo WHERE id = $1")
+        pgClient.preparedQuery("SELECT * FROM foo WHERE id = $1")
             .execute(Tuple.of(id))
             .compose(res1 -> {
               context.assertEquals(0, res1.rowCount());
               return Future.succeededFuture();
             }));
     future = future.compose(res ->
-        pgPool.preparedQuery("INSERT INTO foo (id, jsonb) VALUES ($1, $2)")
+        pgClient.preparedQuery("INSERT INTO foo (id, jsonb) VALUES ($1, $2)")
             .execute(Tuple.of(id, new JsonObject().put("a", "b"))).mapEmpty());
     future = future.compose(res ->
-        pgPool.preparedQuery("SELECT * FROM foo WHERE id = $1")
+        pgClient.preparedQuery("SELECT * FROM foo WHERE id = $1")
             .execute(Tuple.of(id))
             .compose(res1 -> {
               context.assertEquals(1, res1.rowCount());
               return Future.succeededFuture();
             }));
     future = future.compose(res ->
-        pgPool.query("DROP TABLE foo")
+        pgClient.query("DROP TABLE foo")
             .execute().mapEmpty());
     future.onComplete(context.asyncAssertSuccess());
   }

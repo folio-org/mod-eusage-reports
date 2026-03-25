@@ -134,7 +134,7 @@ public final class CostPerUse {
         item = new JsonObject();
         totalItems.put(itemKey, item);
         items.add(item);
-        item.put("kbId", kbId)
+        item.put("kbId", kbId.toString())
             .put("title", row.getString("title"))
             .put("derivedTitle", kbPackageId != null);
         String printIssn = row.getString("printissn");

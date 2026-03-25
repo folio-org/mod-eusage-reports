@@ -46,7 +46,7 @@ public final class UseOverTime {
       accessCountsByPeriods.add(0L);
     }
     JsonObject o = new JsonObject()
-        .put("kbId", row.getUUID("kbid"))
+        .put("kbId", row.getUUID("kbid").toString())
         .put("title", row.getString("title"));
     String v = row.getString("printissn");
     if (v != null) {

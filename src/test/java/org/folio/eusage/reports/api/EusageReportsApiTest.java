@@ -17,6 +17,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import io.vertx.core.Future;
+import io.vertx.core.MultiMap;
 import io.vertx.core.Vertx;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
@@ -112,7 +113,10 @@ public class EusageReportsApiTest {
     if (!full) {
       when(ctx.request().params().get("full")).thenReturn("false");
     }
-    when(ctx.request().getHeader("X-Okapi-Tenant")).thenReturn(tenant);
+
+    MultiMap multimap = MultiMap.caseInsensitiveMultiMap();
+    multimap.add("X-Okapi-Tenant", "tenant");
+    when(ctx.request().headers()).thenReturn(multimap);
     when(ctx.request().params().get("format")).thenReturn(format);
     when(ctx.request().params().get("agreementId")).thenReturn(UUID.randomUUID().toString());
     when(ctx.request().params().get("startDate")).thenReturn(startDate);
@@ -916,7 +920,8 @@ public class EusageReportsApiTest {
   @Test
   public void costPerUse63(TestContext context) {
     RoutingContext routingContext = mock(RoutingContext.class, RETURNS_DEEP_STUBS);
-    when(routingContext.request().getHeader("X-Okapi-Tenant")).thenReturn(tenant);
+    when(routingContext.request().headers())
+        .thenReturn(MultiMap.caseInsensitiveMultiMap().add("X-Okapi-Tenant","tenant"));
     when(routingContext.request().params().get("agreementId")).thenReturn(a1);
     when(routingContext.request().params().get("startDate")).thenReturn("2020-02");
     when(routingContext.request().params().get("endDate")).thenReturn("2020-06");
@@ -975,7 +980,8 @@ public class EusageReportsApiTest {
   @Test
   public void reqsByDateOfUseWithRoutingContext(TestContext context) {
     RoutingContext routingContext = mock(RoutingContext.class, RETURNS_DEEP_STUBS);
-    when(routingContext.request().getHeader("X-Okapi-Tenant")).thenReturn(tenant);
+    when(routingContext.request().headers())
+        .thenReturn(MultiMap.caseInsensitiveMultiMap().add("X-Okapi-Tenant","tenant"));
     when(routingContext.request().params().get("agreementId")).thenReturn(a2);
     when(routingContext.request().params().get("startDate")).thenReturn("2020-05");
     when(routingContext.request().params().get("endDate")).thenReturn("2020-06");
@@ -1006,7 +1012,8 @@ public class EusageReportsApiTest {
   @Test
   public void reqsByDateOfUseWithRoutingContextNoItems(TestContext context) {
     RoutingContext routingContext = mock(RoutingContext.class, RETURNS_DEEP_STUBS);
-    when(routingContext.request().getHeader("X-Okapi-Tenant")).thenReturn(tenant);
+    when(routingContext.request().headers())
+        .thenReturn(MultiMap.caseInsensitiveMultiMap().add("X-Okapi-Tenant","tenant"));
     when(routingContext.request().params().get("agreementId")).thenReturn(a2);
     when(routingContext.request().params().get("full")).thenReturn("false");
     when(routingContext.request().params().get("startDate")).thenReturn("2020-05");
@@ -1028,7 +1035,8 @@ public class EusageReportsApiTest {
   @Test
   public void reqsByDateOfUseWithRoutingContextCsv(TestContext context) {
     RoutingContext routingContext = mock(RoutingContext.class, RETURNS_DEEP_STUBS);
-    when(routingContext.request().getHeader("X-Okapi-Tenant")).thenReturn(tenant);
+    when(routingContext.request().headers())
+        .thenReturn(MultiMap.caseInsensitiveMultiMap().add("X-Okapi-Tenant","tenant"));
     when(routingContext.request().params().get("agreementId")).thenReturn(a2);
     when(routingContext.request().params().get("csv")).thenReturn("true");
     when(routingContext.request().params().get("startDate")).thenReturn("2020-05");
@@ -1081,7 +1089,8 @@ public class EusageReportsApiTest {
   @Test
   public void reqsByPubYearAccessCountPeriodAuto(TestContext context) {
     RoutingContext routingContext = mock(RoutingContext.class, RETURNS_DEEP_STUBS);
-    when(routingContext.request().getHeader("X-Okapi-Tenant")).thenReturn(tenant);
+    when(routingContext.request().headers())
+        .thenReturn(MultiMap.caseInsensitiveMultiMap().add("X-Okapi-Tenant","tenant"));
     when(routingContext.request().params().get("agreementId")).thenReturn(a1);
     when(routingContext.request().params().get("full")).thenReturn("false");
     when(routingContext.request().params().get("accessCountPeriod")).thenReturn("auto");
@@ -1118,7 +1127,8 @@ public class EusageReportsApiTest {
   @Test
   public void reqsByPubYearAccessCountPeriod2Y(TestContext context) {
     RoutingContext routingContext = mock(RoutingContext.class, RETURNS_DEEP_STUBS);
-    when(routingContext.request().getHeader("X-Okapi-Tenant")).thenReturn(tenant);
+    when(routingContext.request().headers())
+        .thenReturn(MultiMap.caseInsensitiveMultiMap().add("X-Okapi-Tenant","tenant"));
     when(routingContext.request().params().get("agreementId")).thenReturn(a1);
     when(routingContext.request().params().get("accessCountPeriod")).thenReturn("2Y");
     when(routingContext.request().params().get("startDate")).thenReturn("2020-04");
@@ -1143,7 +1153,8 @@ public class EusageReportsApiTest {
   @Test
   public void reqsByPubYearAccessCountPeriod3M(TestContext context) {
     RoutingContext routingContext = mock(RoutingContext.class, RETURNS_DEEP_STUBS);
-    when(routingContext.request().getHeader("X-Okapi-Tenant")).thenReturn(tenant);
+    when(routingContext.request().headers())
+        .thenReturn(MultiMap.caseInsensitiveMultiMap().add("X-Okapi-Tenant","tenant"));
     when(routingContext.request().params().get("agreementId")).thenReturn(a1);
     when(routingContext.request().params().get("accessCountPeriod")).thenReturn("3M");
     when(routingContext.request().params().get("startDate")).thenReturn("2020-04");
@@ -1216,7 +1227,8 @@ public class EusageReportsApiTest {
   @Test
   public void costPerUseWithRoutingContextNoItems(TestContext context) {
     RoutingContext routingContext = mock(RoutingContext.class, RETURNS_DEEP_STUBS);
-    when(routingContext.request().getHeader("X-Okapi-Tenant")).thenReturn(tenant);
+    when(routingContext.request().headers())
+        .thenReturn(MultiMap.caseInsensitiveMultiMap().add("X-Okapi-Tenant","tenant"));
     when(routingContext.request().params().get("full")).thenReturn("false");
     when(routingContext.request().params().get("agreementId")).thenReturn(a1);
     when(routingContext.request().params().get("startDate")).thenReturn("2020-04");
@@ -1244,7 +1256,8 @@ public class EusageReportsApiTest {
   @Test
   public void costPerUseWithRoutingContext1(TestContext context) {
     RoutingContext routingContext = mock(RoutingContext.class, RETURNS_DEEP_STUBS);
-    when(routingContext.request().getHeader("X-Okapi-Tenant")).thenReturn(tenant);
+    when(routingContext.request().headers())
+        .thenReturn(MultiMap.caseInsensitiveMultiMap().add("X-Okapi-Tenant","tenant"));
     when(routingContext.request().params().get("agreementId")).thenReturn(a1);
     when(routingContext.request().params().get("startDate")).thenReturn("2020-04");
     when(routingContext.request().params().get("endDate")).thenReturn("2020-08");
@@ -1297,7 +1310,8 @@ public class EusageReportsApiTest {
   @Test
   public void costPerUseWithRoutingContext2(TestContext context) {
     RoutingContext routingContext = mock(RoutingContext.class, RETURNS_DEEP_STUBS);
-    when(routingContext.request().getHeader("X-Okapi-Tenant")).thenReturn(tenant);
+    when(routingContext.request().headers())
+        .thenReturn(MultiMap.caseInsensitiveMultiMap().add("X-Okapi-Tenant","tenant"));
     when(routingContext.request().params().get("agreementId")).thenReturn(a2);
     when(routingContext.request().params().get("startDate")).thenReturn("2020-04");
     when(routingContext.request().params().get("endDate")).thenReturn("2020-08");
@@ -1325,7 +1339,8 @@ public class EusageReportsApiTest {
   @Test
   public void costPerUseWithRoutingContext2NoOA(TestContext context) {
     RoutingContext routingContext = mock(RoutingContext.class, RETURNS_DEEP_STUBS);
-    when(routingContext.request().getHeader("X-Okapi-Tenant")).thenReturn(tenant);
+    when(routingContext.request().headers())
+        .thenReturn(MultiMap.caseInsensitiveMultiMap().add("X-Okapi-Tenant","tenant"));
     when(routingContext.request().params().get("agreementId")).thenReturn(a2);
     when(routingContext.request().params().get("startDate")).thenReturn("2020-04");
     when(routingContext.request().params().get("endDate")).thenReturn("2020-08");
@@ -1365,7 +1380,8 @@ public class EusageReportsApiTest {
   @Test
   public void costPerUseWithRoutingContext3(TestContext context) {
     RoutingContext routingContext = mock(RoutingContext.class, RETURNS_DEEP_STUBS);
-    when(routingContext.request().getHeader("X-Okapi-Tenant")).thenReturn(tenant);
+    when(routingContext.request().headers())
+        .thenReturn(MultiMap.caseInsensitiveMultiMap().add("X-Okapi-Tenant","tenant"));
     when(routingContext.request().params().get("agreementId")).thenReturn(a3);
     when(routingContext.request().params().get("startDate")).thenReturn("2020-04");
     when(routingContext.request().params().get("endDate")).thenReturn("2020-06");
@@ -1389,7 +1405,8 @@ public class EusageReportsApiTest {
   @Test
   public void costPerUseWithRoutingContext4(TestContext context) {
     RoutingContext routingContext = mock(RoutingContext.class, RETURNS_DEEP_STUBS);
-    when(routingContext.request().getHeader("X-Okapi-Tenant")).thenReturn(tenant);
+    when(routingContext.request().headers())
+        .thenReturn(MultiMap.caseInsensitiveMultiMap().add("X-Okapi-Tenant","tenant"));
     when(routingContext.request().params().get("agreementId")).thenReturn(a4);
     when(routingContext.request().params().get("startDate")).thenReturn("2020-04");
     when(routingContext.request().params().get("endDate")).thenReturn("2020-07");
@@ -1430,7 +1447,8 @@ public class EusageReportsApiTest {
   @Test
   public void costPerUseAccessCountPeriod1Y(TestContext context) {
     RoutingContext routingContext = mock(RoutingContext.class, RETURNS_DEEP_STUBS);
-    when(routingContext.request().getHeader("X-Okapi-Tenant")).thenReturn(tenant);
+    when(routingContext.request().headers())
+        .thenReturn(MultiMap.caseInsensitiveMultiMap().add("X-Okapi-Tenant","tenant"));
     when(routingContext.request().params().get("agreementId")).thenReturn(a1);
     when(routingContext.request().params().get("startDate")).thenReturn("2020-04");
     when(routingContext.request().params().get("endDate")).thenReturn("2020-08");
@@ -1489,7 +1507,8 @@ public class EusageReportsApiTest {
   @Test
   public void costPerUseAccessCountPeriod5Y(TestContext context) {
     RoutingContext routingContext = mock(RoutingContext.class, RETURNS_DEEP_STUBS);
-    when(routingContext.request().getHeader("X-Okapi-Tenant")).thenReturn(tenant);
+    when(routingContext.request().headers())
+        .thenReturn(MultiMap.caseInsensitiveMultiMap().add("X-Okapi-Tenant","tenant"));
     when(routingContext.request().params().get("agreementId")).thenReturn(a1);
     when(routingContext.request().params().get("startDate")).thenReturn("2015-09");
     when(routingContext.request().params().get("endDate")).thenReturn("2020-08");
@@ -1533,7 +1552,8 @@ public class EusageReportsApiTest {
   @Test
   public void costPerUseNoOverlap(TestContext context) {
     RoutingContext routingContext = mock(RoutingContext.class, RETURNS_DEEP_STUBS);
-    when(routingContext.request().getHeader("X-Okapi-Tenant")).thenReturn(tenant);
+    when(routingContext.request().headers())
+        .thenReturn(MultiMap.caseInsensitiveMultiMap().add("X-Okapi-Tenant","tenant"));
     when(routingContext.request().params().get("agreementId")).thenReturn(a1);
     when(routingContext.request().params().get("startDate")).thenReturn("2022-01");
     when(routingContext.request().params().get("endDate")).thenReturn("2022-02");
@@ -1556,7 +1576,8 @@ public class EusageReportsApiTest {
   @Test
   public void costPerUseNoItems(TestContext context) {
     RoutingContext routingContext = mock(RoutingContext.class, RETURNS_DEEP_STUBS);
-    when(routingContext.request().getHeader("X-Okapi-Tenant")).thenReturn(tenant);
+    when(routingContext.request().headers())
+        .thenReturn(MultiMap.caseInsensitiveMultiMap().add("X-Okapi-Tenant","tenant"));
     when(routingContext.request().params().get("agreementId")).thenReturn(a2);
     when(routingContext.request().params().get("csv")).thenReturn("true");
     when(routingContext.request().params().get("full")).thenReturn("false");
@@ -1591,7 +1612,8 @@ public class EusageReportsApiTest {
   @Test
   public void costPerFormatAllCsv(TestContext context) {
     RoutingContext routingContext = mock(RoutingContext.class, RETURNS_DEEP_STUBS);
-    when(routingContext.request().getHeader("X-Okapi-Tenant")).thenReturn(tenant);
+    when(routingContext.request().headers())
+        .thenReturn(MultiMap.caseInsensitiveMultiMap().add("X-Okapi-Tenant","tenant"));
     when(routingContext.request().params().get("agreementId")).thenReturn(a2);
     when(routingContext.request().params().get("csv")).thenReturn("true");
     when(routingContext.request().params().get("startDate")).thenReturn("2020-05");
@@ -1660,7 +1682,8 @@ public class EusageReportsApiTest {
   @Test
   public void costPerUseFormatBookCsv(TestContext context) {
     RoutingContext routingContext = mock(RoutingContext.class, RETURNS_DEEP_STUBS);
-    when(routingContext.request().getHeader("X-Okapi-Tenant")).thenReturn(tenant);
+    when(routingContext.request().headers())
+        .thenReturn(MultiMap.caseInsensitiveMultiMap().add("X-Okapi-Tenant","tenant"));
     when(routingContext.request().params().get("agreementId")).thenReturn(a2);
     when(routingContext.request().params().get("format")).thenReturn("BOOK");
     when(routingContext.request().params().get("csv")).thenReturn("true");
@@ -1696,7 +1719,8 @@ public class EusageReportsApiTest {
   @Test
   public void costPerUseFormatJournalCsv(TestContext context) {
     RoutingContext routingContext = mock(RoutingContext.class, RETURNS_DEEP_STUBS);
-    when(routingContext.request().getHeader("X-Okapi-Tenant")).thenReturn(tenant);
+    when(routingContext.request().headers())
+        .thenReturn(MultiMap.caseInsensitiveMultiMap().add("X-Okapi-Tenant","tenant"));
     when(routingContext.request().params().get("agreementId")).thenReturn(a2);
     when(routingContext.request().params().get("format")).thenReturn("JOURNAL");
     when(routingContext.request().params().get("csv")).thenReturn("true");
@@ -1738,7 +1762,8 @@ public class EusageReportsApiTest {
   @Test
   public void costPerUseFormatJournalJson(TestContext context) {
     RoutingContext routingContext = mock(RoutingContext.class, RETURNS_DEEP_STUBS);
-    when(routingContext.request().getHeader("X-Okapi-Tenant")).thenReturn(tenant);
+    when(routingContext.request().headers())
+        .thenReturn(MultiMap.caseInsensitiveMultiMap().add("X-Okapi-Tenant","tenant"));
     when(routingContext.request().params().get("agreementId")).thenReturn(a2);
     when(routingContext.request().params().get("format")).thenReturn("JOURNAL");
     when(routingContext.request().params().get("startDate")).thenReturn("2020-05");
