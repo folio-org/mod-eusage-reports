@@ -16,10 +16,12 @@ import io.vertx.ext.web.client.HttpRequest;
 import io.vertx.ext.web.client.HttpResponse;
 import io.vertx.ext.web.client.WebClient;
 import io.vertx.ext.web.codec.BodyCodec;
-import io.vertx.ext.web.openapi.RouterBuilder;
-import io.vertx.ext.web.validation.RequestParameter;
-import io.vertx.ext.web.validation.RequestParameters;
-import io.vertx.ext.web.validation.ValidationHandler;
+import io.vertx.ext.web.openapi.router.RouterBuilder;
+import io.vertx.openapi.contract.OpenAPIContract;
+import io.vertx.openapi.contract.Operation;
+import io.vertx.openapi.contract.Parameter;
+import io.vertx.openapi.validation.RequestParameter;
+import io.vertx.openapi.validation.ValidatedRequest;
 import io.vertx.sqlclient.Row;
 import io.vertx.sqlclient.RowIterator;
 import io.vertx.sqlclient.RowSet;
@@ -33,13 +35,13 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.folio.okapi.common.GenericCompositeFuture;
 import org.folio.okapi.common.XOkapiHeaders;
 import org.folio.tlib.RouterCreator;
 import org.folio.tlib.TenantInitHooks;
@@ -92,8 +94,9 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
   static void failHandler(RoutingContext ctx) {
     Throwable t = ctx.failure();
     // both semantic errors and syntax errors are from same pile ... Choosing 400 over 422.
-    int statusCode = t.getClass().getName().startsWith("io.vertx.ext.web.validation") ? 400 : 500;
-    failHandler(statusCode, ctx, t.getMessage());
+    int statusCode = t.getClass().getName().startsWith("io.vertx.ext.web.handler") ? 400 : 500;
+    failHandler(statusCode, ctx,
+        t.getCause() == null ? t.getMessage() : t.getCause().getMessage());
   }
 
   static void failHandler(int statusCode, RoutingContext ctx, Throwable e) {
@@ -115,7 +118,11 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     JsonObject n = new JsonObject();
     obj.getMap().forEach((key, value) -> {
       if (value != null) {
-        n.put(key, value);
+        if (value instanceof UUID) {
+          n.put(key, value.toString());
+        } else {
+          n.put(key, value);
+        }
       }
     });
     return n;
@@ -191,7 +198,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
                     log.error(f.getMessage(), f);
                     resultFooter(ctx, null, facets, f.getMessage());
                   })
-                  .eventually(x -> tx.commit().compose(y -> sqlConnection.close())));
+                  .eventually(() -> tx.commit().compose(y -> sqlConnection.close()).mapEmpty()));
               stream.exceptionHandler(e -> {
                 log.error("stream error {}", e.getMessage(), e);
                 resultFooter(ctx, null, facets, e.getMessage());
@@ -214,10 +221,8 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
       List<String> fromList, List<String[]> facets, String orderByClause,
       String property,
       Function<Row, JsonObject> handler) {
-
-    RequestParameters params = ctx.get(ValidationHandler.REQUEST_CONTEXT_KEY);
-    Integer offset = params.queryParameter("offset").getInteger();
-    Integer limit = params.queryParameter("limit").getInteger();
+    String offset = ctx.request().params().get("offset");
+    String limit = ctx.request().params().get("limit");
     String query = "SELECT " + (distinctMain != null ? "DISTINCT ON (" + distinctMain + ")" : "")
         + " * FROM " + fromList.get(0)
         + (orderByClause == null ?  "" : " ORDER BY " + orderByClause)
@@ -241,6 +246,25 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
             .onFailure(x -> sqlConnection.close()));
   }
 
+  /**
+   * The Open API 3.0 parser in Vert.x 5.0 appears to only forward query parameters that are
+   * actually provided by client, ignoring if the spec declares defaults. Thus looking up
+   * the defaults programmatically.
+   */
+  static void getParameterDefaults(RoutingContext ctx) {
+    Operation operation = (Operation) ctx.currentRoute().metadata().get("openApiOperation");
+    if (operation != null) {
+      for (Parameter specParameter : operation.getParameters()) {
+        String specName = specParameter.getName();
+        Object specDefault = specParameter.getSchema().get("default");
+        if (specDefault != null && !ctx.request().params().contains(specName)) {
+          ctx.request().params().add(specName, specDefault.toString());
+        }
+      }
+    }
+
+  }
+
   Future<Void> getReportTitles(Vertx vertx, RoutingContext ctx) {
     PgCqlDefinition definition = PgCqlDefinition.create();
     definition.addField("cql.allRecords", new PgCqlFieldAlwaysMatches());
@@ -259,16 +283,32 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     definition.addField("kbManualMatch", new PgCqlFieldBoolean()
         .withColumn("title_entries.kbmanualmatch"));
 
-    RequestParameters params = ctx.get(ValidationHandler.REQUEST_CONTEXT_KEY);
-    final String counterReportId = stringOrNull(params.queryParameter("counterReportId"));
-    final String providerId = stringOrNull(params.queryParameter("providerId"));
+    // The Open API 3.0 parser in Vert.x 5.0 appears to not support validation of all
+    // the possible CQL query strings that are needed for operating the report titles API.
+    // Thus validating some parameters programmatically.
+    try {
+      String offsetParam = ctx.request().params().get("offset");
+      String limitParam = ctx.request().params().get("limit");
+      if (limitParam != null && Integer.parseInt(limitParam) < 0) {
+        throw new IllegalArgumentException("limit in location QUERY: value should be >= 0");
+      }
+      if (offsetParam != null && Integer.parseInt(offsetParam) < 0) {
+        throw new IllegalArgumentException("offset in location QUERY: value should be >= 0");
+      }
+    } catch (NumberFormatException nfe) {
+      throw new IllegalArgumentException("Parameters limit and offset must be integers: "
+            + nfe.getMessage());
+    }
+
+    final String counterReportId = ctx.request().getParam("counterReportId");
+    final String providerId = ctx.request().getParam("providerId");
     final TenantPgPool pool = TenantPgPool.pool(vertx, TenantUtil.tenant(ctx));
     final String distinctCount = titleEntriesTable(pool) + ".id";
-    final String query = stringOrNull(params.queryParameter("query"));
-    RequestParameter facetsParameter = params.queryParameter("facets");
-    String [] facetsList = facetsParameter == null
+    final String query = ctx.request().getParam("query");
+    final String facets = ctx.request().getParam("facets");
+    String [] facetsList = facets == null
         ? new String[0]
-        : facetsParameter.getString().split(",");
+        : facets.split(",");
 
     boolean includeStatusFacet = false;
     for (String name : facetsList) {
@@ -351,10 +391,11 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
 
   Future<Void> postReportTitles(Vertx vertx, RoutingContext ctx) {
     TenantPgPool pool = TenantPgPool.pool(vertx, TenantUtil.tenant(ctx));
+    ValidatedRequest request = ctx.get(RouterBuilder.KEY_META_DATA_VALIDATED_REQUEST);
     return pool.getConnection()
         .compose(sqlConnection -> {
-          Future<Void> future = Future.succeededFuture();
-          final JsonArray titles = ctx.getBodyAsJson().getJsonArray("titles");
+          Future<Object> future = Future.succeededFuture();
+          final JsonArray titles = request.getBody().getJsonObject().getJsonArray("titles");
           for (int i = 0; i < titles.size(); i++) {
             final JsonObject titleEntry = titles.getJsonObject(i);
             UUID id = UUID.fromString(titleEntry.getString("id"));
@@ -378,7 +419,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
                     }));
           }
           return future
-              .eventually(x -> sqlConnection.close())
+              .eventually(sqlConnection::close)
               .onFailure(x -> log.error(x.getMessage(), x));
         })
         .compose(x -> {
@@ -394,10 +435,12 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     definition.addField("kbPackageName", new PgCqlFieldText().withFullText());
     definition.addField("kbTitleId", new PgCqlFieldUuid());
 
-    RequestParameters params = ctx.get(ValidationHandler.REQUEST_CONTEXT_KEY);
+    final ValidatedRequest validatedRequest =
+        ctx.get(RouterBuilder.KEY_META_DATA_VALIDATED_REQUEST);
+    Map<String,RequestParameter> parameters = validatedRequest.getQuery();
     final TenantPgPool pool = TenantPgPool.pool(vertx, TenantUtil.tenant(ctx));
 
-    PgCqlQuery pgCqlQuery = definition.parse(stringOrNull(params.queryParameter("query")));
+    PgCqlQuery pgCqlQuery = definition.parse(stringOrNull(parameters.get("query")));
     String cqlWhere = pgCqlQuery.getWhereClause();
 
     String from = packageEntriesTable(pool);
@@ -413,7 +456,9 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
   }
 
   Future<Void> getTitleData(Vertx vertx, RoutingContext ctx) {
-    RequestParameters params = ctx.get(ValidationHandler.REQUEST_CONTEXT_KEY);
+    final ValidatedRequest validatedRequest =
+        ctx.get(RouterBuilder.KEY_META_DATA_VALIDATED_REQUEST);
+    Map<String,RequestParameter> parameters = validatedRequest.getQuery();
 
     PgCqlDefinition definition = PgCqlDefinition.create();
     definition.addField("cql.allRecords", new PgCqlFieldAlwaysMatches());
@@ -422,12 +467,11 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
 
     TenantPgPool pool = TenantPgPool.pool(vertx, TenantUtil.tenant(ctx));
     String from = titleDataTable(pool);
-    PgCqlQuery pgCqlQuery = definition.parse(stringOrNull(params.queryParameter("query")));
+    PgCqlQuery pgCqlQuery = definition.parse(stringOrNull(parameters.get("query")));
     String cqlWhere = pgCqlQuery.getWhereClause();
     if (cqlWhere != null) {
       from = from + " WHERE " + cqlWhere;
     }
-
     return streamResult(ctx, pool, null, from, pgCqlQuery.getOrderByClause(), "data",
         row -> {
           JsonObject obj = new JsonObject()
@@ -538,7 +582,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
     final String pageUri = uri + sep + "perPage=100&page=" + page;
     return getRequestSend(ctx, pageUri)
         .compose(res -> {
-          JsonArray ar = res.bodyAsJsonArray();
+          JsonArray ar = res.body().toJsonArray();
           if (ar.isEmpty()) {
             return Future.succeededFuture(result);
           }
@@ -847,10 +891,13 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
   }
 
   HttpRequest<Buffer> getRequest(RoutingContext ctx, String uri) {
-    RequestParameters params = ctx.get(ValidationHandler.REQUEST_CONTEXT_KEY);
-    final String okapiUrl = stringOrNull(params.headerParameter(XOkapiHeaders.URL));
-    final String tenant = stringOrNull(params.headerParameter(XOkapiHeaders.TENANT));
-    final String token = stringOrNull(params.headerParameter(XOkapiHeaders.TOKEN));
+    final ValidatedRequest validatedRequest =
+        ctx.get(RouterBuilder.KEY_META_DATA_VALIDATED_REQUEST);
+    Map<String,RequestParameter> headers = validatedRequest.getHeaders();
+
+    final String okapiUrl = stringOrNull(headers.get(XOkapiHeaders.URL));
+    final String tenant = stringOrNull(headers.get(XOkapiHeaders.TENANT));
+    final String token = stringOrNull(headers.get(XOkapiHeaders.TOKEN));
     log.info("GET {} request", uri);
     return webClient.request(HttpMethod.GET, new RequestOptions().setAbsoluteURI(okapiUrl + uri))
         .putHeader(XOkapiHeaders.TOKEN, token)
@@ -882,10 +929,12 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
    * @return Result with True if found; False if counter report not found.
    */
   Future<Boolean> populateCounterReportTitles(Vertx vertx, RoutingContext ctx) {
-    RequestParameters params = ctx.get(ValidationHandler.REQUEST_CONTEXT_KEY);
-    final String okapiUrl = stringOrNull(params.headerParameter(XOkapiHeaders.URL));
-    final String id = ctx.getBodyAsJson().getString("counterReportId");
-    final String providerId = ctx.getBodyAsJson().getString("providerId");
+    final ValidatedRequest validatedRequest =
+        ctx.get(RouterBuilder.KEY_META_DATA_VALIDATED_REQUEST);
+    Map<String,RequestParameter> headers = validatedRequest.getHeaders();
+    final String okapiUrl = stringOrNull(headers.get(XOkapiHeaders.URL));
+    final String id = validatedRequest.getBody().getJsonObject().getString("counterReportId");
+    final String providerId = validatedRequest.getBody().getJsonObject().getString("providerId");
 
     if (okapiUrl == null) {
       return Future.failedFuture("Missing " + XOkapiHeaders.URL);
@@ -916,7 +965,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
         promise.tryFail("GET " + uri + " returned bad JSON: " + x.getMessage());
       });
       parser.endHandler(e ->
-          GenericCompositeFuture.all(futures)
+          Future.all(futures)
               .onComplete(x -> promise.handle(x.mapEmpty()))
       );
       return getRequest(context.ctx, uri)
@@ -932,7 +981,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
             }
             return promise.future().map(true);
           })
-          .eventually(x -> con.close())
+          .eventually(con::close)
           .compose(res -> {
             if (offset + limit >= totalRecords.get()) {
               return Future.succeededFuture(res);
@@ -989,7 +1038,9 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
   }
 
   Future<Void> getReportData(Vertx vertx, RoutingContext ctx) {
-    RequestParameters params = ctx.get(ValidationHandler.REQUEST_CONTEXT_KEY);
+    final ValidatedRequest validatedRequest =
+        ctx.get(RouterBuilder.KEY_META_DATA_VALIDATED_REQUEST);
+    Map<String,RequestParameter> parameters = validatedRequest.getQuery();
 
     PgCqlDefinition definition = PgCqlDefinition.create();
     definition.addField("cql.allRecords", new PgCqlFieldAlwaysMatches());
@@ -1001,7 +1052,7 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
 
     TenantPgPool pool = TenantPgPool.pool(vertx, TenantUtil.tenant(ctx));
     String from = agreementEntriesTable(pool);
-    PgCqlQuery pgCqlQuery = definition.parse(stringOrNull(params.queryParameter("query")));
+    PgCqlQuery pgCqlQuery = definition.parse(stringOrNull(parameters.get("query")));
     String cqlWhere = pgCqlQuery.getWhereClause();
     if (cqlWhere != null) {
       from = from + " WHERE " + cqlWhere;
@@ -1448,7 +1499,8 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
   }
 
   Future<Integer> populateAgreement(Vertx vertx, RoutingContext ctx) {
-    final String agreementIdStr = ctx.getBodyAsJson().getString("agreementId");
+    ValidatedRequest request = ctx.get(RouterBuilder.KEY_META_DATA_VALIDATED_REQUEST);
+    final String agreementIdStr = request.getBody().getJsonObject().getString("agreementId");
     if (agreementIdStr == null) {
       return Future.failedFuture("Missing agreementId property");
     }
@@ -1477,10 +1529,10 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
                         }
                         return future.compose(x -> tx.commit()).map(items.size());
                       })
-                      .eventually(x -> populateStatus(pool, agreementId, false));
+                      .eventually(() -> populateStatus(pool, agreementId, false));
                 })
         )
-        .eventually(x -> con.close())
+        .eventually(con::close)
     );
   }
 
@@ -1842,26 +1894,41 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
         });
   }
 
+  private void addNoValidate(RouterBuilder routerBuilder, String operationId,
+                             Function<RoutingContext, Future<Void>> function) {
+    routerBuilder.getRoute(operationId).setDoValidation(false)
+        .addHandler(ctx -> {
+          try {
+            getParameterDefaults(ctx);
+            function.apply(ctx)
+                .onFailure(cause -> failHandler(400, ctx, cause));
+          } catch (Throwable t) {
+            failHandler(400, ctx, t);
+          }
+        }).addFailureHandler(EusageReportsApi::failHandler);
+  }
+
   private void add(RouterBuilder routerBuilder, String operationId,
       Function<RoutingContext, Future<Void>> function) {
 
-    routerBuilder
-        .operation(operationId)
-        .handler(ctx -> {
+    routerBuilder.getRoute(operationId).setDoValidation(true)
+        .addHandler(ctx -> {
+          getParameterDefaults(ctx);
           try {
             function.apply(ctx)
                 .onFailure(cause -> failHandler(400, ctx, cause));
           } catch (Throwable t) {
             failHandler(400, ctx, t);
           }
-        }).failureHandler(EusageReportsApi::failHandler);
+        }).addFailureHandler(EusageReportsApi::failHandler);
   }
 
   @Override
   public Future<Router> createRouter(Vertx vertx) {
-    return RouterBuilder.create(vertx, "openapi/eusage-reports-1.0.yaml")
-        .map(routerBuilder -> {
-          add(routerBuilder, "getReportTitles", ctx -> getReportTitles(vertx, ctx));
+    return OpenAPIContract.from(vertx, "openapi/eusage-reports-1.0.yaml")
+        .map(contract -> {
+          RouterBuilder routerBuilder = RouterBuilder.create(vertx, contract);
+          addNoValidate(routerBuilder, "getReportTitles", ctx -> getReportTitles(vertx, ctx));
           add(routerBuilder, "postReportTitles", ctx -> postReportTitles(vertx, ctx));
           add(routerBuilder, "getReportPackages", ctx -> getReportPackages(vertx, ctx));
           add(routerBuilder, "postFromCounter", ctx -> postFromCounter(vertx, ctx));
@@ -2015,4 +2082,5 @@ public class EusageReportsApi implements RouterCreator, TenantInitHooks {
             + "$$ LANGUAGE SQL IMMUTABLE STRICT"
     ));
   }
+
 }

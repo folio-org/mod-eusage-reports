@@ -30,6 +30,7 @@ import org.testcontainers.containers.PostgreSQLContainer;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.isEmptyOrNullString;
+import static org.hamcrest.Matchers.startsWith;
 
 @RunWith(VertxUnitRunner.class)
 public class MainVerticleTest {
@@ -86,8 +87,8 @@ public class MainVerticleTest {
 
   static JsonObject getCounterReportMock(UUID id, int cnt) {
     JsonObject counterReport = new JsonObject();
-    counterReport.put("id", id);
-    counterReport.put("providerId", usageProviderId);
+    counterReport.put("id", id.toString());
+    counterReport.put("providerId", usageProviderId.toString());
     counterReport.put("yearMonth", "2021-01");
     JsonObject report = new JsonObject();
     counterReport.put("report", report);
@@ -290,7 +291,7 @@ public class MainVerticleTest {
     JsonObject res = new JsonObject();
     if (goodKbTitleId.equals(kbTitleId)) {
       res.put("name", "good kb title instance name");
-      res.put("id", kbTitleId);
+      res.put("id", kbTitleId.toString());
       res.put("publicationType", new JsonObject().put("value", "monograph"));
       res.put("identifiers", new JsonArray()
           .add(new JsonObject()
@@ -300,7 +301,7 @@ public class MainVerticleTest {
           ));
     } else if (otherKbTitleId.equals(kbTitleId)) {
       res.put("name", "other kb title instance name");
-      res.put("id", kbTitleId);
+      res.put("id", kbTitleId.toString());
       res.put("identifiers", new JsonArray()
           .add(new JsonObject()
               .put("identifier", new JsonObject()
@@ -310,7 +311,7 @@ public class MainVerticleTest {
     } else {
       res.put("name", "fake kb title instance name");
       res.put("publicationType", new JsonObject().put("value", "serial"));
-      res.put("id", kbTitleId);
+      res.put("id", kbTitleId.toString());
       res.put("identifiers", new JsonArray()
           .add(new JsonObject()
               .put("identifier", new JsonObject()
@@ -414,20 +415,20 @@ public class MainVerticleTest {
         JsonArray poLinesAr = new JsonArray();
         for (int j = 0; j < i && j < poLineIds.length; j++) {
           poLinesAr.add(new JsonObject()
-              .put("poLineId", poLineIds[j])
+              .put("poLineId", poLineIds[j].toString())
           );
         }
         if (i == 1) {
           // fake package
           ar.add(new JsonObject()
-              .put("id", agreementLineIds[i])
+              .put("id", agreementLineIds[i].toString())
               .put("owner", new JsonObject()
-                  .put("id", goodAgreementId)
+                  .put("id", goodAgreementId.toString())
                   .put("name", "Good agreement"))
               .put("resource", new JsonObject()
                   .put("class", "org.olf.kb.Pkg")
                   .put("name", "good package name")
-                  .put("id", goodPackageId)
+                  .put("id", goodPackageId.toString())
                   .put("_object", new JsonObject()
                   ))
               .put("poLines", poLinesAr)
@@ -454,18 +455,18 @@ public class MainVerticleTest {
               kbtitleId = UUID.randomUUID();
           }
           ar.add(new JsonObject()
-              .put("id", agreementLineIds[i])
+              .put("id", agreementLineIds[i].toString())
               .put("owner", new JsonObject()
-                  .put("id", goodAgreementId)
+                  .put("id", goodAgreementId.toString())
                   .put("name", "Good agreement"))
               .put("resource", new JsonObject()
                   .put("class", "org.olf.kb.PackageContentItem")
-                  .put("id", UUID.randomUUID())
+                  .put("id", UUID.randomUUID().toString())
                   .put("coverage", coverage)
                   .put("_object", new JsonObject()
                       .put("pti", new JsonObject()
                           .put("titleInstance", new JsonObject()
-                              .put("id", kbtitleId)
+                              .put("id", kbtitleId.toString())
                               .put("publicationType", new JsonObject()
                                   .put("value", "serial")
                               )
@@ -494,7 +495,7 @@ public class MainVerticleTest {
         ctx.response().setChunked(true);
         ctx.response().putHeader("Content-Type", "application/json");
         JsonObject orderLine = new JsonObject();
-        orderLine.put("id", id);
+        orderLine.put("id", id.toString());
         orderLine.put("poLineNumber", POLINE_NUMBER_SAMPLE);
         String currency = i < orderLinesCurrencies.size() ? orderLinesCurrencies.get(i) : "USD";
         orderLine.put("cost", new JsonObject()
@@ -542,8 +543,8 @@ public class MainVerticleTest {
       if (poLineId.equals(poLineIds[i])) {
         {
           JsonObject invoiceLine = new JsonObject()
-              .put("poLineId", poLineId)
-              .put("invoiceId", goodInvoiceIds[i])
+              .put("poLineId", poLineId.toString())
+              .put("invoiceId", goodInvoiceIds[i].toString())
               .put("quantity", 1 + i)
               .put("subTotal", 10.0 + i * 5)
               .put("total", 12.0 + i * 6)
@@ -575,10 +576,10 @@ public class MainVerticleTest {
     if ("1".equals(page)) {
       for (UUID packageTitle : packageTitles) {
         JsonObject item = new JsonObject()
-            .put("id", UUID.randomUUID())
+            .put("id", UUID.randomUUID().toString())
             .put("pti", new JsonObject()
                 .put("titleInstance", new JsonObject()
-                    .put("id", packageTitle)
+                    .put("id", packageTitle.toString())
                 )
             );
         ar.add(item);
@@ -665,7 +666,7 @@ public class MainVerticleTest {
         ctx.response().setChunked(true);
         ctx.response().putHeader("Content-Type", "application/json");
         JsonObject transaction = new JsonObject();
-        transaction.put("id", id);
+        transaction.put("id", id.toString());
         transaction.put("amount", 100.0);
         ctx.response().end(transaction.encode());
         return;
@@ -724,7 +725,7 @@ public class MainVerticleTest {
 
   @AfterClass
   public static void afterClass(TestContext context) {
-    vertx.close(context.asyncAssertSuccess());
+    vertx.close().onComplete(context.asyncAssertSuccess());
   }
 
   @Test
@@ -784,6 +785,26 @@ public class MainVerticleTest {
   }
 
   @Test
+  public void testGetTitlesBadOffset() {
+    RestAssured.given()
+        .header(XOkapiHeaders.URL, "http://localhost:" + MOCK_PORT)
+        .get("/eusage-reports/report-titles?offset=-2")
+        .then().statusCode(400)
+        .header("Content-Type", is("text/plain"))
+        .body(containsString("offset in location QUERY: value should be >= 0"));
+  }
+
+  @Test
+  public void testGetTitlesBadLimitOffset() {
+    RestAssured.given()
+        .header(XOkapiHeaders.URL, "http://localhost:" + MOCK_PORT)
+        .get("/eusage-reports/report-titles?limit=a&offset=b")
+        .then().statusCode(400)
+        .header("Content-Type", is("text/plain"))
+        .body(containsString("Parameters limit and offset must be integers"));
+  }
+
+  @Test
   public void testPostTitlesFromCounterNoOkapiUrl() {
     String tenant = "testlib";
     RestAssured.given()
@@ -835,7 +856,7 @@ public class MainVerticleTest {
         .post("/eusage-reports/report-titles")
         .then().statusCode(400)
         .header("Content-Type", is("text/plain"))
-        .body(containsString("Failed to decode"));
+        .body(containsString("The request body can't be decoded"));
   }
 
   @Test
@@ -854,7 +875,7 @@ public class MainVerticleTest {
         .post("/eusage-reports/report-titles")
         .then().statusCode(400)
         .header("Content-Type", is("text/plain"))
-        .body(containsString("Validation error for body application/json"));
+        .body(containsString("Invalid UUID string: 1234"));
   }
 
   @Test
@@ -865,7 +886,7 @@ public class MainVerticleTest {
         .header("Content-Type", "application/json")
         .body(new JsonObject().put("titles", new JsonArray()
             .add(new JsonObject()
-                .put("id", UUID.randomUUID())
+                .put("id", UUID.randomUUID().toString())
                 .put("kbTitleName", "kb title name")
                 .put("kbTitleId", "1234")
             )
@@ -873,7 +894,7 @@ public class MainVerticleTest {
         .post("/eusage-reports/report-titles")
         .then().statusCode(400)
         .header("Content-Type", is("text/plain"))
-        .body(containsString("Validation error for body application/json"));
+        .body(containsString("The value of the request body is invalid. Reason: Property \"titles\" does not match additional properties schema at #/titles"));
   }
 
   @Test
@@ -1023,7 +1044,7 @@ public class MainVerticleTest {
         .header(XOkapiHeaders.TENANT, tenant)
         .header("Content-Type", "application/json")
         .body(new JsonObject()
-            .put("counterReportId", goodCounterReportId)
+            .put("counterReportId", goodCounterReportId.toString())
             .encode())
         .post("/eusage-reports/report-titles/from-counter")
         .then().statusCode(400)
@@ -1045,7 +1066,7 @@ public class MainVerticleTest {
         .post("/eusage-reports/report-titles/from-counter")
         .then().statusCode(400)
         .header("Content-Type", is("text/plain"))
-        .body(containsString("Validation error for body application/json"));
+        .body(containsString("The value of the request body is invalid. Reason: Property \"counterReportId\" does not match additional properties schema at #/counterReportId"));
   }
 
   @Test
@@ -1073,7 +1094,7 @@ public class MainVerticleTest {
         .post("/eusage-reports/report-data/from-agreement")
         .then().statusCode(400)
         .header("Content-Type", is("text/plain"))
-        .body(containsString("Bad Request"));
+        .body(containsString("The value of the request body is invalid. Reason: Property \"agreementId\" does not match additional properties schema at #/agreementId"));
   }
 
   @Test
@@ -1275,7 +1296,7 @@ public class MainVerticleTest {
     analyzeTitles(context, resObject, 7, 7, 1, 0, 0);
 
     JsonObject n = new JsonObject();
-    n.put("id", UUID.randomUUID());
+    n.put("id", UUID.randomUUID().toString());
     n.put("kbTitleName", "correct kb title name");
     n.put("kbTitleId", UUID.randomUUID().toString());
     postTitleObject = new JsonObject();
@@ -1304,7 +1325,8 @@ public class MainVerticleTest {
         .post("/eusage-reports/report-titles")
         .then().statusCode(400)
         .header("Content-Type", is("text/plain"))
-        .body(containsString("Validation error for body application/json"));
+        .body(containsString("The value of the request body is invalid. Reason: Property \"titles\" "
+            + "does not match additional properties schema at #/titles"));
 
     response = RestAssured.given()
         .header(XOkapiHeaders.TENANT, tenant)
@@ -1339,7 +1361,7 @@ public class MainVerticleTest {
         .header(XOkapiHeaders.URL, "http://localhost:" + MOCK_PORT)
         .header("Content-Type", "application/json")
         .body(new JsonObject()
-            .put("counterReportId", goodCounterReportId)
+            .put("counterReportId", goodCounterReportId.toString())
             .encode())
         .post("/eusage-reports/report-titles/from-counter")
         .then().statusCode(200)
@@ -1351,7 +1373,7 @@ public class MainVerticleTest {
         .header(XOkapiHeaders.URL, "http://localhost:" + MOCK_PORT)
         .header("Content-Type", "application/json")
         .body(new JsonObject()
-            .put("providerId", usageProviderId)
+            .put("providerId", usageProviderId.toString())
             .encode())
         .post("/eusage-reports/report-titles/from-counter")
         .then().statusCode(200)
@@ -1496,7 +1518,7 @@ public class MainVerticleTest {
         .header(XOkapiHeaders.URL, "http://localhost:" + MOCK_PORT)
         .header("Content-Type", "application/json")
         .body(new JsonObject()
-            .put("counterReportId", badJsonCounterReportId)
+            .put("counterReportId", badJsonCounterReportId.toString())
             .encode())
         .post("/eusage-reports/report-titles/from-counter")
         .then().statusCode(400)
@@ -1508,7 +1530,7 @@ public class MainVerticleTest {
         .header(XOkapiHeaders.URL, "http://localhost:" + MOCK_PORT)
         .header("Content-Type", "application/json")
         .body(new JsonObject()
-            .put("counterReportId", badStatusCounterReportId)
+            .put("counterReportId", badStatusCounterReportId.toString())
             .encode())
         .post("/eusage-reports/report-titles/from-counter")
         .then().statusCode(400)
@@ -1520,7 +1542,7 @@ public class MainVerticleTest {
         .header(XOkapiHeaders.URL, "http://localhost:" + MOCK_PORT)
         .header("Content-Type", "application/json")
         .body(new JsonObject()
-            .put("counterReportId", UUID.randomUUID()) // unknown ID
+            .put("counterReportId", UUID.randomUUID().toString()) // unknown ID
             .encode())
         .post("/eusage-reports/report-titles/from-counter")
         .then().statusCode(404);
@@ -1546,7 +1568,7 @@ public class MainVerticleTest {
         .header(XOkapiHeaders.URL, "http://localhost:" + MOCK_PORT)
         .header("Content-Type", "application/json")
         .body(new JsonObject()
-            .put("agreementId", UUID.randomUUID()) // unknown ID
+            .put("agreementId", UUID.randomUUID().toString()) // unknown ID
             .encode())
         .post("/eusage-reports/report-data/from-agreement")
         .then().statusCode(404);
@@ -1556,18 +1578,18 @@ public class MainVerticleTest {
         .header(XOkapiHeaders.URL, "http://localhost:" + MOCK_PORT)
         .header("Content-Type", "application/json")
         .body(new JsonObject()
-            .put("agreementId", badJsonAgreementId)
+            .put("agreementId", badJsonAgreementId.toString())
             .encode())
         .post("/eusage-reports/report-data/from-agreement")
         .then().statusCode(400)
-        .body(containsString("Failed to decode"));
+        .body(startsWith("Unexpected close marker ']': expected '}'"));
 
     RestAssured.given()
         .header(XOkapiHeaders.TENANT, tenant)
         .header(XOkapiHeaders.URL, "http://localhost:" + MOCK_PORT)
         .header("Content-Type", "application/json")
         .body(new JsonObject()
-            .put("agreementId", badStatusAgreementId)
+            .put("agreementId", badStatusAgreementId.toString())
             .encode())
         .post("/eusage-reports/report-data/from-agreement")
         .then().statusCode(400)
@@ -1579,7 +1601,7 @@ public class MainVerticleTest {
         .header(XOkapiHeaders.URL, "http://localhost:" + MOCK_PORT)
         .header("Content-Type", "application/json")
         .body(new JsonObject()
-            .put("agreementId", badStatusAgreementId2)
+            .put("agreementId", badStatusAgreementId2.toString())
             .encode())
         .post("/eusage-reports/report-data/from-agreement")
         .then().statusCode(400)
@@ -1591,7 +1613,7 @@ public class MainVerticleTest {
         .header(XOkapiHeaders.URL, "http://localhost:" + MOCK_PORT)
         .header("Content-Type", "application/json")
         .body(new JsonObject()
-            .put("agreementId", goodAgreementId)
+            .put("agreementId", goodAgreementId.toString())
             .encode())
         .post("/eusage-reports/report-data/from-agreement")
         .then().statusCode(200)
@@ -1615,7 +1637,7 @@ public class MainVerticleTest {
         .header(XOkapiHeaders.URL, "http://localhost:" + MOCK_PORT)
         .header("Content-Type", "application/json")
         .body(new JsonObject()
-            .put("agreementId", goodAgreementId)
+            .put("agreementId", goodAgreementId.toString())
             .encode())
         .post("/eusage-reports/report-data/from-agreement")
         .then().statusCode(200)
@@ -1629,7 +1651,7 @@ public class MainVerticleTest {
         .header(XOkapiHeaders.URL, "http://localhost:" + MOCK_PORT)
         .header("Content-Type", "application/json")
         .body(new JsonObject()
-            .put("counterReportId", otherCounterReportId)
+            .put("counterReportId", otherCounterReportId.toString())
             .encode())
         .post("/eusage-reports/report-titles/from-counter")
         .then().statusCode(200)
@@ -1736,7 +1758,7 @@ public class MainVerticleTest {
         .header(XOkapiHeaders.URL, "http://localhost:" + MOCK_PORT)
         .header("Content-Type", "application/json")
         .body(new JsonObject()
-            .put("agreementId", goodAgreementId)
+            .put("agreementId", goodAgreementId.toString())
             .encode())
         .post("/eusage-reports/report-data/from-agreement")
         .then().statusCode(400)
