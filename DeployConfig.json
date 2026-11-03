@@ -1,0 +1,117 @@
+{
+  "description": "mod-eusage-reports configuration template. Resource, JVM and replica defaults follow the Trillium Bugfest configuration details at https://folio-org.atlassian.net/wiki/spaces/REL/pages/1034125338, for the reference baseline of 3 standalone tenants and 11 consortia tenants. The FSE real-values column is empty; the table does not establish CPU, gateway timeout or environment-variable defaults. Those recommendations remain provisional or descriptor-derived, except JAVA_OPTIONS which reflects the published JVM baseline. Null environment values must be supplied by the deployment. The empty sidecarDefaults block is required by DeployConfigSchema.ts and does not prescribe sidecar settings.",
+  "moduleDefaults": {
+    "resources": [
+      {
+        "name": "cpu",
+        "value": "64",
+        "description": "Provisional CPU units from the authoring guide fallback; no module-specific Bugfest allocation was found."
+      },
+      {
+        "name": "memory",
+        "value": "1024",
+        "description": "Container memory hard limit in MiB from the Trillium Bugfest baseline."
+      },
+      {
+        "name": "memoryReservation",
+        "value": "896",
+        "description": "Container memory reservation in MiB from the Trillium Bugfest baseline."
+      }
+    ],
+    "java": [
+      {
+        "name": "xmx",
+        "value": "768m",
+        "description": "Maximum Java heap size from the Trillium Bugfest baseline."
+      },
+      {
+        "name": "MaxMetaspaceSize",
+        "value": "128m",
+        "description": "Maximum Java metaspace size from the Trillium Bugfest baseline."
+      }
+    ],
+    "deployment": {
+      "isHaSupported": true,
+      "replicasRecommendedCount": 2,
+      "description": "Two running instances match the Trillium Bugfest baseline; validate concurrent report ingestion and replica sizing against the deployment workload."
+    },
+    "kong": {
+      "timeouts": {
+        "connect": "60s",
+        "send": "60s",
+        "read": "120s"
+      },
+      "description": "Provisional gateway timeouts, allowing longer reads for report generation and downstream requests; increase read timeout if measured processing times exceed 120 seconds."
+    },
+    "EnvVars": [
+      {
+        "name": "JAVA_OPTIONS",
+        "value": "-Xmx768m -XX:MaxMetaspaceSize=128m",
+        "description": "JVM options passed by the container launcher, matching the Trillium Bugfest heap and metaspace limits documented in the java section.",
+        "type": "CONFIG",
+        "essential": false
+      },
+      {
+        "name": "DB_HOST",
+        "value": null,
+        "description": "PostgreSQL hostname supplied by the deployment instead of the descriptor's local postgres hostname.",
+        "type": "DB",
+        "essential": true
+      },
+      {
+        "name": "DB_PORT",
+        "value": "5432",
+        "description": "PostgreSQL port, retaining the ModuleDescriptor default.",
+        "type": "DB",
+        "essential": false
+      },
+      {
+        "name": "DB_USERNAME",
+        "value": null,
+        "description": "PostgreSQL administrative username supplied by the deployment for tenant schema management.",
+        "type": "DB",
+        "essential": true
+      },
+      {
+        "name": "DB_PASSWORD",
+        "value": null,
+        "description": "PostgreSQL password supplied through deployment secret management instead of the descriptor's development credential.",
+        "type": "DB",
+        "essential": true
+      },
+      {
+        "name": "DB_DATABASE",
+        "value": null,
+        "description": "PostgreSQL database containing tenant schemas, supplied by the deployment instead of the descriptor's okapi_modules database.",
+        "type": "DB",
+        "essential": true
+      },
+      {
+        "name": "DB_QUERYTIMEOUT",
+        "value": "60000",
+        "description": "Legacy descriptor query timeout in milliseconds, retained for compatibility but not consumed by vertx-lib 4.1.1 TenantPgPool.",
+        "type": "DB",
+        "essential": false
+      },
+      {
+        "name": "DB_CHARSET",
+        "value": "UTF-8",
+        "description": "Legacy descriptor database character encoding, retained for compatibility but not consumed by vertx-lib 4.1.1 TenantPgPool.",
+        "type": "DB",
+        "essential": false
+      },
+      {
+        "name": "DB_MAXPOOLSIZE",
+        "value": "5",
+        "description": "Maximum PostgreSQL pool connections per tenant per module instance, retaining the ModuleDescriptor default.",
+        "type": "DB",
+        "essential": false
+      }
+    ]
+  },
+  "sidecarDefaults": {
+    "resources": [],
+    "java": [],
+    "EnvVars": []
+  }
+}
