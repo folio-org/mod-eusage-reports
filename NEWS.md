@@ -1,3 +1,7 @@
+## 3.1.1 2026-11-11
+
+* [MODEUR-184](https://folio-org.atlassian.net/browse/MODEUR-184) DeployConfig.json added
+
 ## 3.1.0 2026-04-16
 * [MODEUR-162](https://issues.folio.org/browse/MODEUR-162) Uses Java 21
 * [MODEUR-164](https://issues.folio.org/browse/MODEUR-164) Uses Vert.x 5, vertx lib 4, okapi 7
