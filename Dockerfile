@@ -1,4 +1,4 @@
-FROM folioci/alpine-jre-openjdk21:latest
+FROM folioci/eclipse-temurin:25-alpine
 
 # Install latest patch versions of packages: https://pythonspeed.com/articles/security-updates-in-docker/
 USER root
