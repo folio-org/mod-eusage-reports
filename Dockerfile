@@ -1,7 +1,7 @@
 FROM folioci/eclipse-temurin:25-alpine
 
 WORKDIR /usr/verticles
-COPY target/mod-inventory-eusage-reports-fat.jar app.jar
+COPY target/mod-eusage-reports-fat.jar app.jar
 
 ENV JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=66.0"
 
